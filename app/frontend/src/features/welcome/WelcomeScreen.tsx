@@ -165,6 +165,30 @@ export function WelcomeScreen() {
         ? tr("Choose the main friction so the first lesson solves something real.")
         : tr("Choose the tone of the first mini-lesson and quick skill snapshot.");
 
+  const heroTheses = [
+    {
+      eyebrow: tr("One system"),
+      title: tr("Starting is hard when every platform only solves one part of the language."),
+      body: tr(
+        "One app pushes vocabulary, another focuses on grammar, a third on speaking. That split makes it harder to start with confidence.",
+      ),
+    },
+    {
+      eyebrow: tr("Motivation"),
+      title: tr("The search for the right stack kills the first wave of motivation."),
+      body: tr(
+        "People want to start learning in the moment of motivation, but platform-hopping, comparison, and early forms drain that energy fast.",
+      ),
+    },
+    {
+      eyebrow: tr("AI first"),
+      title: tr("AI should show value first: a mini-lesson, a skill snapshot, and a smart next step."),
+      body: tr(
+        "Instead of asking for registration up front, the platform can use AI to build a 1-2 minute lesson, surface early strengths, and show what to do next.",
+      ),
+    },
+  ];
+
   const scrollToOnboarding = () => {
     onboardingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -221,59 +245,57 @@ export function WelcomeScreen() {
           </header>
 
           <div className="flex flex-1 items-center py-10 md:py-14 lg:py-20">
-            <div className="max-w-[48rem]">
-              <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
-                {tr("Stop searching")}
-              </div>
-              <h1
-                className={cn(
-                  "welcome-reveal mt-5 max-w-[42rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.5rem]",
-                  heroVisible && "is-visible",
-                )}
-                style={{ transitionDelay: "170ms" }}
-              >
-                {tr("You can stop searching for separate language apps.")}
-              </h1>
-              <p
-                className={cn("welcome-reveal mt-5 max-w-[36rem] text-lg leading-8 text-slate-600", heroVisible && "is-visible")}
-                style={{ transitionDelay: "250ms" }}
-              >
-                {tr(
-                  "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
-                )}
-              </p>
-
-              <div className="mt-8 grid gap-4 md:grid-cols-2">
-                <div
-                  className={cn("welcome-reveal rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-soft", heroVisible && "is-visible")}
-                  style={{ transitionDelay: "330ms" }}
-                >
-                  <div className="text-base font-semibold leading-8 text-ink">
-                    {tr("This platform replaces that stack with one smarter route that adapts around you.")}
-                  </div>
+            <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.82fr)] xl:items-start">
+              <div className="max-w-[48rem]">
+                <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
+                  {tr("Stop searching")}
                 </div>
-                <div
+                <h1
                   className={cn(
-                    "welcome-reveal rounded-[28px] border border-accent/20 bg-accent/[0.06] p-6 shadow-soft",
+                    "welcome-reveal mt-5 max-w-[42rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.5rem]",
                     heroVisible && "is-visible",
                   )}
-                  style={{ transitionDelay: "410ms" }}
+                  style={{ transitionDelay: "170ms" }}
                 >
-                  <div className="text-base font-semibold leading-8 text-ink">
-                    {tr("Your first lesson and skill snapshot start before payment or registration.")}
-                  </div>
-                </div>
+                  {tr("You can stop searching for separate language apps.")}
+                </h1>
+                <p
+                  className={cn("welcome-reveal mt-5 max-w-[36rem] text-lg leading-8 text-slate-600", heroVisible && "is-visible")}
+                  style={{ transitionDelay: "250ms" }}
+                >
+                  {tr(
+                    "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
+                  )}
+                </p>
               </div>
 
-              <div
-                className={cn("welcome-reveal mt-8 flex flex-wrap gap-3", heroVisible && "is-visible")}
-                style={{ transitionDelay: "490ms" }}
-              >
-                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                  {tr("Do not pay until you try it yourself.")}
-                </div>
-                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                  {tr("Do not register until you see the value.")}
+              <div className="space-y-4 xl:pt-4">
+                {heroTheses.map((item, index) => (
+                  <div
+                    key={item.title}
+                    className={cn(
+                      "welcome-reveal rounded-[28px] border bg-white/82 p-6 shadow-soft",
+                      index === 2 ? "border-accent/20 bg-accent/[0.06]" : "border-white/60",
+                      heroVisible && "is-visible",
+                    )}
+                    style={{ transitionDelay: `${330 + index * 90}ms` }}
+                  >
+                    <div className="text-[0.68rem] uppercase tracking-[0.3em] text-coral">{item.eyebrow}</div>
+                    <div className="mt-3 text-lg font-semibold leading-8 text-ink">{item.title}</div>
+                    <div className="mt-3 text-sm leading-7 text-slate-600">{item.body}</div>
+                  </div>
+                ))}
+
+                <div
+                  className={cn("welcome-reveal flex flex-wrap gap-3 pt-1", heroVisible && "is-visible")}
+                  style={{ transitionDelay: "620ms" }}
+                >
+                  <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                    {tr("Do not pay until you try it yourself.")}
+                  </div>
+                  <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                    {tr("Do not register until you see the value.")}
+                  </div>
                 </div>
               </div>
             </div>

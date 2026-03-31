@@ -942,7 +942,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "Stop searching", ru: "Хватит искать" },
   {
     en: "You can stop searching for separate language apps.",
-    ru: "Поздравляем, ты можешь перестать искать отдельные приложения для языка.",
+    ru: "Поздравляем, ты можешь перестать искать отдельные приложения для изучения языка.",
   },
   {
     en: "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
@@ -1112,6 +1112,33 @@ const translationEntries: TranslationEntry[] = [
   {
     en: "A short lesson comes first. Registration and payment can wait until the value feels obvious.",
     ru: "Сначала идёт короткий урок. Регистрация и оплата подождут, пока ценность не станет очевидной.",
+  },
+  { en: "One system", ru: "Одна система" },
+  { en: "Motivation", ru: "Мотивация" },
+  { en: "AI first", ru: "Сначала AI" },
+  {
+    en: "Starting is hard when every platform only solves one part of the language.",
+    ru: "Трудно начать, когда каждая платформа закрывает только одну часть изучения языка.",
+  },
+  {
+    en: "One app pushes vocabulary, another focuses on grammar, a third on speaking. That split makes it harder to start with confidence.",
+    ru: "Одна платформа про слова, другая про грамматику, третья про разговорную речь. Из-за такого разделения старт становится сложнее и неувереннее.",
+  },
+  {
+    en: "The search for the right stack kills the first wave of motivation.",
+    ru: "Поиск правильного стека сервисов убивает первую волну мотивации.",
+  },
+  {
+    en: "People want to start learning in the moment of motivation, but platform-hopping, comparison, and early forms drain that energy fast.",
+    ru: "Люди хотят начать учиться в моменте мотивации, но прыжки между платформами, сравнение и ранние формы быстро забирают этот импульс.",
+  },
+  {
+    en: "AI should show value first: a mini-lesson, a skill snapshot, and a smart next step.",
+    ru: "AI должен сначала показывать ценность: мини-урок, срез навыков и умный следующий шаг.",
+  },
+  {
+    en: "Instead of asking for registration up front, the platform can use AI to build a 1-2 minute lesson, surface early strengths, and show what to do next.",
+    ru: "Вместо ранней регистрации платформа может с помощью AI собрать урок на 1-2 минуты, показать сильные стороны и подсказать, что делать дальше.",
   },
   {
     en: "Scroll to build the first lesson",
