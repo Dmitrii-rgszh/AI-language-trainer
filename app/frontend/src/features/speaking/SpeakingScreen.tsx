@@ -30,6 +30,8 @@ export function SpeakingScreen() {
   const recentAttempts = attempts.slice(0, 5);
   const voiceAttempts = attempts.filter((attempt) => attempt.inputMode === "voice");
   const aiAttempts = attempts.filter((attempt) => attempt.feedbackSource === "ai");
+  const feedbackSourceLabel = (source: AITextFeedback["source"] | SpeakingAttempt["feedbackSource"]) =>
+    source === "mock" ? tr("fallback") : tr(source);
   const averageTranscriptWords =
     attempts.length > 0
       ? Math.round(
@@ -323,7 +325,7 @@ export function SpeakingScreen() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-semibold text-ink">{tr(attempt.scenarioTitle)}</div>
                       <div className="text-xs uppercase tracking-[0.16em] text-coral">
-                        {tt(attempt.inputMode)} | {tr(attempt.feedbackSource)}
+                        {tt(attempt.inputMode)} | {feedbackSourceLabel(attempt.feedbackSource)}
                       </div>
                     </div>
                     <div className="mt-2 text-slate-600">{attempt.transcript}</div>

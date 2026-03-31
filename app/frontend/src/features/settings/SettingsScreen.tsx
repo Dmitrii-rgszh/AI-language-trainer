@@ -45,7 +45,7 @@ export function SettingsScreen() {
         eyebrow={tr("Settings")}
         title={tr("Settings And Providers")}
         description={tr(
-          "Настройки пользователя и статусы провайдеров уже вынесены в отдельный модуль. Это база для локального выбора LLM, STT, TTS и voice fallback logic.",
+          "User settings and provider health live here. This screen lets you control the local LLM, STT, TTS, and fallback runtime behavior.",
         )}
       />
 
@@ -76,7 +76,7 @@ export function SettingsScreen() {
         professionTracks={professionTracks}
         title={tr("Profile settings")}
         description={tr(
-          "Этот же профиль управляет рекомендациями, daily flow и распределением фокуса между speaking, grammar и profession.",
+          "This profile drives recommendations, the daily flow, and how focus is split between speaking, grammar, and profession.",
         )}
         submitLabel={tr("Save profile updates")}
         onSave={handleSaveProfile}
@@ -86,7 +86,7 @@ export function SettingsScreen() {
           <div className="text-lg font-semibold text-ink">{tr("Provider status and preferences")}</div>
           <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
             {tr(
-              "Для живого voice-and-AI цикла сейчас особенно важны `LLM`, `STT` и `TTS`. Если какой-то модуль ушёл в `fallback` или `offline`, это сразу будет заметно на dashboard и в соответствующих practice-модулях.",
+              "LLM, STT, and TTS matter most for the live voice-and-AI loop. If any of them moves into fallback or offline mode, the impact will show up on the dashboard and in the related practice modules.",
             )}
           </div>
           {providers.map((provider) => (

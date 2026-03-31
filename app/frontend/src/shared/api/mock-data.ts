@@ -559,10 +559,10 @@ export const mockMistakes: Mistake[] = [
 export const mockProviderStatus: ProviderStatus[] = [
   {
     key: "mock_llm",
-    name: "Mock LLM Provider",
+    name: "Fallback LLM",
     type: "llm",
     status: "mock",
-    details: "Готов для локальной разработки и замены на Ollama.",
+    details: "Local fallback responses stay available during development and whenever LM Studio is unavailable.",
   },
   {
     key: "stt_bridge",

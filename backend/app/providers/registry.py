@@ -50,10 +50,10 @@ class ProviderRegistry:
         elif llm_status.status != "ready":
             llm_status = ProviderStatus(
                 key="mock_llm",
-                name="Mock LLM Provider",
+                name=self.mock_llm_provider.DISPLAY_NAME,
                 type="llm",
                 status="mock",
-                details="LM Studio is unavailable, so backend fell back to mock LLM.",
+                details=self.mock_llm_provider.UNAVAILABLE_DETAILS,
             )
 
         tts_status = self.xtts_provider.status()

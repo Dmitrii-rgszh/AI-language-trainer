@@ -79,6 +79,8 @@ export function ProgressScreen() {
       : 0;
   const mostRecentLesson = progress.history[0] ?? null;
   const recentSpeakingAttempts = speakingAttempts.slice(0, 4);
+  const feedbackSourceLabel = (source: SpeakingAttempt["feedbackSource"]) =>
+    source === "mock" ? tr("fallback") : tr(source);
 
   const handleStartCheckpoint = async () => {
     await startDiagnosticCheckpoint();
@@ -301,7 +303,7 @@ export function ProgressScreen() {
                   <div>
                     <div className="text-sm font-semibold text-ink">{tr(attempt.scenarioTitle)}</div>
                     <div className="mt-1 text-xs uppercase tracking-[0.16em] text-coral">
-                      {tt(attempt.inputMode)} • {tr(attempt.feedbackSource)}
+                      {tt(attempt.inputMode)} • {feedbackSourceLabel(attempt.feedbackSource)}
                     </div>
                   </div>
                   <div className="text-sm text-slate-600">{formatDateTime(attempt.createdAt)}</div>
