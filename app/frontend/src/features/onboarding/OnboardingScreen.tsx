@@ -353,24 +353,36 @@ export function OnboardingScreen() {
       : loginCheck.status === "available" || loginCheck.status === "existing_account"
         ? "text-accent"
         : "text-slate-500";
+  const loginFieldToneClass =
+    loginCheck.status === "taken"
+      ? "border-coral/40 bg-coral/5 focus:border-coral/70"
+      : loginCheck.status === "available" || loginCheck.status === "existing_account"
+        ? "border-accent/40 bg-accent/5 focus:border-accent/70"
+        : "border-white/70 bg-white/80 focus:border-accent/50";
+  const loginStatusBadgeClass =
+    loginCheck.status === "taken"
+      ? "border-coral/20 bg-coral/8 text-coral"
+      : loginCheck.status === "available" || loginCheck.status === "existing_account"
+        ? "border-accent/20 bg-accent/8 text-accent"
+        : "border-slate-200 bg-white/75 text-slate-500";
   const loginStatusText =
     loginCheck.status === "checking"
-      ? tr("Checking login...")
+      ? tr("Checking if this name is free...")
       : loginCheck.status === "available"
-        ? tr("Name is available")
+        ? tr("Nice choice, this name is free.")
         : loginCheck.status === "taken"
-          ? tr("Name is taken")
+          ? tr("This name is already taken.")
           : loginCheck.status === "existing_account"
-            ? tr("Existing account found for this login and email")
+            ? tr("This looks like your existing account.")
             : loginCheck.status === "error"
-              ? tr("Could not verify the login right now")
+              ? tr("We could not check this name right now.")
               : account.login.trim().length > 0 && account.login.trim().length < 3
-                ? tr("Use at least 3 characters")
+                ? tr("Use at least 3 characters so we can check it.")
                 : null;
   const activeStepHelper =
     step === 0
       ? loginCheck.status === "taken"
-        ? tr("This login is already taken. Pick one of the free alternatives or enter another one.")
+        ? tr("This name is already in use, but you can tap one of the free options below.")
         : loginCheck.status === "existing_account"
           ? tr("This login and email already match an existing account. You can continue.")
           : loginCheck.status === "checking"
@@ -507,22 +519,50 @@ export function OnboardingScreen() {
                 value={account.login}
                 onChange={(event) => setAccount((current) => ({ ...current, login: event.target.value }))}
                 placeholder={tr("Choose a login")}
-                className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
+                className={cn(
+                  "w-full rounded-[22px] border px-4 py-3 outline-none transition",
+                  loginFieldToneClass,
+                )}
               />
             </label>
-            {loginStatusText ? <div className={cn("text-xs font-medium", loginStatusTone)}>{loginStatusText}</div> : null}
+            {loginStatusText ? (
+              <div
+                aria-live="polite"
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+                  loginStatusBadgeClass,
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    loginCheck.status === "taken"
+                      ? "bg-coral"
+                      : loginCheck.status === "available" || loginCheck.status === "existing_account"
+                        ? "bg-accent"
+                        : "bg-slate-400",
+                  )}
+                />
+                <span className={loginStatusTone}>{loginStatusText}</span>
+              </div>
+            ) : null}
             {loginCheck.status === "taken" && loginCheck.suggestions.length > 0 ? (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {loginCheck.suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setAccount((current) => ({ ...current, login: suggestion }))}
-                    className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-sand"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+              <div className="rounded-[22px] border border-coral/15 bg-white/75 p-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-coral">
+                  {tr("Try one of these free options")}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {loginCheck.suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setAccount((current) => ({ ...current, login: suggestion }))}
+                      className="rounded-full border border-accent/20 bg-accent/8 px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-accent/40 hover:bg-accent/14"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
