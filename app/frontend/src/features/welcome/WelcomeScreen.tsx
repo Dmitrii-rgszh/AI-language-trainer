@@ -124,7 +124,7 @@ export function WelcomeScreen() {
         : tr("Choose the tone of the first mini-lesson and quick skill snapshot.");
 
   return (
-    <div className="welcome-shell relative overflow-hidden px-6 py-6 lg:px-8 lg:py-8">
+    <div className="welcome-shell relative px-6 py-6 lg:px-8 lg:py-8">
       <div className="welcome-shell__noise" />
 
       <div className="relative z-10">
