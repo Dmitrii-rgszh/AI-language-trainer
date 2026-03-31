@@ -12,9 +12,7 @@ export function MistakesScreen() {
       <SectionHeading
         eyebrow={tr("Mistake Analytics")}
         title={tr("My Mistakes")}
-        description={tr(
-          "Отдельный модуль ошибок уже собирает source module, corrected text, explanation и repetition counter. Это база для weak spot analytics и recovery lessons.",
-        )}
+        description={tr("Review recurring patterns, compare corrections, and see what still needs active recovery.")}
       />
 
       <div className="space-y-4">

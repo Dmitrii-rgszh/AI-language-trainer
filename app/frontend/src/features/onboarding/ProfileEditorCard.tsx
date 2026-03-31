@@ -7,7 +7,7 @@ import { Card } from "../../shared/ui/Card";
 
 export const defaultProfile: UserProfile = {
   id: "user-local-1",
-  name: "Alex",
+  name: "",
   nativeLanguage: "ru",
   currentLevel: "A2",
   targetLevel: "B2",
@@ -52,6 +52,7 @@ export function ProfileEditorCard({
       )?.title ?? form.professionTrack,
     [form.professionTrack, professionTracks],
   );
+  const summaryLead = form.name.trim() || tr("This profile");
 
   const updateField = <K extends keyof UserProfile>(field: K, value: UserProfile[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -74,6 +75,7 @@ export function ProfileEditorCard({
           <input
             value={form.name}
             onChange={(event) => updateField("name", event.target.value)}
+            placeholder={tr("Your name")}
             className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 outline-none"
           />
         </label>
@@ -217,7 +219,7 @@ export function ProfileEditorCard({
         <div className="text-lg font-semibold text-ink">{title}</div>
         <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{description}</div>
         <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
-          {`${form.name} ${tr("starts from")} ${form.currentLevel} ${tr("and moves to")} ${form.targetLevel} ${tr("with the")} ${tr(activeTrackTitle)} ${tr("track")}.`}
+          {`${summaryLead} ${tr("starts from")} ${form.currentLevel} ${tr("and moves to")} ${form.targetLevel} ${tr("with the")} ${tr(activeTrackTitle)} ${tr("track")}.`}
         </div>
         <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
           {tr("Lesson format")}: {form.lessonDuration} {tr("minutes")}, {tr("explanations in")}{" "}

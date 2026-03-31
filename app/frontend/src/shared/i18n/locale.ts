@@ -83,6 +83,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "sources", ru: "источники" },
   { en: "Unified English hub with a professional track", ru: "Единый центр английского с профессиональным треком" },
   { en: "Desktop-first MVP foundation with lesson runner, progress and modular features.", ru: "Desktop-first MVP-основа с lesson runner, progress и modular features." },
+  { en: "Personal English workspace for focused daily progress.", ru: "Персональное пространство для английского с понятным ежедневным прогрессом." },
   { en: "Complete onboarding", ru: "Заверши онбординг" },
   { en: "Loading dashboard", ru: "Загружаю дашборд" },
   { en: "Backend unavailable", ru: "Бэкенд недоступен" },
@@ -90,11 +91,19 @@ const translationEntries: TranslationEntry[] = [
   { en: "Нужен первый create profile, после этого dashboard наполнится автоматически.", ru: "Нужно создать первый профиль, после этого dashboard наполнится автоматически." },
   { en: "Подгружаю состояние MVP...", ru: "Подгружаю состояние MVP..." },
   { en: "Собираю данные по профилю, слабым местам и следующему уроку.", ru: "Собираю данные по профилю, слабым местам и следующему уроку." },
+  { en: "Finish onboarding to unlock your personal lesson plan.", ru: "Заверши онбординг, чтобы открыть персональный план обучения." },
+  { en: "Loading your learning plan.", ru: "Собираю твой учебный план." },
+  { en: "Create your profile to unlock the first dashboard and lesson track.", ru: "Создай профиль, чтобы открыть первый дашборд и стартовый трек уроков." },
+  { en: "Loading your learning workspace...", ru: "Подгружаю твоё учебное пространство..." },
   { en: "Primary onboarding and profile setup.", ru: "Первичная настройка профиля." },
   { en: "Первичная настройка профиля, приоритетов и professional track. Этот экран уже подключён к общему store и готов к дальнейшему развитию диагностики.", ru: "Первичная настройка профиля, приоритетов и professional track. Этот экран уже подключён к общему store и готов к дальнейшему развитию диагностики." },
+  { en: "Your profile drives the roadmap, lesson flow, and skill balance from the first session.", ru: "Профиль сразу задаёт roadmap, поток уроков и баланс навыков уже с первой сессии." },
   { en: "Profile summary", ru: "Профиль" },
   { en: "Сохрани базовый профиль, чтобы dashboard, recommendations и lesson flow сразу подстроились под твой уровень и трек.", ru: "Сохрани базовый профиль, чтобы dashboard, recommendations и lesson flow сразу подстроились под твой уровень и трек." },
   { en: "Save profile and continue", ru: "Сохранить профиль и продолжить" },
+  { en: "Name", ru: "Имя" },
+  { en: "Your name", ru: "Твоё имя" },
+  { en: "This profile", ru: "Этот профиль" },
   { en: "Current level", ru: "Текущий уровень" },
   { en: "Target level", ru: "Целевой уровень" },
   { en: "Profession track", ru: "Профессиональный трек" },
@@ -132,6 +141,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "Dashboard", ru: "Дашборд" },
   { en: "Welcome back", ru: "С возвращением" },
   { en: "Главный экран уже собирает recommended lesson, слабые места, quick actions и skill progress из общего состояния приложения.", ru: "Главный экран уже собирает recommended lesson, слабые места, quick actions и skill progress из общего состояния приложения." },
+  { en: "Choose the next lesson, review weak spots, and keep the daily rhythm moving.", ru: "Выбирай следующий урок, закрывай слабые места и держи ежедневный ритм." },
   { en: "Recommended lesson", ru: "Рекомендуемый урок" },
   { en: "Duration", ru: "Длительность" },
   { en: "Focus", ru: "Фокус" },
@@ -181,6 +191,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "Activity", ru: "Активность" },
   { en: "Unified Activity And History", ru: "Единая активность и история" },
   { en: "Единая точка истории по урокам, speaking practice, текущим lesson results и накопленным mistake patterns.", ru: "Единая точка истории по урокам, speaking practice, текущим lesson results и накопленным mistake patterns." },
+  { en: "One timeline for lessons, speaking practice, listening signals, and result history.", ru: "Единая лента по урокам, speaking-практике, listening-сигналам и истории результатов." },
   { en: "Lessons", ru: "Уроки" },
   { en: "Completed lessons in current progress history.", ru: "Завершённые уроки в текущей истории прогресса." },
   { en: "Speaking attempts", ru: "Speaking attempts" },
@@ -227,13 +238,17 @@ const translationEntries: TranslationEntry[] = [
   { en: "Grammar Coach", ru: "Grammar Coach" },
   { en: "Grammar Center", ru: "Центр грамматики" },
   { en: "MVP-модуль хранит темы отдельно от UI и уже показывает mastery, explanation и checkpoints для дальнейшего расширения упражнениями.", ru: "MVP-модуль хранит темы отдельно от UI и уже показывает mastery, explanation и checkpoints для дальнейшего расширения упражнениями." },
+  { en: "Build control over the grammar patterns that matter most in your next lessons.", ru: "Укрепляй те грамматические паттерны, которые сильнее всего влияют на ближайшие уроки." },
   { en: "Mistake Analytics", ru: "Аналитика ошибок" },
   { en: "Отдельный модуль ошибок уже собирает source module, corrected text, explanation и repetition counter. Это база для weak spot analytics и recovery lessons.", ru: "Отдельный модуль ошибок уже собирает source module, corrected text, explanation и repetition counter. Это база для weak spot analytics и recovery lessons." },
+  { en: "Review recurring patterns, compare corrections, and see what still needs active recovery.", ru: "Смотри повторяющиеся паттерны, сравнивай исправления и понимай, что ещё требует активного восстановления." },
   { en: "Professional English", ru: "Профессиональный английский" },
   { en: "Profession Hub", ru: "Профессиональный hub" },
   { en: "Professional tracks уже декомпозированы на отдельные карточки-домены и готовы к расширению в полноценные submodules.", ru: "Professional tracks уже декомпозированы на отдельные карточки-домены и готовы к расширению в полноценные submodules." },
+  { en: "Choose the professional track that should shape your vocabulary, scenarios, and lesson emphasis.", ru: "Выбери профессиональный трек, который должен формировать словарь, сценарии и акценты уроков." },
   { en: "Skill Progress", ru: "Прогресс навыков" },
   { en: "В этом модуле уже есть skill scores, streak, daily goal и lesson history. Следующий шаг — добавить реальные charts и persistence layer.", ru: "В этом модуле уже есть skill scores, streak, daily goal и lesson history. Следующий шаг — добавить реальные charts и persistence layer." },
+  { en: "Follow your scores, recent practice, and roadmap shifts in one view.", ru: "Следи за баллами, последней практикой и изменениями roadmap в одном месте." },
   { en: "Level diagnostic", ru: "Диагностика уровня" },
   { en: "Declared", ru: "Заявлено" },
   { en: "Estimated", ru: "Оценено" },
@@ -317,6 +332,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "Speaking Partner", ru: "Speaking Partner" },
   { en: "Speaking Studio", ru: "Speaking Studio" },
   { en: "Теперь voice loop уже замкнут: запись голоса, transcript, AI feedback, autoplay tutor voice и история попыток. Повторяющиеся ошибки отсюда тоже попадают в общий adaptive loop.", ru: "Теперь voice loop уже замкнут: запись голоса, transcript, AI feedback, autoplay tutor voice и история попыток. Повторяющиеся ошибки отсюда тоже попадают в общий adaptive loop." },
+  { en: "Use text and voice practice to train clarity, confidence, and faster self-correction.", ru: "Используй текстовую и голосовую практику, чтобы развивать ясность речи, уверенность и более быструю самокоррекцию." },
   { en: "Feedback focus", ru: "Фокус feedback" },
   { en: "Total Attempts", ru: "Всего попыток" },
   { en: "Все speaking попытки, включая voice и text input.", ru: "Все speaking attempts, включая voice и text input." },
@@ -344,6 +360,7 @@ const translationEntries: TranslationEntry[] = [
   { en: "Writing Coach", ru: "Writing Coach" },
   { en: "Подгружаю writing task...", ru: "Подгружаю writing task..." },
   { en: "Writing теперь уже не одноразовый review: черновики и feedback копятся в истории, удачные версии можно быстро переиспользовать, а повторяющиеся ошибки попадают в общую mistake map.", ru: "Writing теперь уже не одноразовый review: черновики и feedback копятся в истории, удачные версии можно быстро переиспользовать, а повторяющиеся ошибки попадают в общую mistake map." },
+  { en: "Draft, revise, and reuse stronger versions while the app keeps track of recurring writing issues.", ru: "Пиши, дорабатывай и переиспользуй сильные версии, пока приложение отслеживает повторяющиеся проблемы в письме." },
   { en: "Tone", ru: "Тон" },
   { en: "Reviewing...", ru: "Проверяю..." },
   { en: "Get AI review", ru: "Получить AI review" },
@@ -502,6 +519,13 @@ const translationEntries: TranslationEntry[] = [
   { en: "Facilitation language, coaching, training structure and feedback.", ru: "Язык фасилитации, coaching, структурирование тренинга и feedback." },
   { en: "AI workflows, prompts, limitations и объяснение кейсов на английском.", ru: "AI workflows, prompts, limitations и объяснение кейсов на английском." },
   { en: "AI workflows, prompts, limitations and explaining cases in English.", ru: "AI workflows, prompts, limitations и объяснение кейсов на английском." },
+  { en: "Adaptive loop is actively supporting listening around", ru: "Адаптивный цикл сейчас специально поддерживает listening вокруг" },
+  { en: "Listening is not the primary recovery pressure right now.", ru: "Сейчас listening не является главным источником нагрузки в восстановлении." },
+  { en: "Adaptive loop is currently surfacing more vocabulary from", ru: "Адаптивный цикл сейчас чаще поднимает лексику из категории" },
+  { en: "Vocabulary load is balanced across categories right now.", ru: "Сейчас словарная нагрузка распределена по категориям достаточно ровно." },
+  { en: "audio comprehension", ru: "понимание аудио" },
+  { en: "detail capture", ru: "улавливание деталей" },
+  { en: "profession English", ru: "профессиональный английский" },
   { en: "Готов для локальной разработки и замены на Ollama.", ru: "Готов для локальной разработки и замены на Ollama." },
   { en: "Ready for local development and replacement with Ollama.", ru: "Готов для локальной разработки и замены на Ollama." },
   { en: "Подключение не настроено, предусмотрен graceful degradation.", ru: "Подключение не настроено, предусмотрен graceful degradation." },
@@ -670,6 +694,139 @@ export function translateToken(locale: AppLocale, value: string) {
 
 export function translateList(locale: AppLocale, values: string[]) {
   return values.map((value) => translateToken(locale, value)).join(", ");
+}
+
+function formatVocabularyItemCount(locale: AppLocale, count: number) {
+  if (locale === "ru") {
+    return `${count} ${pluralizeRussian(count, "слово", "слова", "слов")}`;
+  }
+
+  return `${count} vocabulary item${count === 1 ? "" : "s"}`;
+}
+
+export function formatAdaptiveHeadline(locale: AppLocale, name: string, focusArea: string) {
+  const translatedFocus = translateToken(locale, focusArea);
+  const safeName = name.trim();
+
+  if (locale === "ru") {
+    return safeName ? `${safeName}, сегодня главный фокус — ${translatedFocus}.` : `Сегодня главный фокус — ${translatedFocus}.`;
+  }
+
+  return safeName ? `${safeName}, today's main focus is ${translatedFocus}.` : `Today's main focus is ${translatedFocus}.`;
+}
+
+export function formatAdaptiveSummary(
+  locale: AppLocale,
+  options: {
+    weakSpotTitle?: string | null;
+    dueVocabularyCount: number;
+    listeningFocus?: string | null;
+    activeVocabularyCount: number;
+    masteredVocabularyCount: number;
+    minutesCompletedToday: number;
+  },
+) {
+  const weakSpot = options.weakSpotTitle ? translateText(locale, options.weakSpotTitle) : null;
+  const listeningFocus = options.listeningFocus ? translateToken(locale, options.listeningFocus) : null;
+
+  if (locale === "ru") {
+    const parts = [
+      weakSpot ? `Начни с ${weakSpot}.` : "Начни с самого актуального слабого места.",
+      options.dueVocabularyCount > 0
+        ? `На повторение ждут ${formatVocabularyItemCount(locale, options.dueVocabularyCount)}.`
+        : "Срочных слов на повторение сейчас нет.",
+      listeningFocus ? `По listening сейчас нужен акцент на ${listeningFocus}.` : null,
+      `Активных карточек: ${options.activeVocabularyCount}, закреплённых: ${options.masteredVocabularyCount}.`,
+      `Сегодня уже закрыто ${options.minutesCompletedToday} мин.`,
+    ].filter(Boolean);
+
+    return parts.join(" ");
+  }
+
+  const parts = [
+    weakSpot ? `Start with ${weakSpot}.` : "Start with the most active weak spot.",
+    options.dueVocabularyCount > 0
+      ? `You have ${formatVocabularyItemCount(locale, options.dueVocabularyCount)} due for review.`
+      : "There are no urgent vocabulary reviews right now.",
+    listeningFocus ? `Listening still needs support around ${listeningFocus}.` : null,
+    `Vocabulary queue: ${options.activeVocabularyCount} active, ${options.masteredVocabularyCount} mastered.`,
+    `You have already logged ${options.minutesCompletedToday} min today.`,
+  ].filter(Boolean);
+
+  return parts.join(" ");
+}
+
+export function formatRecommendationGoal(
+  locale: AppLocale,
+  options: {
+    lessonType: string;
+    focusArea: string;
+    weakSpotTitles: string[];
+    dueVocabularyCount: number;
+    professionTrack: string;
+  },
+) {
+  const translatedWeakSpots = options.weakSpotTitles.slice(0, 2).map((item) => translateText(locale, item));
+  const primaryTarget = translatedWeakSpots[0] ?? translateToken(locale, options.focusArea);
+  const trackLabel = translateToken(locale, options.professionTrack);
+  const duePart =
+    options.dueVocabularyCount > 0
+      ? locale === "ru"
+        ? ` Заодно повтори ${formatVocabularyItemCount(locale, options.dueVocabularyCount)} из текущей очереди.`
+        : ` Review ${formatVocabularyItemCount(locale, options.dueVocabularyCount)} from the current queue while the correction is fresh.`
+      : "";
+
+  if (options.lessonType === "recovery") {
+    if (locale === "ru") {
+      return `Сначала коротко закрой ${primaryTarget}, затем вернись в основной поток уроков для трека ${trackLabel}.${duePart}`;
+    }
+
+    return `Take a short repair pass on ${primaryTarget}, then return to the main ${trackLabel} lesson flow.${duePart}`;
+  }
+
+  if (locale === "ru") {
+    const carryForward =
+      translatedWeakSpots.length > 0
+        ? `Держи в работе ${translatedWeakSpots.join(", ")} внутри основного трека ${trackLabel}.`
+        : `Продолжай основной трек ${trackLabel} и закрепляй текущий фокус на ${translateToken(locale, options.focusArea)}.`;
+    return `${carryForward}${duePart}`;
+  }
+
+  const carryForward =
+    translatedWeakSpots.length > 0
+      ? `Keep ${translatedWeakSpots.join(", ")} active inside the main ${trackLabel} track.`
+      : `Continue the main ${trackLabel} track and keep the current focus on ${translateToken(locale, options.focusArea)}.`;
+  return `${carryForward}${duePart}`;
+}
+
+export function formatRoadmapSummary(
+  locale: AppLocale,
+  options: {
+    declaredCurrentLevel: string;
+    estimatedLevel: string;
+    targetLevel: string;
+    weakestSkills: string[];
+    nextFocus: string[];
+  },
+) {
+  const weakestSkills = options.weakestSkills.slice(0, 2).map((item) => translateText(locale, item));
+  const nextFocus = options.nextFocus.slice(0, 2).map((item) => translateText(locale, item));
+  const weakestLabel = weakestSkills.join(", ") || (locale === "ru" ? "ключевые навыки" : "core skills");
+  const focusLabel = nextFocus.join(", ") || (locale === "ru" ? "следующий адаптивный шаг" : "the next adaptive step");
+
+  if (locale === "ru") {
+    const mismatchNote =
+      options.declaredCurrentLevel !== options.estimatedLevel
+        ? ` По живым данным уровень сейчас ближе к ${options.estimatedLevel}.`
+        : ` Текущая оценка подтверждает уровень ${options.estimatedLevel}.`;
+    return `Путь к ${options.targetLevel}: сначала укрепить ${weakestLabel}, затем закрепить ${focusLabel}.${mismatchNote}`;
+  }
+
+  const mismatchNote =
+    options.declaredCurrentLevel !== options.estimatedLevel
+      ? ` Live progress currently looks closer to ${options.estimatedLevel}.`
+      : ` Live progress is aligned with ${options.estimatedLevel}.`;
+  return `Roadmap to ${options.targetLevel}: strengthen ${weakestLabel} first, then keep ${focusLabel} stable in the next cycle.${mismatchNote}`;
 }
 
 export function formatDate(locale: AppLocale, value: string) {

@@ -23,7 +23,7 @@ export function OnboardingScreen() {
         eyebrow={tr("Start")}
         title={tr("Onboarding")}
         description={tr(
-          "Первичная настройка профиля, приоритетов и professional track. Этот экран уже подключён к общему store и готов к дальнейшему развитию диагностики.",
+          "Your profile drives the roadmap, lesson flow, and skill balance from the first session.",
         )}
       />
       <ProfileEditorCard

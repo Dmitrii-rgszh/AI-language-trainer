@@ -13,9 +13,7 @@ export function GrammarScreen() {
       <SectionHeading
         eyebrow={tr("Grammar Coach")}
         title={tr("Grammar Center")}
-        description={tr(
-          "MVP-модуль хранит темы отдельно от UI и уже показывает mastery, explanation и checkpoints для дальнейшего расширения упражнениями.",
-        )}
+        description={tr("Build control over the grammar patterns that matter most in your next lessons.")}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

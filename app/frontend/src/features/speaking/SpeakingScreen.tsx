@@ -194,9 +194,7 @@ export function SpeakingScreen() {
       <SectionHeading
         eyebrow={tr("Speaking Partner")}
         title={tr("Speaking Studio")}
-        description={tr(
-          "Теперь voice loop уже замкнут: запись голоса, transcript, AI feedback, autoplay tutor voice и история попыток. Повторяющиеся ошибки отсюда тоже попадают в общий adaptive loop.",
-        )}
+        description={tr("Use text and voice practice to train clarity, confidence, and faster self-correction.")}
       />
 
       {error ? (

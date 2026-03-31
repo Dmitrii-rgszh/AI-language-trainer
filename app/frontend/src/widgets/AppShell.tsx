@@ -14,7 +14,17 @@ export function AppShell() {
   const isBootstrapping = useAppStore((state) => state.isBootstrapping);
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const needsOnboarding = useAppStore((state) => state.needsOnboarding);
-  const { locale, setLocale, tr } = useLocale();
+  const { locale, setLocale, tr, formatRecommendationGoal } = useLocale();
+
+  const recommendationGoal = dashboard
+    ? formatRecommendationGoal({
+        lessonType: dashboard.recommendation.lessonType,
+        focusArea: dashboard.recommendation.focusArea,
+        weakSpotTitles: dashboard.weakSpots.map((spot) => spot.title),
+        dueVocabularyCount: dashboard.studyLoop?.vocabularySummary.dueCount ?? 0,
+        professionTrack: dashboard.profile.professionTrack,
+      })
+    : null;
 
   useEffect(() => {
     void bootstrap();
@@ -38,7 +48,7 @@ export function AppShell() {
               {tr("Unified English hub with a professional track")}
             </div>
             <div className="mt-4 text-sm text-slate-200">
-              {tr("Desktop-first MVP foundation with lesson runner, progress and modular features.")}
+              {tr("Personal English workspace for focused daily progress.")}
             </div>
           </div>
 
@@ -74,10 +84,8 @@ export function AppShell() {
                 </div>
                 <div className="mt-1 text-sm text-slate-600">
                   {needsOnboarding
-                    ? tr("Профиль ещё не создан. Заверши onboarding, и я соберу персональный roadmap.")
-                    : dashboard?.recommendation.goal
-                      ? tr(dashboard.recommendation.goal)
-                      : tr("Собираю данные по профилю, слабым местам и следующему уроку.")}
+                    ? tr("Finish onboarding to unlock your personal lesson plan.")
+                    : recommendationGoal ?? tr("Loading your learning plan.")}
                 </div>
               </div>
 
@@ -121,9 +129,9 @@ export function AppShell() {
                   {bootstrapError
                     ? `${tr("Backend unavailable")}: ${bootstrapError}`
                     : needsOnboarding
-                      ? tr("Нужен первый create profile, после этого dashboard наполнится автоматически.")
+                      ? tr("Create your profile to unlock the first dashboard and lesson track.")
                     : isBootstrapping
-                      ? tr("Подгружаю состояние MVP...")
+                      ? tr("Loading your learning workspace...")
                       : `${tr("Current streak")}: ${dashboard?.progress.streak ?? 0}`}
                 </div>
               </div>

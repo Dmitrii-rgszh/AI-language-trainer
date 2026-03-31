@@ -21,7 +21,7 @@ function resolutionTone(status: string) {
 }
 
 export function ProgressScreen() {
-  const { tr, tt, tl, formatDate, formatDateTime, formatDays } = useLocale();
+  const { tr, tt, tl, formatDate, formatDateTime, formatDays, formatRoadmapSummary } = useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
   const progress = useAppStore((state) => state.progress);
   const diagnosticRoadmap = useAppStore((state) => state.diagnosticRoadmap);
@@ -81,6 +81,15 @@ export function ProgressScreen() {
   const recentSpeakingAttempts = speakingAttempts.slice(0, 4);
   const feedbackSourceLabel = (source: SpeakingAttempt["feedbackSource"]) =>
     source === "mock" ? tr("fallback") : tr(source);
+  const roadmapSummary = diagnosticRoadmap
+    ? formatRoadmapSummary({
+        declaredCurrentLevel: diagnosticRoadmap.declaredCurrentLevel,
+        estimatedLevel: diagnosticRoadmap.estimatedLevel,
+        targetLevel: diagnosticRoadmap.targetLevel,
+        weakestSkills: diagnosticRoadmap.weakestSkills,
+        nextFocus: diagnosticRoadmap.nextFocus,
+      })
+    : null;
 
   const handleStartCheckpoint = async () => {
     await startDiagnosticCheckpoint();
@@ -92,9 +101,7 @@ export function ProgressScreen() {
       <SectionHeading
         eyebrow={tr("Progress")}
         title={tr("Skill Progress")}
-        description={tr(
-          "В этом модуле уже есть skill scores, streak, daily goal и lesson history. Следующий шаг — добавить реальные charts и persistence layer.",
-        )}
+        description={tr("Follow your scores, recent practice, and roadmap shifts in one view.")}
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -108,7 +115,7 @@ export function ProgressScreen() {
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
           <Card className="space-y-4">
             <div className="text-lg font-semibold text-ink">{tr("Level diagnostic")}</div>
-            <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr(diagnosticRoadmap.summary)}</div>
+            <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{roadmapSummary}</div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
                 {tr("Declared")}: <span className="font-semibold text-ink">{diagnosticRoadmap.declaredCurrentLevel}</span>

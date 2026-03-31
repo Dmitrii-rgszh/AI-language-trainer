@@ -11,7 +11,8 @@ import { ScoreBadge } from "../../shared/ui/ScoreBadge";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 
 export function DashboardScreen() {
-  const { tr, tt, tl, formatDateTime } = useLocale();
+  const { tr, tt, tl, formatDateTime, formatAdaptiveHeadline, formatAdaptiveSummary, formatRecommendationGoal, formatRoadmapSummary } =
+    useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
   const diagnosticRoadmap = useAppStore((state) => state.diagnosticRoadmap);
   const bootstrap = useAppStore((state) => state.bootstrap);
@@ -108,6 +109,35 @@ export function DashboardScreen() {
   const disabledProviders = providers.filter((provider) => provider.status === "offline").length;
   const recoveringSignals =
     dashboard.studyLoop?.mistakeResolution?.filter((item) => item.status === "recovering" || item.status === "stabilizing") ?? [];
+  const recommendationGoal = formatRecommendationGoal({
+    lessonType: dashboard.recommendation.lessonType,
+    focusArea: dashboard.recommendation.focusArea,
+    weakSpotTitles: dashboard.weakSpots.map((spot) => spot.title),
+    dueVocabularyCount: dashboard.studyLoop?.vocabularySummary.dueCount ?? 0,
+    professionTrack: dashboard.profile.professionTrack,
+  });
+  const adaptiveHeadline = dashboard.studyLoop
+    ? formatAdaptiveHeadline(dashboard.profile.name, dashboard.studyLoop.focusArea)
+    : null;
+  const adaptiveSummary = dashboard.studyLoop
+    ? formatAdaptiveSummary({
+        weakSpotTitle: dashboard.studyLoop.weakSpots[0]?.title,
+        dueVocabularyCount: dashboard.studyLoop.vocabularySummary.dueCount,
+        listeningFocus: dashboard.studyLoop.listeningFocus,
+        activeVocabularyCount: dashboard.studyLoop.vocabularySummary.activeCount,
+        masteredVocabularyCount: dashboard.studyLoop.vocabularySummary.masteredCount,
+        minutesCompletedToday: dashboard.progress.minutesCompletedToday,
+      })
+    : null;
+  const roadmapSummary = diagnosticRoadmap
+    ? formatRoadmapSummary({
+        declaredCurrentLevel: diagnosticRoadmap.declaredCurrentLevel,
+        estimatedLevel: diagnosticRoadmap.estimatedLevel,
+        targetLevel: diagnosticRoadmap.targetLevel,
+        weakestSkills: diagnosticRoadmap.weakestSkills,
+        nextFocus: diagnosticRoadmap.nextFocus,
+      })
+    : null;
 
   const handleStartLesson = async () => {
     await startLesson();
@@ -152,16 +182,14 @@ export function DashboardScreen() {
       <SectionHeading
         eyebrow={tr("Dashboard")}
         title={`${tr("Welcome back")}, ${dashboard.profile.name}`}
-        description={tr(
-          "Главный экран уже собирает recommended lesson, слабые места, quick actions и skill progress из общего состояния приложения.",
-        )}
+        description={tr("Choose the next lesson, review weak spots, and keep the daily rhythm moving.")}
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="space-y-4">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">{tr("Recommended lesson")}</div>
           <div className="text-2xl font-semibold text-ink">{tr(dashboard.recommendation.title)}</div>
-          <div className="text-sm leading-6 text-slate-600">{tr(dashboard.recommendation.goal)}</div>
+          <div className="text-sm leading-6 text-slate-600">{recommendationGoal}</div>
           <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
             {tr("Duration")}: {dashboard.recommendation.duration} min. {tr("Focus")}:{" "}
             {tl(dashboard.recommendation.focusArea.split(","))}.
@@ -235,7 +263,7 @@ export function DashboardScreen() {
               {tr("Open roadmap")}
             </Link>
           </div>
-          <div className="text-sm leading-6 text-slate-600">{tr(diagnosticRoadmap.summary)}</div>
+          <div className="text-sm leading-6 text-slate-600">{roadmapSummary}</div>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
               {tr("Declared level")}: <span className="font-semibold text-ink">{diagnosticRoadmap.declaredCurrentLevel}</span>
@@ -310,8 +338,8 @@ export function DashboardScreen() {
         <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="space-y-4">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">{tr("Adaptive study loop")}</div>
-            <div className="text-2xl font-semibold text-ink">{tr(dashboard.studyLoop.headline)}</div>
-            <div className="text-sm leading-6 text-slate-600">{tr(dashboard.studyLoop.summary)}</div>
+            <div className="text-2xl font-semibold text-ink">{adaptiveHeadline}</div>
+            <div className="text-sm leading-6 text-slate-600">{adaptiveSummary}</div>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
                 {tr("Due vocab")}: <span className="font-semibold text-ink">{dashboard.studyLoop.vocabularySummary.dueCount}</span>
@@ -432,8 +460,8 @@ export function DashboardScreen() {
           </div>
           <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
             {dashboard.studyLoop?.listeningFocus
-              ? `Adaptive generation is currently compensating for ${dashboard.studyLoop.listeningFocus.replace(/_/g, " ")}.`
-              : "Listening currently does not dominate the adaptive loop."}
+              ? `${tr("Adaptive loop is actively supporting listening around")} ${tt(dashboard.studyLoop.listeningFocus)}.`
+              : tr("Listening is not the primary recovery pressure right now.")}
           </div>
         </Card>
         <Card className="space-y-3">
@@ -443,8 +471,8 @@ export function DashboardScreen() {
           </div>
           <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
             {dashboard.studyLoop?.vocabularySummary.weakestCategory
-              ? `Adaptive loop keeps surfacing vocabulary from ${dashboard.studyLoop.vocabularySummary.weakestCategory}.`
-              : "Vocabulary queue is balanced enough that no single category dominates."}
+              ? `${tr("Adaptive loop is currently surfacing more vocabulary from")} ${tt(dashboard.studyLoop.vocabularySummary.weakestCategory)}.`
+              : tr("Vocabulary load is balanced across categories right now.")}
           </div>
         </Card>
       </div>

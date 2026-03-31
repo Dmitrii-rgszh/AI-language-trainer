@@ -177,7 +177,7 @@ export function ActivityScreen() {
       <SectionHeading
         eyebrow={tr("Activity")}
         title={tr("Unified Activity And History")}
-        description={tr("Единая точка истории по урокам, speaking practice, текущим lesson results и накопленным mistake patterns.")}
+        description={tr("One timeline for lessons, speaking practice, listening signals, and result history.")}
       />
 
       <div className="grid gap-4 md:grid-cols-4">

@@ -17,6 +17,7 @@
 - [backend](./backend) — backend API
 - [docs/architecture-map.md](./docs/architecture-map.md) — карта модулей
 - [docs/entity-model-and-lesson-schema.md](./docs/entity-model-and-lesson-schema.md) — сущности и lesson blocks
+- [docs/product-roadmap.md](./docs/product-roadmap.md) — продуктовый roadmap и план следующего онбординга
 
 ## Локальный запуск
 

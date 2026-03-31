@@ -12,9 +12,7 @@ export function ProfessionScreen() {
       <SectionHeading
         eyebrow={tr("Professional English")}
         title={tr("Profession Hub")}
-        description={tr(
-          "Professional tracks уже декомпозированы на отдельные карточки-домены и готовы к расширению в полноценные submodules.",
-        )}
+        description={tr("Choose the professional track that should shape your vocabulary, scenarios, and lesson emphasis.")}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

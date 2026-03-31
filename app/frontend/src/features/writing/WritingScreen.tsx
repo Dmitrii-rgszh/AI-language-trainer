@@ -113,9 +113,7 @@ export function WritingScreen() {
       <SectionHeading
         eyebrow={tr("Writing Coach")}
         title={tr(activeTask.title)}
-        description={tr(
-          "Writing теперь уже не одноразовый review: черновики и feedback копятся в истории, удачные версии можно быстро переиспользовать, а повторяющиеся ошибки попадают в общую mistake map.",
-        )}
+        description={tr("Draft, revise, and reuse stronger versions while the app keeps track of recurring writing issues.")}
       />
 
       {error ? (
