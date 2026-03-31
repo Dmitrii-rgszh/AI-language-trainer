@@ -17,8 +17,8 @@ export function AppShell() {
   const needsOnboarding = useAppStore((state) => state.needsOnboarding);
   const { locale, setLocale, tr, formatRecommendationGoal } = useLocale();
   const localeOptions = [
-    { value: "ru" as const, label: "RU", flag: "🇷🇺" },
-    { value: "en" as const, label: "EN", flag: "🇺🇸" },
+    { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
+    { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
   ];
 
   const recommendationGoal = dashboard
@@ -64,7 +64,9 @@ export function AppShell() {
                   locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
                 )}
               >
-                <span aria-hidden="true">{targetLocale.flag}</span>
+                <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
+                  {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
+                </span>
                 <span>{tr(targetLocale.label)}</span>
               </button>
             ))}
@@ -144,7 +146,9 @@ export function AppShell() {
                           locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
                         )}
                       >
-                        <span aria-hidden="true">{targetLocale.flag}</span>
+                        <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
+                          {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
+                        </span>
                         <span>{tr(targetLocale.label)}</span>
                       </button>
                     ))}
