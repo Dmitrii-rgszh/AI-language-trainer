@@ -1,12 +1,17 @@
 import os
+from pathlib import Path
 
 from pydantic import BaseModel
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_DIR / 'trainer.db').as_posix()}"
 
 
 class Settings(BaseModel):
     app_name: str = os.getenv("APP_NAME", "AI English Trainer Pro API")
     api_prefix: str = os.getenv("API_PREFIX", "/api")
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./trainer.db")
+    database_url: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
     default_ui_language: str = os.getenv("DEFAULT_UI_LANGUAGE", "ru")
     llm_provider: str = os.getenv("LLM_PROVIDER", "mock")
     lmstudio_base_url: str = os.getenv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
