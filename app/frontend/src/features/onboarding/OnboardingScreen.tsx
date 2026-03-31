@@ -38,6 +38,14 @@ type LoginCheckState = {
   suggestions: string[];
 };
 
+type EmailCheckState = {
+  status: "idle" | "valid" | "invalid";
+};
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function inferLearnerPersona(ageGroup: string, learningContext: string) {
   if (ageGroup === "family_plan") {
     return "parent_or_guardian";
@@ -199,6 +207,9 @@ export function OnboardingScreen() {
     status: "idle",
     suggestions: [],
   });
+  const [emailCheck, setEmailCheck] = useState<EmailCheckState>({
+    status: "idle",
+  });
 
   useEffect(() => {
     setAccount(
@@ -225,6 +236,19 @@ export function OnboardingScreen() {
   useEffect(() => {
     setSubmitError(null);
   }, [account.email, account.login]);
+
+  useEffect(() => {
+    const trimmedEmail = account.email.trim();
+
+    if (trimmedEmail.length === 0) {
+      setEmailCheck({ status: "idle" });
+      return;
+    }
+
+    setEmailCheck({
+      status: isValidEmail(trimmedEmail) ? "valid" : "invalid",
+    });
+  }, [account.email]);
 
   useEffect(() => {
     const trimmedLogin = account.login.trim();
@@ -286,8 +310,9 @@ export function OnboardingScreen() {
 
   const loginStatusAllowsContinue =
     loginCheck.status === "available" || loginCheck.status === "existing_account";
+  const emailIsValid = isValidEmail(account.email.trim());
   const accountReady =
-    account.login.trim().length >= 3 && account.email.includes("@") && loginStatusAllowsContinue;
+    account.login.trim().length >= 3 && emailIsValid && loginStatusAllowsContinue;
   const basicsReady = form.name.trim().length > 0;
   const goalsReady = form.onboardingAnswers.primaryGoal.trim().length > 0 && form.professionTrack.trim().length > 0;
   const skillsReady = form.onboardingAnswers.activeSkillFocus.length > 0;
@@ -379,15 +404,35 @@ export function OnboardingScreen() {
               : account.login.trim().length > 0 && account.login.trim().length < 3
                 ? tr("Use at least 3 characters so we can check it.")
                 : null;
+  const emailFieldToneClass =
+    emailCheck.status === "invalid"
+      ? "border-coral/40 bg-coral/5 focus:border-coral/70"
+      : emailCheck.status === "valid"
+        ? "border-accent/40 bg-accent/5 focus:border-accent/70"
+        : "border-white/70 bg-white/80 focus:border-accent/50";
+  const emailStatusBadgeClass =
+    emailCheck.status === "invalid"
+      ? "border-coral/20 bg-coral/8 text-coral"
+      : emailCheck.status === "valid"
+        ? "border-accent/20 bg-accent/8 text-accent"
+        : "border-slate-200 bg-white/75 text-slate-500";
+  const emailStatusText =
+    emailCheck.status === "valid"
+      ? tr("Looks good, we will use this email for your account.")
+      : emailCheck.status === "invalid"
+        ? tr("Enter an email in the usual format, for example name@example.com.")
+        : null;
   const activeStepHelper =
     step === 0
       ? loginCheck.status === "taken"
         ? tr("This name is already in use, but you can tap one of the free options below.")
         : loginCheck.status === "existing_account"
           ? tr("This login and email already match an existing account. You can continue.")
+          : emailCheck.status === "invalid"
+            ? tr("Add a valid email so we can create the learner workspace.")
           : loginCheck.status === "checking"
             ? tr("Checking the login against the current user base...")
-            : activeStep.helper
+            : null
       : activeStep.helper;
 
   const updateField = <K extends keyof UserProfile>(field: K, value: UserProfile[K]) =>
@@ -576,17 +621,29 @@ export function OnboardingScreen() {
               value={account.email}
               onChange={(event) => setAccount((current) => ({ ...current, email: event.target.value }))}
               placeholder={tr("name@example.com")}
-              className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
+              className={cn(
+                "w-full rounded-[22px] border px-4 py-3 outline-none transition",
+                emailFieldToneClass,
+              )}
             />
+            {emailStatusText ? (
+              <div
+                aria-live="polite"
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+                  emailStatusBadgeClass,
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    emailCheck.status === "valid" ? "bg-accent" : "bg-coral",
+                  )}
+                />
+                <span>{emailStatusText}</span>
+              </div>
+            ) : null}
           </label>
-          <div
-            style={{ animationDelay: "120ms" }}
-            className="onboarding-stagger-item rounded-[24px] border border-dashed border-accent/30 bg-accent/5 p-4 text-sm leading-6 text-slate-700 md:col-span-2"
-          >
-            {tr(
-              "This is the only setup screen the learner sees before entering the real workspace. Once it is complete, the dashboard and lesson track open automatically.",
-            )}
-          </div>
         </div>
       );
     }
@@ -992,8 +1049,8 @@ export function OnboardingScreen() {
 
         <div className="border-t border-white/50 px-6 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <div className="text-sm leading-6 text-slate-500">{activeStepHelper}</div>
+          <div className="space-y-2">
+              {activeStepHelper ? <div className="text-sm leading-6 text-slate-500">{activeStepHelper}</div> : null}
               {submitError ? <div className="text-sm font-medium text-coral">{submitError}</div> : null}
             </div>
             <div className="flex flex-wrap items-center gap-3">

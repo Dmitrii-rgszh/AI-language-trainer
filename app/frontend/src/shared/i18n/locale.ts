@@ -827,6 +827,18 @@ const translationEntries: TranslationEntry[] = [
   },
   { en: "Try one of these free options", ru: "Попробуй один из свободных вариантов" },
   {
+    en: "Looks good, we will use this email for your account.",
+    ru: "Отлично, эту почту мы используем для твоего аккаунта.",
+  },
+  {
+    en: "Enter an email in the usual format, for example name@example.com.",
+    ru: "Введи почту в обычном формате, например name@example.com.",
+  },
+  {
+    en: "Add a valid email so we can create the learner workspace.",
+    ru: "Добавь корректную почту, чтобы мы могли создать пространство ученика.",
+  },
+  {
     en: "Checking the login against the current user base...",
     ru: "Проверяю логин по текущей базе пользователей...",
   },
