@@ -12,7 +12,7 @@ import type {
   UserOnboarding,
 } from "../../entities/onboarding/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
-import type { UserAccount } from "../../entities/account/model";
+import type { LoginAvailability, UserAccount } from "../../entities/account/model";
 import type { UserProfile } from "../../entities/user/model";
 import { readStoredActiveUserId } from "../auth/active-user";
 import type {
@@ -102,6 +102,14 @@ export const apiClient = {
       body: JSON.stringify({ successful }),
     }),
   getCurrentUser: () => request<UserAccount>("/api/users/me"),
+  checkLoginAvailability: (payload: { login: string; email?: string }) =>
+    request<LoginAvailability>(
+      `/api/users/login-availability?${new URLSearchParams(
+        payload.email ? { login: payload.login, email: payload.email } : { login: payload.login },
+      ).toString()}`,
+      undefined,
+      false,
+    ),
   saveCurrentUser: (payload: { login: string; email: string }) =>
     request<UserAccount>("/api/users/me", {
       method: "PUT",

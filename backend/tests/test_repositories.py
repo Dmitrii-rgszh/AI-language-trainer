@@ -13,7 +13,7 @@ from app.repositories.provider_preference_repository import ProviderPreferenceRe
 from app.repositories.pronunciation_attempt_repository import PronunciationAttemptRepository
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.repositories.speaking_attempt_repository import SpeakingAttemptRepository
-from app.repositories.user_account_repository import UserAccountRepository
+from app.repositories.user_account_repository import UserAccountRepository, UserIdentityConflictError
 from app.repositories.vocabulary_repository import VocabularyRepository
 from app.repositories.writing_attempt_repository import WritingAttemptRepository
 from app.providers.llm.mock_provider import MockLLMProvider
@@ -169,6 +169,42 @@ def test_onboarding_service_keeps_user_and_answers_in_separate_tables(empty_sess
     assert saved_profile is not None
     assert saved_profile.id == completed.user.id
     assert saved_profile.profession_track == "cross_cultural"
+
+
+def test_user_account_repository_checks_login_availability_and_existing_account(empty_session_factory) -> None:
+    repository = UserAccountRepository(empty_session_factory)
+
+    repository.resolve_user("nina", "nina@example.com")
+
+    available = repository.check_login_availability("nina_free")
+    taken = repository.check_login_availability("Nina")
+    existing_account = repository.check_login_availability("nina", "nina@example.com")
+
+    assert available.available is True
+    assert available.status == "available"
+    assert taken.available is False
+    assert taken.status == "taken"
+    assert taken.suggestions
+    assert all(suggestion.lower() != "nina" for suggestion in taken.suggestions)
+    assert existing_account.available is True
+    assert existing_account.status == "existing_account"
+
+
+def test_user_account_repository_resolve_user_rejects_partial_identity_match(empty_session_factory) -> None:
+    repository = UserAccountRepository(empty_session_factory)
+    repository.resolve_user("nina", "nina@example.com")
+
+    try:
+        repository.resolve_user("nina", "other@example.com")
+        raise AssertionError("Expected login conflict when email differs.")
+    except UserIdentityConflictError:
+        pass
+
+    try:
+        repository.resolve_user("nina_new", "nina@example.com")
+        raise AssertionError("Expected email conflict when login differs.")
+    except UserIdentityConflictError:
+        pass
 
 
 def test_content_repository_reads_bootstrapped_catalogs(seeded_session_factory) -> None:

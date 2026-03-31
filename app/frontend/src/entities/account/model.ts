@@ -11,6 +11,14 @@ export interface UserAccountDraft {
   email: string;
 }
 
+export interface LoginAvailability {
+  login: string;
+  normalizedLogin: string;
+  available: boolean;
+  status: "available" | "taken" | "existing_account";
+  suggestions: string[];
+}
+
 export const defaultUserAccountDraft: UserAccountDraft = {
   login: "",
   email: "",

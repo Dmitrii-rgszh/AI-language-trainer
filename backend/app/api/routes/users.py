@@ -1,13 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import require_active_user_id
 from app.core.dependencies import user_service
 from app.repositories.user_account_repository import UserIdentityConflictError
-from app.schemas.user_account import UserAccount, UserAccountUpdateRequest
+from app.schemas.user_account import LoginAvailabilityResponse, UserAccount, UserAccountUpdateRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/login-availability", response_model=LoginAvailabilityResponse)
+def check_login_availability(
+    login: str = Query(min_length=3, max_length=64),
+    email: str | None = Query(default=None, min_length=5, max_length=255),
+) -> LoginAvailabilityResponse:
+    return user_service.check_login_availability(login, email)
 
 
 @router.get("/me", response_model=UserAccount)

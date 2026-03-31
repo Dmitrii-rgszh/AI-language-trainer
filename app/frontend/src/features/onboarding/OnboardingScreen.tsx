@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { defaultUserAccountDraft, type UserAccountDraft } from "../../entities/account/model";
 import type { OnboardingAnswers, UserProfile } from "../../entities/user/model";
+import { ApiError, apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
@@ -31,6 +32,11 @@ const adultSupportOptions: Array<{ value: "yes" | "no"; label: string }> = [
   { value: "yes", label: "Yes, adult support helps" },
   { value: "no", label: "No, independent enough" },
 ];
+
+type LoginCheckState = {
+  status: "idle" | "checking" | "available" | "taken" | "existing_account" | "error";
+  suggestions: string[];
+};
 
 function inferLearnerPersona(ageGroup: string, learningContext: string) {
   if (ageGroup === "family_plan") {
@@ -188,6 +194,11 @@ export function OnboardingScreen() {
   const [form, setForm] = useState<UserProfile>(() => buildProfileDraft(profile));
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [loginCheck, setLoginCheck] = useState<LoginCheckState>({
+    status: "idle",
+    suggestions: [],
+  });
 
   useEffect(() => {
     setAccount(
@@ -211,13 +222,72 @@ export function OnboardingScreen() {
     );
   }, [locale]);
 
+  useEffect(() => {
+    setSubmitError(null);
+  }, [account.email, account.login]);
+
+  useEffect(() => {
+    const trimmedLogin = account.login.trim();
+    const trimmedEmail = account.email.trim();
+
+    if (trimmedLogin.length === 0) {
+      setLoginCheck({ status: "idle", suggestions: [] });
+      return;
+    }
+
+    if (trimmedLogin.length < 3) {
+      setLoginCheck({ status: "idle", suggestions: [] });
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setLoginCheck((current) => ({ ...current, status: "checking" }));
+
+      try {
+        const result = await apiClient.checkLoginAvailability({
+          login: trimmedLogin,
+          email: trimmedEmail.length >= 5 ? trimmedEmail : undefined,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        setLoginCheck({
+          status: result.status,
+          suggestions: result.suggestions,
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 422) {
+          setLoginCheck({ status: "idle", suggestions: [] });
+          return;
+        }
+
+        setLoginCheck({ status: "error", suggestions: [] });
+      }
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [account.email, account.login]);
+
   const tracks = professionTracks.length > 0 ? professionTracks : fallbackProfessionTracks;
   const activeTrack = useMemo(
     () => tracks.find((track) => track.domain === form.professionTrack) ?? tracks[0],
     [form.professionTrack, tracks],
   );
 
-  const accountReady = account.login.trim().length >= 3 && account.email.includes("@");
+  const loginStatusAllowsContinue =
+    loginCheck.status === "available" || loginCheck.status === "existing_account";
+  const accountReady =
+    account.login.trim().length >= 3 && account.email.includes("@") && loginStatusAllowsContinue;
   const basicsReady = form.name.trim().length > 0;
   const goalsReady = form.onboardingAnswers.primaryGoal.trim().length > 0 && form.professionTrack.trim().length > 0;
   const skillsReady = form.onboardingAnswers.activeSkillFocus.length > 0;
@@ -277,6 +347,36 @@ export function OnboardingScreen() {
   const needsAdultSupportQuestion =
     form.onboardingAnswers.ageGroup === "child" || form.onboardingAnswers.ageGroup === "teen";
   const adultSupportEnabled = form.onboardingAnswers.studyPreferences.includes("parent_guided");
+  const loginStatusTone =
+    loginCheck.status === "taken"
+      ? "text-coral"
+      : loginCheck.status === "available" || loginCheck.status === "existing_account"
+        ? "text-accent"
+        : "text-slate-500";
+  const loginStatusText =
+    loginCheck.status === "checking"
+      ? tr("Checking login...")
+      : loginCheck.status === "available"
+        ? tr("Name is available")
+        : loginCheck.status === "taken"
+          ? tr("Name is taken")
+          : loginCheck.status === "existing_account"
+            ? tr("Existing account found for this login and email")
+            : loginCheck.status === "error"
+              ? tr("Could not verify the login right now")
+              : account.login.trim().length > 0 && account.login.trim().length < 3
+                ? tr("Use at least 3 characters")
+                : null;
+  const activeStepHelper =
+    step === 0
+      ? loginCheck.status === "taken"
+        ? tr("This login is already taken. Pick one of the free alternatives or enter another one.")
+        : loginCheck.status === "existing_account"
+          ? tr("This login and email already match an existing account. You can continue.")
+          : loginCheck.status === "checking"
+            ? tr("Checking the login against the current user base...")
+            : activeStep.helper
+      : activeStep.helper;
 
   const updateField = <K extends keyof UserProfile>(field: K, value: UserProfile[K]) =>
     setForm((current) => ({ ...current, [field]: value }));
@@ -338,6 +438,7 @@ export function OnboardingScreen() {
     }
 
     setIsSaving(true);
+    setSubmitError(null);
     try {
       await completeOnboarding({
         login: account.login.trim(),
@@ -349,6 +450,12 @@ export function OnboardingScreen() {
         },
       });
       navigate(routes.dashboard);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setSubmitError(tr("This login or email is already linked to another account."));
+      } else {
+        setSubmitError(tr("Could not complete onboarding right now."));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -393,15 +500,32 @@ export function OnboardingScreen() {
     if (step === 0) {
       return (
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
-            <span>{tr("Login")}</span>
-            <input
-              value={account.login}
-              onChange={(event) => setAccount((current) => ({ ...current, login: event.target.value }))}
-              placeholder={tr("Choose a login")}
-              className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
-            />
-          </label>
+          <div className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
+            <label className="space-y-2">
+              <span>{tr("Login")}</span>
+              <input
+                value={account.login}
+                onChange={(event) => setAccount((current) => ({ ...current, login: event.target.value }))}
+                placeholder={tr("Choose a login")}
+                className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
+              />
+            </label>
+            {loginStatusText ? <div className={cn("text-xs font-medium", loginStatusTone)}>{loginStatusText}</div> : null}
+            {loginCheck.status === "taken" && loginCheck.suggestions.length > 0 ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {loginCheck.suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setAccount((current) => ({ ...current, login: suggestion }))}
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-sand"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <label
             style={{ animationDelay: "60ms" }}
             className="onboarding-stagger-item space-y-2 text-sm text-slate-700"
@@ -828,7 +952,10 @@ export function OnboardingScreen() {
 
         <div className="border-t border-white/50 px-6 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="text-sm leading-6 text-slate-500">{activeStep.helper}</div>
+            <div className="space-y-2">
+              <div className="text-sm leading-6 text-slate-500">{activeStepHelper}</div>
+              {submitError ? <div className="text-sm font-medium text-coral">{submitError}</div> : null}
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="button"

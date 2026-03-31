@@ -801,6 +801,32 @@ const translationEntries: TranslationEntry[] = [
   { en: "Study format", ru: "Формат занятий" },
   { en: "With adult support", ru: "С поддержкой взрослого" },
   { en: "Independent format", ru: "Самостоятельный формат" },
+  { en: "Checking login...", ru: "Проверяю имя..." },
+  { en: "Name is available", ru: "Имя свободно" },
+  { en: "Name is taken", ru: "Имя занято" },
+  { en: "Existing account found for this login and email", ru: "Найден существующий аккаунт с этим логином и почтой" },
+  { en: "Could not verify the login right now", ru: "Сейчас не удалось проверить имя" },
+  { en: "Use at least 3 characters", ru: "Используй минимум 3 символа" },
+  {
+    en: "This login is already taken. Pick one of the free alternatives or enter another one.",
+    ru: "Этот логин уже занят. Выбери один из свободных вариантов или введи другой.",
+  },
+  {
+    en: "This login and email already match an existing account. You can continue.",
+    ru: "Этот логин и эта почта уже соответствуют существующему аккаунту. Можно продолжить.",
+  },
+  {
+    en: "Checking the login against the current user base...",
+    ru: "Проверяю логин по текущей базе пользователей...",
+  },
+  {
+    en: "This login or email is already linked to another account.",
+    ru: "Этот логин или эта почта уже привязаны к другому аккаунту.",
+  },
+  {
+    en: "Could not complete onboarding right now.",
+    ru: "Сейчас не удалось завершить онбординг.",
+  },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();
