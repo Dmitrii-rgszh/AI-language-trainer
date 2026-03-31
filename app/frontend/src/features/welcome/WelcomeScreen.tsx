@@ -183,7 +183,7 @@ export function WelcomeScreen() {
       <section className="welcome-shell welcome-screen relative px-6 py-6 lg:px-8 lg:py-8">
         <div className="welcome-shell__noise" />
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex min-h-[calc(100vh-3rem)] flex-col">
           <header
             className={cn(
             "welcome-reveal flex flex-col gap-4 border-b border-black/6 pb-4 md:flex-row md:items-center md:justify-between",
@@ -220,59 +220,61 @@ export function WelcomeScreen() {
             </div>
           </header>
 
-          <div className="mt-12 max-w-[48rem]">
-            <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
-              {tr("Stop searching")}
-            </div>
-            <h1
-              className={cn(
-                "welcome-reveal mt-5 max-w-[42rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.5rem]",
-                heroVisible && "is-visible",
-              )}
-              style={{ transitionDelay: "170ms" }}
-            >
-              {tr("You can stop searching for separate language apps.")}
-            </h1>
-            <p
-              className={cn("welcome-reveal mt-5 max-w-[36rem] text-lg leading-8 text-slate-600", heroVisible && "is-visible")}
-              style={{ transitionDelay: "250ms" }}
-            >
-              {tr(
-                "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
-              )}
-            </p>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              <div
-                className={cn("welcome-reveal rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-soft", heroVisible && "is-visible")}
-                style={{ transitionDelay: "330ms" }}
-              >
-                <div className="text-base font-semibold leading-8 text-ink">
-                  {tr("This platform replaces that stack with one smarter route that adapts around you.")}
-                </div>
+          <div className="flex flex-1 items-center py-10 md:py-14 lg:py-20">
+            <div className="max-w-[48rem]">
+              <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
+                {tr("Stop searching")}
               </div>
-              <div
+              <h1
                 className={cn(
-                  "welcome-reveal rounded-[28px] border border-accent/20 bg-accent/[0.06] p-6 shadow-soft",
+                  "welcome-reveal mt-5 max-w-[42rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.5rem]",
                   heroVisible && "is-visible",
                 )}
-                style={{ transitionDelay: "410ms" }}
+                style={{ transitionDelay: "170ms" }}
               >
-                <div className="text-base font-semibold leading-8 text-ink">
-                  {tr("Your first lesson and skill snapshot start before payment or registration.")}
+                {tr("You can stop searching for separate language apps.")}
+              </h1>
+              <p
+                className={cn("welcome-reveal mt-5 max-w-[36rem] text-lg leading-8 text-slate-600", heroVisible && "is-visible")}
+                style={{ transitionDelay: "250ms" }}
+              >
+                {tr(
+                  "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
+                )}
+              </p>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                <div
+                  className={cn("welcome-reveal rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-soft", heroVisible && "is-visible")}
+                  style={{ transitionDelay: "330ms" }}
+                >
+                  <div className="text-base font-semibold leading-8 text-ink">
+                    {tr("This platform replaces that stack with one smarter route that adapts around you.")}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "welcome-reveal rounded-[28px] border border-accent/20 bg-accent/[0.06] p-6 shadow-soft",
+                    heroVisible && "is-visible",
+                  )}
+                  style={{ transitionDelay: "410ms" }}
+                >
+                  <div className="text-base font-semibold leading-8 text-ink">
+                    {tr("Your first lesson and skill snapshot start before payment or registration.")}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div
-              className={cn("welcome-reveal mt-8 flex flex-wrap gap-3", heroVisible && "is-visible")}
-              style={{ transitionDelay: "490ms" }}
-            >
-              <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                {tr("Do not pay until you try it yourself.")}
-              </div>
-              <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                {tr("Do not register until you see the value.")}
+              <div
+                className={cn("welcome-reveal mt-8 flex flex-wrap gap-3", heroVisible && "is-visible")}
+                style={{ transitionDelay: "490ms" }}
+              >
+                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                  {tr("Do not pay until you try it yourself.")}
+                </div>
+                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                  {tr("Do not register until you see the value.")}
+                </div>
               </div>
             </div>
           </div>
