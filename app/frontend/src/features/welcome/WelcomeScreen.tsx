@@ -174,9 +174,6 @@ export function WelcomeScreen() {
               </div>
             </div>
 
-            <div className="rounded-full border border-accent/15 bg-white/75 px-4 py-2 text-sm font-medium text-slate-600">
-              {tr("First lesson hook")} · {tr("3 short questions")}
-            </div>
           </header>
 
           <div className="mt-8 grid gap-8 xl:grid-cols-[1.05fr_0.95fr] xl:items-center">
@@ -203,23 +200,18 @@ export function WelcomeScreen() {
               </div>
 
               <div className="mt-10 grid gap-4 md:grid-cols-2">
-                <div className="rounded-[26px] border border-white/55 bg-white/72 p-5">
+                <div className="rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-soft">
                   <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("The pain")}</div>
-                  <div className="mt-3 text-base font-semibold text-ink">
+                  <div className="mt-3 text-lg font-semibold leading-8 text-ink">
                     {tr("Most learners waste time building a personal stack of apps just to cover the basics.")}
                   </div>
                 </div>
-                <div className="rounded-[26px] border border-white/55 bg-white/72 p-5">
+                <div className="rounded-[28px] border border-accent/20 bg-accent/[0.07] p-6 shadow-soft">
                   <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("The promise")}</div>
-                  <div className="mt-3 text-base font-semibold text-ink">
+                  <div className="mt-3 text-lg font-semibold leading-8 text-ink">
                     {tr("This platform should replace that stack with one smarter route that adapts around you.")}
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-10 space-y-3 text-sm leading-7 text-slate-600">
-                <div>{tr("Start with three light questions, see what the platform can tailor, and only then move deeper.")}</div>
-                <div>{tr("The first lesson should already feel like relief: one place, one route, one clear next step.")}</div>
               </div>
             </section>
 

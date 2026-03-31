@@ -12,9 +12,10 @@ const translationEntries: TranslationEntry[] = [
   { en: "Dashboard", ru: "Дашборд" },
   { en: "Activity", ru: "Активность" },
   { en: "Vocabulary", ru: "Словарь" },
+  { en: "Reading", ru: "Чтение" },
   { en: "Lesson Runner", ru: "Урок" },
   { en: "Grammar", ru: "Грамматика" },
-  { en: "Speaking", ru: "Говорение" },
+  { en: "Speaking", ru: "Разговорная речь" },
   { en: "Pronunciation", ru: "Произношение" },
   { en: "Writing", ru: "Письмо" },
   { en: "Profession", ru: "Профессия" },
@@ -954,8 +955,8 @@ const translationEntries: TranslationEntry[] = [
   },
   { en: "The promise", ru: "Обещание" },
   {
-    en: "This platform should replace that stack with one smarter route that adapts around you.",
-    ru: "Эта платформа должна заменить такой стек одним более умным маршрутом, который подстраивается под тебя.",
+    en: "This platform replaces that stack with one smarter route that adapts around you.",
+    ru: "Эта платформа заменяет такой стек одним более умным маршрутом, который подстраивается под тебя.",
   },
   {
     en: "Start with three light questions, see what the platform can tailor, and only then move deeper.",
