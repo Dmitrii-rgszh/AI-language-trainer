@@ -15,7 +15,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   color: #1d2a38;
-  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-family: "Montserrat", "Segoe UI", Tahoma, sans-serif;
+  font-optical-sizing: auto;
   background: transparent;
 }
 
@@ -25,6 +26,13 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 a {
