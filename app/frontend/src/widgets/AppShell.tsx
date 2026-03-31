@@ -16,6 +16,10 @@ export function AppShell() {
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const needsOnboarding = useAppStore((state) => state.needsOnboarding);
   const { locale, setLocale, tr, formatRecommendationGoal } = useLocale();
+  const localeOptions = [
+    { value: "ru" as const, label: "RU", flag: "🇷🇺" },
+    { value: "en" as const, label: "EN", flag: "🇺🇸" },
+  ];
 
   const recommendationGoal = dashboard
     ? formatRecommendationGoal({
@@ -50,17 +54,18 @@ export function AppShell() {
         <div className="onboarding-layout__orb onboarding-layout__orb--right" />
         <div className="absolute right-4 top-4 z-20 lg:right-6 lg:top-6">
           <div className="flex rounded-full border border-white/60 bg-white/80 p-1 shadow-soft backdrop-blur">
-            {(["ru", "en"] as const).map((targetLocale) => (
+            {localeOptions.map((targetLocale) => (
               <button
-                key={targetLocale}
+                key={targetLocale.value}
                 type="button"
-                onClick={() => setLocale(targetLocale)}
+                onClick={() => setLocale(targetLocale.value)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                  locale === targetLocale ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                  locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
                 )}
               >
-                {tr(targetLocale.toUpperCase())}
+                <span aria-hidden="true">{targetLocale.flag}</span>
+                <span>{tr(targetLocale.label)}</span>
               </button>
             ))}
           </div>
@@ -129,17 +134,18 @@ export function AppShell() {
                     {tr("Interface language")}
                   </span>
                   <div className="flex rounded-full bg-sand/90 p-1">
-                    {(["ru", "en"] as const).map((targetLocale) => (
+                    {localeOptions.map((targetLocale) => (
                       <button
-                        key={targetLocale}
+                        key={targetLocale.value}
                         type="button"
-                        onClick={() => setLocale(targetLocale)}
+                        onClick={() => setLocale(targetLocale.value)}
                         className={cn(
-                          "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                          locale === targetLocale ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
+                          "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                          locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
                         )}
                       >
-                        {tr(targetLocale.toUpperCase())}
+                        <span aria-hidden="true">{targetLocale.flag}</span>
+                        <span>{tr(targetLocale.label)}</span>
                       </button>
                     ))}
                   </div>

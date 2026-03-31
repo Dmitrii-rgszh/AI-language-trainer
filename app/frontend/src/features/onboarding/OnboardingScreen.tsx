@@ -356,14 +356,6 @@ export function OnboardingScreen() {
           </label>
           <div
             style={{ animationDelay: "120ms" }}
-            className="onboarding-stagger-item rounded-[24px] border border-white/60 bg-white/70 p-4 text-sm leading-6 text-slate-700 md:col-span-2"
-          >
-            {tr(
-              "Login and email create the learner account in one table. The onboarding answers stay separate, so the product can scale cleanly to multiple users later.",
-            )}
-          </div>
-          <div
-            style={{ animationDelay: "180ms" }}
             className="onboarding-stagger-item rounded-[24px] border border-dashed border-accent/30 bg-accent/5 p-4 text-sm leading-6 text-slate-700 md:col-span-2"
           >
             {tr(
