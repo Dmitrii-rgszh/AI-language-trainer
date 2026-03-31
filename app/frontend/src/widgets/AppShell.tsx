@@ -53,26 +53,28 @@ export function AppShell() {
       <div className="onboarding-layout">
         <div className="onboarding-layout__orb onboarding-layout__orb--left" />
         <div className="onboarding-layout__orb onboarding-layout__orb--right" />
-        <div className="absolute right-4 top-4 z-20 lg:right-6 lg:top-6">
-          <div className="flex rounded-full border border-white/60 bg-white/80 p-1 shadow-soft backdrop-blur">
-            {localeOptions.map((targetLocale) => (
-              <button
-                key={targetLocale.value}
-                type="button"
-                onClick={() => setLocale(targetLocale.value)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                  locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
-                )}
-              >
-                <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
-                  {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
-                </span>
-                <span>{tr(targetLocale.label)}</span>
-              </button>
-            ))}
+        {!isWelcomeRoute ? (
+          <div className="absolute right-4 top-4 z-20 lg:right-6 lg:top-6">
+            <div className="flex rounded-full border border-white/60 bg-white/80 p-1 shadow-soft backdrop-blur">
+              {localeOptions.map((targetLocale) => (
+                <button
+                  key={targetLocale.value}
+                  type="button"
+                  onClick={() => setLocale(targetLocale.value)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                    locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
+                  )}
+                >
+                  <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
+                    {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
+                  </span>
+                  <span>{tr(targetLocale.label)}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
         <main className="relative z-10 mx-auto w-full max-w-[1500px] px-4 py-16 lg:px-6 lg:py-10">
           <Outlet />
         </main>

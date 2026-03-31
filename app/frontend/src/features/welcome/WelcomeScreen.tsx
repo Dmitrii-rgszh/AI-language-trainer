@@ -78,7 +78,11 @@ export function WelcomeScreen() {
   const [heroVisible, setHeroVisible] = useState(false);
   const [wizardVisible, setWizardVisible] = useState(false);
   const navigate = useNavigate();
-  const { tr } = useLocale();
+  const { locale, setLocale, tr } = useLocale();
+  const localeOptions = [
+    { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
+    { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
+  ];
   const onboardingSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -180,7 +184,13 @@ export function WelcomeScreen() {
         <div className="welcome-shell__noise" />
 
         <div className="relative z-10">
-          <header className={cn("welcome-reveal flex items-center gap-3 border-b border-white/45 pb-5", heroVisible && "is-visible")}>
+        <header
+          className={cn(
+            "welcome-reveal flex flex-col gap-4 border-b border-white/45 pb-5 md:flex-row md:items-center md:justify-between",
+            heroVisible && "is-visible",
+          )}
+        >
+          <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink text-sm font-semibold tracking-[0.28em] text-white">
               AI
             </div>
@@ -188,7 +198,27 @@ export function WelcomeScreen() {
               <div className="text-xs uppercase tracking-[0.28em] text-slate-500">{tr("AI English Trainer Pro")}</div>
               <div className="mt-1 text-sm text-slate-600">{tr("One platform instead of a stack of disconnected language tools.")}</div>
             </div>
-          </header>
+          </div>
+
+          <div className="flex rounded-full border border-white/60 bg-white/82 p-1 shadow-soft backdrop-blur">
+            {localeOptions.map((targetLocale) => (
+              <button
+                key={targetLocale.value}
+                type="button"
+                onClick={() => setLocale(targetLocale.value)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                  locale === targetLocale.value ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
+                )}
+              >
+                <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
+                  {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
+                </span>
+                <span>{tr(targetLocale.label)}</span>
+              </button>
+            ))}
+          </div>
+        </header>
 
           <div className="mt-12 max-w-[48rem]">
             <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
