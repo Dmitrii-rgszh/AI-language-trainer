@@ -11,6 +11,8 @@ export type GuestDirectionId =
 
 export type GuestIntent = {
   directions: GuestDirectionId[];
+  painPoint?: string;
+  lessonTone?: string;
 };
 
 const GUEST_INTENT_STORAGE_KEY = "ai-english-trainer:guest-intent";
@@ -31,7 +33,13 @@ export function readGuestIntent(): GuestIntent | null {
 
   try {
     const parsedValue = JSON.parse(storedValue) as GuestIntent;
-    return Array.isArray(parsedValue.directions) ? { directions: parsedValue.directions } : null;
+    return Array.isArray(parsedValue.directions)
+      ? {
+          directions: parsedValue.directions,
+          painPoint: typeof parsedValue.painPoint === "string" ? parsedValue.painPoint : undefined,
+          lessonTone: typeof parsedValue.lessonTone === "string" ? parsedValue.lessonTone : undefined,
+        }
+      : null;
   } catch {
     return null;
   }

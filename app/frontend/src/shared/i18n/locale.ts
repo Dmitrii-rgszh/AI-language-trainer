@@ -932,6 +932,162 @@ const translationEntries: TranslationEntry[] = [
     en: "The strongest start usually comes from one to three priorities, not from trying to fix everything at once.",
     ru: "Самый сильный старт обычно рождается из 1-3 приоритетов, а не из попытки исправить всё сразу.",
   },
+  {
+    en: "One platform instead of a stack of disconnected language tools.",
+    ru: "Одна платформа вместо стека разрозненных языковых инструментов.",
+  },
+  { en: "First lesson hook", ru: "Первый урок-хук" },
+  { en: "3 short questions", ru: "3 коротких вопроса" },
+  { en: "Stop searching", ru: "Хватит искать" },
+  {
+    en: "You can stop searching for separate language apps.",
+    ru: "Поздравляем, ты можешь перестать искать отдельные приложения для языка.",
+  },
+  {
+    en: "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
+    ru: "Грамматика, словарь, разговорная речь, чтение и прогресс наконец-то могут жить в одной спокойной системе, а не в разбросанном наборе сервисов.",
+  },
+  { en: "The pain", ru: "Боль" },
+  {
+    en: "Most learners waste time building a personal stack of apps just to cover the basics.",
+    ru: "Большинство учеников тратят время на сборку личного стека приложений, чтобы просто закрыть базовые задачи.",
+  },
+  { en: "The promise", ru: "Обещание" },
+  {
+    en: "This platform should replace that stack with one smarter route that adapts around you.",
+    ru: "Эта платформа должна заменить такой стек одним более умным маршрутом, который подстраивается под тебя.",
+  },
+  {
+    en: "Start with three light questions, see what the platform can tailor, and only then move deeper.",
+    ru: "Начни с трёх лёгких вопросов, посмотри, как платформа умеет подстроиться, и только потом иди глубже.",
+  },
+  {
+    en: "The first lesson should already feel like relief: one place, one route, one clear next step.",
+    ru: "Первый урок уже должен ощущаться как облегчение: одно место, один маршрут, один понятный следующий шаг.",
+  },
+  {
+    en: "What do you want the platform to improve first?",
+    ru: "Что платформа должна улучшить для тебя в первую очередь?",
+  },
+  {
+    en: "Choose one to three directions so the first lesson starts from your real goal, not from a generic template.",
+    ru: "Выбери от одного до трёх направлений, чтобы первый урок стартовал от твоей реальной цели, а не от общего шаблона.",
+  },
+  {
+    en: "What is the most annoying part of learning right now?",
+    ru: "Что в обучении раздражает сильнее всего прямо сейчас?",
+  },
+  {
+    en: "Pick the pain that feels closest right now. We will use it as the emotional entry point for the first experience.",
+    ru: "Выбери боль, которая ощущается ближе всего сейчас. Мы используем её как эмоциональную точку входа в первый опыт.",
+  },
+  { en: "What should your first mini-lesson feel like?", ru: "Каким должен ощущаться твой первый мини-урок?" },
+  {
+    en: "Choose the tone of the first experience. We will use it to shape the mini-lesson and the handoff into the full route.",
+    ru: "Выбери тон первого опыта. Мы используем его, чтобы собрать мини-урок и переход в полный маршрут.",
+  },
+  {
+    en: "Start speaking more freely instead of freezing on simple phrases.",
+    ru: "Начни говорить свободнее вместо того, чтобы замирать на простых фразах.",
+  },
+  {
+    en: "Fix the patterns that keep making your speech feel uncertain.",
+    ru: "Исправь паттерны, из-за которых речь всё ещё звучит неуверенно.",
+  },
+  {
+    en: "Learn words you can actually reuse in daily conversations.",
+    ru: "Учи слова, которые реально можно повторно использовать в обычных разговорах.",
+  },
+  {
+    en: "Read faster and keep the meaning without translating every line.",
+    ru: "Читай быстрее и держи смысл без перевода каждой строки.",
+  },
+  {
+    en: "Handle meetings, client language, and work messages in one place.",
+    ru: "Закрывай встречи, клиентский язык и рабочие сообщения в одном месте.",
+  },
+  {
+    en: "Feel calmer in airports, hotels, directions, and everyday trip situations.",
+    ru: "Чувствуй себя спокойнее в аэропортах, отелях, маршрутах и обычных дорожных ситуациях.",
+  },
+  {
+    en: "Build a cleaner route to tasks, structure, and measurable progress.",
+    ru: "Собери более понятный путь к заданиям, структуре и измеримому прогрессу.",
+  },
+  {
+    en: "I am tired of jumping between different apps",
+    ru: "Я устал прыгать между разными приложениями",
+  },
+  {
+    en: "I want one place for grammar, words, speaking, and progress.",
+    ru: "Я хочу одно место для грамматики, слов, разговорной практики и прогресса.",
+  },
+  {
+    en: "I understand more than I can say",
+    ru: "Я понимаю больше, чем могу сказать",
+  },
+  {
+    en: "I know something already, but confidence breaks at the moment of speaking.",
+    ru: "Я уже что-то знаю, но уверенность ломается в момент говорения.",
+  },
+  {
+    en: "I keep forgetting words and structures",
+    ru: "Я постоянно забываю слова и конструкции",
+  },
+  {
+    en: "I learn something, then lose it because there is no steady route.",
+    ru: "Я что-то учу, а потом теряю, потому что нет стабильного маршрута.",
+  },
+  {
+    en: "I need a clear daily system",
+    ru: "Мне нужна понятная ежедневная система",
+  },
+  {
+    en: "I want the platform to tell me what matters next instead of guessing alone.",
+    ru: "Я хочу, чтобы платформа подсказывала, что важно дальше, а не заставляла угадывать в одиночку.",
+  },
+  {
+    en: "Quick win in a few minutes",
+    ru: "Быстрый результат за несколько минут",
+  },
+  {
+    en: "Show me the platform value fast and keep the first step light.",
+    ru: "Покажи ценность платформы быстро и сохрани первый шаг лёгким.",
+  },
+  { en: "Calm guided mini-lesson", ru: "Спокойный мини-урок с сопровождением" },
+  {
+    en: "I want a smooth first lesson with a clear sense of progress.",
+    ru: "Я хочу плавный первый урок с ясным ощущением прогресса.",
+  },
+  { en: "Smart diagnostic preview", ru: "Умный диагностический preview" },
+  {
+    en: "Show me where my first strong result can come from.",
+    ru: "Покажи, откуда может прийти мой первый сильный результат.",
+  },
+  { en: "Unified English route", ru: "Единый маршрут по английскому" },
+  { en: "Mini-onboarding", ru: "Мини-онбординг" },
+  { en: "Mini-lesson preview", ru: "Предпросмотр мини-урока" },
+  {
+    en: "Your first route will start from these choices, then hand off into the deeper onboarding and your full learning workspace.",
+    ru: "Твой первый маршрут начнётся с этих выборов, а затем плавно перейдёт в более глубокий онбординг и полное учебное пространство.",
+  },
+  {
+    en: "You already picked 3 directions. That is enough for a strong focused start.",
+    ru: "Ты уже выбрал 3 направления. Этого достаточно для сильного сфокусированного старта.",
+  },
+  {
+    en: "Choose one to three directions. A focused start works better than trying to fix everything.",
+    ru: "Выбери от одного до трёх направлений. Сфокусированный старт работает лучше, чем попытка исправить всё сразу.",
+  },
+  {
+    en: "Pick the frustration we should solve first. That is where the wow-effect should begin.",
+    ru: "Выбери фрустрацию, которую мы должны снять первой. Именно там и должен начаться вау-эффект.",
+  },
+  {
+    en: "Choose the tone, then we will carry this setup into your next step.",
+    ru: "Выбери тон, и мы перенесём эту настройку в следующий шаг.",
+  },
+  { en: "Build my mini-lesson", ru: "Собрать мой мини-урок" },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();
