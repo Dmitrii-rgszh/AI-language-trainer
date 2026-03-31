@@ -143,6 +143,20 @@ a {
   background: transparent;
 }
 
+.welcome-story {
+  position: relative;
+}
+
+.welcome-screen {
+  position: relative;
+  min-height: 100vh;
+}
+
+.welcome-screen--secondary {
+  display: flex;
+  align-items: center;
+}
+
 .welcome-shell__noise {
   position: absolute;
   inset: 0;
@@ -153,6 +167,102 @@ a {
   background-size: 34px 34px;
   mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.16), transparent 72%);
   opacity: 0.45;
+}
+
+.welcome-parallax-orb {
+  position: fixed;
+  z-index: 0;
+  border-radius: 9999px;
+  filter: blur(34px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.welcome-parallax-orb--left {
+  top: 10vh;
+  left: -5rem;
+  width: 22rem;
+  height: 22rem;
+  background: rgba(107, 190, 176, 0.18);
+}
+
+.welcome-parallax-orb--right {
+  right: -5rem;
+  bottom: 8vh;
+  width: 24rem;
+  height: 24rem;
+  background: rgba(227, 163, 118, 0.18);
+}
+
+.welcome-reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 820ms ease,
+    transform 820ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.welcome-reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.welcome-scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 2.25rem;
+  z-index: 12;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  border: 0;
+  background: transparent;
+  color: #52606f;
+  cursor: pointer;
+  opacity: 0;
+  transform: translate3d(-50%, 14px, 0);
+  transition:
+    opacity 800ms ease,
+    transform 800ms ease;
+}
+
+.welcome-scroll-cue.is-visible {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}
+
+.welcome-scroll-cue__line {
+  width: 1px;
+  height: 54px;
+  background: linear-gradient(to bottom, rgba(29, 42, 56, 0), rgba(29, 42, 56, 0.32));
+}
+
+.welcome-scroll-cue__arrow {
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid rgba(29, 42, 56, 0.45);
+  border-bottom: 2px solid rgba(29, 42, 56, 0.45);
+  transform: rotate(45deg);
+  animation: welcome-bounce 1.9s ease-in-out infinite;
+}
+
+.welcome-scroll-cue__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@keyframes welcome-bounce {
+  0%,
+  100% {
+    transform: rotate(45deg) translateY(0);
+  }
+
+  50% {
+    transform: rotate(45deg) translateY(6px);
+  }
 }
 
 .onboarding-step-panel {
@@ -179,5 +289,18 @@ a {
   .onboarding-step-panel,
   .onboarding-stagger-item {
     animation: none;
+  }
+
+  .welcome-reveal,
+  .welcome-scroll-cue,
+  .welcome-scroll-cue__arrow {
+    animation: none;
+    transition: none;
+    transform: none;
+    opacity: 1;
+  }
+
+  .welcome-parallax-orb {
+    transform: none !important;
   }
 }

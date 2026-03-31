@@ -1113,6 +1113,18 @@ const translationEntries: TranslationEntry[] = [
     en: "A short lesson comes first. Registration and payment can wait until the value feels obvious.",
     ru: "Сначала идёт короткий урок. Регистрация и оплата подождут, пока ценность не станет очевидной.",
   },
+  {
+    en: "Scroll to build the first lesson",
+    ru: "Прокрути вниз, чтобы собрать первый урок",
+  },
+  {
+    en: "Try the first lesson",
+    ru: "Попробовать первый урок",
+  },
+  {
+    en: "Answer 3 short questions and build the first lesson.",
+    ru: "Ответь на 3 коротких вопроса и собери первый урок.",
+  },
   { en: "Unified English route", ru: "Единый маршрут по английскому" },
   { en: "Mini-onboarding", ru: "Мини-онбординг" },
   { en: "Mini-lesson preview", ru: "Предпросмотр мини-урока" },
