@@ -1089,6 +1089,14 @@ const translationEntries: TranslationEntry[] = [
     ru: "Выбери тон, и мы перенесём эту настройку в следующий шаг.",
   },
   { en: "Build my mini-lesson", ru: "Собрать мой мини-урок" },
+  { en: "Focus", ru: "Фокус" },
+  { en: "Pain", ru: "Боль" },
+  { en: "Tone", ru: "Тон" },
+  { en: "What happens next", ru: "Что будет дальше" },
+  {
+    en: "We use these answers to shape the first lesson feeling, then carry them into the deeper onboarding and your full route.",
+    ru: "Мы используем эти ответы, чтобы задать ощущение первого урока, а затем переносим их в более глубокий онбординг и твой полный маршрут.",
+  },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();

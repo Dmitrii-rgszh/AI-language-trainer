@@ -99,6 +99,7 @@ const lessonToneOptions: MiniOnboardingOption[] = [
 ];
 
 const painTags = ["Speaking", "Grammar", "Vocabulary", "Reading", "Progress"] as const;
+const miniStepLabels = ["Focus", "Pain", "Tone"] as const;
 
 export function WelcomeScreen() {
   const [selectedDirections, setSelectedDirections] = useState<GuestDirectionId[]>([]);
@@ -120,6 +121,8 @@ export function WelcomeScreen() {
     step === 0 ? selectedDirections.length > 0 : step === 1 ? painPoint.length > 0 : lessonTone.length > 0;
   const stepProgress = ((step + 1) / 3) * 100;
   const selectionLimitReached = selectedDirections.length >= 3;
+  const selectedPain = painOptions.find((option) => option.value === painPoint);
+  const selectedLessonTone = lessonToneOptions.find((option) => option.value === lessonTone);
 
   const handleDirectionToggle = (id: GuestDirectionId) => {
     setSelectedDirections((current) => {
@@ -216,7 +219,31 @@ export function WelcomeScreen() {
             </section>
 
             <section className="rounded-[34px] border border-white/65 bg-white/82 p-5 shadow-soft backdrop-blur md:p-6">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {miniStepLabels.map((label, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      if (index <= step) {
+                        setStep(index);
+                      }
+                    }}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] transition-colors",
+                      index === step
+                        ? "border-accent/30 bg-accent/10 text-accent"
+                        : index < step
+                          ? "border-teal-200 bg-teal-50 text-teal-700"
+                          : "border-white/70 bg-white/70 text-slate-400",
+                    )}
+                  >
+                    {tr(label)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-5 flex items-center justify-between gap-4">
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-coral">{tr("Mini-onboarding")}</div>
                   <div className="mt-2 text-2xl font-semibold text-ink">{activeStepTitle}</div>
@@ -232,6 +259,21 @@ export function WelcomeScreen() {
               </div>
 
               <div className="mt-5 text-sm leading-6 text-slate-600">{activeStepDescription}</div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
+                  {tr("Focus")}:{" "}
+                  <span className="text-ink">
+                    {selectedCards.length > 0 ? selectedCards.map((card) => tr(card.title)).join(", ") : tr("Not set yet")}
+                  </span>
+                </div>
+                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
+                  {tr("Pain")}: <span className="text-ink">{selectedPain ? tr(selectedPain.title) : tr("Not set yet")}</span>
+                </div>
+                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
+                  {tr("Tone")}: <span className="text-ink">{selectedLessonTone ? tr(selectedLessonTone.title) : tr("Not set yet")}</span>
+                </div>
+              </div>
 
               <div key={step} className="mt-6 onboarding-step-panel">
                 {step === 0 ? (
@@ -249,7 +291,7 @@ export function WelcomeScreen() {
                           className={cn(
                             "rounded-[24px] border px-4 py-4 text-left transition-all",
                             active
-                              ? "border-accent/45 bg-accent/8 shadow-soft"
+                              ? "border-accent/45 bg-[linear-gradient(180deg,rgba(15,118,110,0.08),rgba(255,255,255,0.95))] shadow-soft"
                               : "border-white/60 bg-[#fffaf4] hover:-translate-y-0.5 hover:bg-white",
                             disabled && "cursor-not-allowed opacity-45 hover:translate-y-0",
                           )}
@@ -282,7 +324,7 @@ export function WelcomeScreen() {
                         className={cn(
                           "w-full rounded-[24px] border px-4 py-4 text-left transition-all",
                           painPoint === option.value
-                            ? "border-accent/45 bg-accent/8 shadow-soft"
+                            ? "border-accent/45 bg-[linear-gradient(180deg,rgba(15,118,110,0.08),rgba(255,255,255,0.96))] shadow-soft"
                             : "border-white/60 bg-[#fffaf4] hover:bg-white",
                         )}
                       >
@@ -303,7 +345,7 @@ export function WelcomeScreen() {
                         className={cn(
                           "w-full rounded-[24px] border px-4 py-4 text-left transition-all",
                           lessonTone === option.value
-                            ? "border-accent/45 bg-accent/8 shadow-soft"
+                            ? "border-accent/45 bg-[linear-gradient(180deg,rgba(15,118,110,0.08),rgba(255,255,255,0.96))] shadow-soft"
                             : "border-white/60 bg-[#fffaf4] hover:bg-white",
                         )}
                       >
@@ -323,30 +365,37 @@ export function WelcomeScreen() {
                 ) : null}
               </div>
 
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm leading-6 text-slate-500">
-                  {step === 0
-                    ? selectionLimitReached
-                      ? tr("You already picked 3 directions. That is enough for a strong focused start.")
-                      : tr("Choose one to three directions. A focused start works better than trying to fix everything.")
-                    : step === 1
-                      ? tr("Pick the frustration we should solve first. That is where the wow-effect should begin.")
-                      : tr("Choose the tone, then we will carry this setup into your next step.")}
+              <div className="mt-6 rounded-[24px] border border-white/65 bg-[#fffaf4] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="max-w-[28rem] text-sm leading-6 text-slate-500">
+                    {step === 0
+                      ? selectionLimitReached
+                        ? tr("You already picked 3 directions. That is enough for a strong focused start.")
+                        : tr("Choose one to three directions. A focused start works better than trying to fix everything.")
+                      : step === 1
+                        ? tr("Pick the frustration we should solve first. That is where the wow-effect should begin.")
+                        : tr("Choose the tone, then we will carry this setup into your next step.")}
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="button" variant="ghost" disabled={step === 0} onClick={() => setStep((current) => current - 1)}>
+                      {tr("Back")}
+                    </Button>
+                    {step < 2 ? (
+                      <Button type="button" disabled={!stepReady} onClick={() => setStep((current) => current + 1)}>
+                        {tr("Continue")}
+                      </Button>
+                    ) : (
+                      <Button type="button" disabled={!stepReady || selectedDirections.length === 0} onClick={continueToOnboarding}>
+                        {tr("Build my mini-lesson")}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" variant="ghost" disabled={step === 0} onClick={() => setStep((current) => current - 1)}>
-                    {tr("Back")}
-                  </Button>
-                  {step < 2 ? (
-                    <Button type="button" disabled={!stepReady} onClick={() => setStep((current) => current + 1)}>
-                      {tr("Continue")}
-                    </Button>
-                  ) : (
-                    <Button type="button" disabled={!stepReady || selectedDirections.length === 0} onClick={continueToOnboarding}>
-                      {tr("Build my mini-lesson")}
-                    </Button>
-                  )}
+                <div className="mt-4 rounded-[18px] bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                  <span className="font-semibold text-ink">{tr("What happens next")}:</span>{" "}
+                  {tr("We use these answers to shape the first lesson feeling, then carry them into the deeper onboarding and your full route.")}
                 </div>
               </div>
             </section>
