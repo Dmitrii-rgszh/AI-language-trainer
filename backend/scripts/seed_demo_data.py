@@ -1,18 +1,65 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.content.bootstrap import bootstrap_content
 from app.db.session import SessionLocal
+from app.models.user_account import UserAccount as UserAccountModel
+from app.models.user_onboarding import UserOnboarding as UserOnboardingModel
 from app.models.user_profile import UserProfile as UserProfileModel
 from app.schemas.blueprint import ProfessionDomain
 from app.schemas.profile import OnboardingAnswers, UserProfile
 from app.services.profile_bootstrap_service.service import ProfileBootstrapService
 
 
+def build_seed_onboarding_answers() -> OnboardingAnswers:
+    return OnboardingAnswers(
+        learner_persona="professional_learner",
+        age_group="adult",
+        learning_context="career_growth",
+        primary_goal="work_communication",
+        secondary_goals=["speaking_confidence", "grammar_accuracy"],
+        active_skill_focus=["speaking", "grammar", "vocabulary"],
+        study_preferences=["structured_plan", "short_sessions", "gentle_feedback"],
+        interest_topics=["work_and_business", "technology", "culture"],
+        support_needs=["clear_examples", "confidence_support"],
+        notes="Initial seeded profile for the local fullstack demo.",
+    )
+
+
 def seed_user(session: Session) -> UserProfileModel:
+    seed_answers = build_seed_onboarding_answers()
+    user_account = session.get(UserAccountModel, "user-local-1")
+    if user_account is None:
+        user_account = UserAccountModel(
+            id="user-local-1",
+            login="learner",
+            email="learner@local.test",
+        )
+        session.add(user_account)
+    else:
+        user_account.login = "learner"
+        user_account.email = "learner@local.test"
+
+    onboarding = session.get(UserOnboardingModel, "onboarding-user-local-1")
+    if onboarding is None:
+        onboarding = UserOnboardingModel(
+            id="onboarding-user-local-1",
+            user_id="user-local-1",
+            answers=seed_answers.model_dump(mode="json"),
+            completed_at=datetime.utcnow(),
+        )
+        session.add(onboarding)
+    else:
+        onboarding.user_id = "user-local-1"
+        onboarding.answers = seed_answers.model_dump(mode="json")
+        onboarding.completed_at = datetime.utcnow()
+
     user = session.get(UserProfileModel, "user-local-1")
     if user:
+        user.onboarding_answers = seed_answers.model_dump(mode="json")
         return user
 
     user = UserProfileModel(
@@ -28,18 +75,7 @@ def seed_user(session: Session) -> UserProfileModel:
         speaking_priority=8,
         grammar_priority=7,
         profession_priority=9,
-        onboarding_answers=OnboardingAnswers(
-            learner_persona="professional_learner",
-            age_group="adult",
-            learning_context="career_growth",
-            primary_goal="work_communication",
-            secondary_goals=["speaking_confidence", "grammar_accuracy"],
-            active_skill_focus=["speaking", "grammar", "vocabulary"],
-            study_preferences=["structured_plan", "short_sessions", "gentle_feedback"],
-            interest_topics=["work_and_business", "technology", "culture"],
-            support_needs=["clear_examples", "confidence_support"],
-            notes="Initial seeded profile for the local fullstack demo.",
-        ).model_dump(mode="json"),
+        onboarding_answers=seed_answers.model_dump(mode="json"),
     )
     session.add(user)
     session.flush()

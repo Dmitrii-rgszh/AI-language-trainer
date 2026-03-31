@@ -12,6 +12,8 @@ from app.models.speaking_attempt import SpeakingAttempt
 from app.models.speaking_scenario import SpeakingScenario
 from app.models.user_profile import UserProfile
 from app.models.user_provider_preference import UserProviderPreference
+from app.models.user_account import UserAccount
+from app.models.user_onboarding import UserOnboarding
 from app.models.vocabulary_item import VocabularyItem
 from app.models.writing_attempt import WritingAttempt
 from app.models.writing_task import WritingTask
@@ -32,6 +34,8 @@ __all__ = [
     "PronunciationDrill",
     "SpeakingAttempt",
     "SpeakingScenario",
+    "UserAccount",
+    "UserOnboarding",
     "UserProfile",
     "UserProviderPreference",
     "VocabularyItem",

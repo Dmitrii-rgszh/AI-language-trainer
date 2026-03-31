@@ -5,12 +5,14 @@ from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.listening_repository import ListeningRepository
 from app.repositories.mistake_repository import MistakeRepository
+from app.repositories.onboarding_repository import OnboardingRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.progress_repository import ProgressRepository
 from app.repositories.provider_preference_repository import ProviderPreferenceRepository
 from app.repositories.pronunciation_attempt_repository import PronunciationAttemptRepository
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.repositories.speaking_attempt_repository import SpeakingAttemptRepository
+from app.repositories.user_account_repository import UserAccountRepository
 from app.repositories.vocabulary_repository import VocabularyRepository
 from app.repositories.writing_attempt_repository import WritingAttemptRepository
 from app.providers.registry import ProviderRegistry
@@ -23,6 +25,7 @@ from app.services.lesson_service.service import LessonService
 from app.services.listening_service.service import ListeningService
 from app.services.mistake_extraction_service.service import MistakeExtractionService
 from app.services.mistake_service.service import MistakeService
+from app.services.onboarding_service.service import OnboardingService
 from app.services.pronunciation_service.service import PronunciationService
 from app.services.profile_bootstrap_service.service import ProfileBootstrapService
 from app.services.profile_service.service import ProfileService
@@ -32,6 +35,7 @@ from app.services.provider_service.service import ProviderService
 from app.services.recommendation_service.service import RecommendationService
 from app.services.speaking_service.service import SpeakingService
 from app.services.stt_service.service import STTService
+from app.services.user_service.service import UserService
 from app.services.voice_service.service import VoiceService
 from app.services.writing_service.service import WritingService
 
@@ -61,6 +65,8 @@ lesson_runtime_repository = LessonRuntimeRepository(SessionLocal)
 listening_repository = ListeningRepository(SessionLocal)
 progress_repository = ProgressRepository(SessionLocal, lesson_repository)
 mistake_repository = MistakeRepository(SessionLocal)
+onboarding_repository = OnboardingRepository(SessionLocal)
+user_account_repository = UserAccountRepository(SessionLocal)
 provider_preference_repository = ProviderPreferenceRepository(SessionLocal)
 speaking_attempt_repository = SpeakingAttemptRepository(SessionLocal)
 pronunciation_attempt_repository = PronunciationAttemptRepository(SessionLocal)
@@ -73,6 +79,8 @@ stt_service = STTService(provider_registry.stt_provider)
 
 profile_bootstrap_service = ProfileBootstrapService(SessionLocal)
 profile_service = ProfileService(profile_repository, profile_bootstrap_service)
+user_service = UserService(user_account_repository)
+onboarding_service = OnboardingService(user_account_repository, onboarding_repository, profile_service)
 progress_service = ProgressService(progress_repository)
 mistake_service = MistakeService(mistake_repository)
 diagnostic_service = DiagnosticService(

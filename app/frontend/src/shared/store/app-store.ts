@@ -1,6 +1,8 @@
 import { create } from "zustand";
+import type { UserAccount, UserAccountDraft } from "../../entities/account/model";
 import type { BlockResultSubmission, Lesson, LessonResultSummary } from "../../entities/lesson/model";
 import type { Mistake } from "../../entities/mistake/model";
+import type { CompleteOnboardingRequest, UserOnboarding } from "../../entities/onboarding/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
 import type { UserProfile } from "../../entities/user/model";
 import type {
@@ -15,6 +17,11 @@ import type {
   WritingTask,
 } from "../types/app-data";
 import { ApiError, apiClient } from "../api/client";
+import {
+  clearStoredActiveUserId,
+  readStoredActiveUserId,
+  writeStoredActiveUserId,
+} from "../auth/active-user";
 import { normalizeLocale, readStoredLocale, type AppLocale, writeStoredLocale } from "../i18n/locale";
 
 function normalizeText(value: string) {
@@ -216,6 +223,8 @@ interface AppState {
   isBootstrapping: boolean;
   bootstrapError: string | null;
   needsOnboarding: boolean;
+  currentUser: UserAccount | null;
+  currentOnboarding: UserOnboarding | null;
   profile: UserProfile | null;
   dashboard: DashboardData | null;
   lesson: Lesson | null;
@@ -237,6 +246,8 @@ interface AppState {
   listeningTranscriptReveals: Record<string, boolean>;
   setLocale: (locale: AppLocale) => void;
   bootstrap: () => Promise<void>;
+  completeOnboarding: (payload: CompleteOnboardingRequest) => Promise<void>;
+  saveCurrentUser: (payload: UserAccountDraft) => Promise<void>;
   saveProfile: (profile: UserProfile) => Promise<void>;
   saveProviderPreference: (providerType: ProviderPreference["providerType"], enabled: boolean) => Promise<void>;
   startLesson: () => Promise<void>;
@@ -259,6 +270,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   isBootstrapping: false,
   bootstrapError: null,
   needsOnboarding: false,
+  currentUser: null,
+  currentOnboarding: null,
   profile: null,
   dashboard: null,
   lesson: null,
@@ -326,6 +339,70 @@ export const useAppStore = create<AppState>((set, get) => ({
         providers,
       });
 
+      const activeUserId = readStoredActiveUserId();
+      if (!activeUserId) {
+        set({
+          isBootstrapping: false,
+          bootstrapError: null,
+          needsOnboarding: true,
+          currentUser: null,
+          currentOnboarding: null,
+          profile: null,
+          dashboard: null,
+          lesson: null,
+          lastLessonResult: null,
+          activeLessonRunId: null,
+          blockResponses: {},
+          blockScores: {},
+          listeningTranscriptReveals: {},
+          mistakes: [],
+          progress: null,
+          diagnosticRoadmap: null,
+          providerPreferences: [],
+        });
+        return;
+      }
+
+      let currentUser: UserAccount;
+      try {
+        currentUser = await apiClient.getCurrentUser();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          clearStoredActiveUserId();
+          set({
+            isBootstrapping: false,
+            bootstrapError: null,
+            needsOnboarding: true,
+            currentUser: null,
+            currentOnboarding: null,
+            profile: null,
+            dashboard: null,
+            lesson: null,
+            lastLessonResult: null,
+            activeLessonRunId: null,
+            blockResponses: {},
+            blockScores: {},
+            listeningTranscriptReveals: {},
+            mistakes: [],
+            progress: null,
+            diagnosticRoadmap: null,
+            providerPreferences: [],
+          });
+          return;
+        }
+
+        throw error;
+      }
+
+      let currentOnboarding: UserOnboarding | null = null;
+      try {
+        currentOnboarding = await apiClient.getCurrentOnboarding();
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) {
+          throw error;
+        }
+      }
+
       let profile: UserProfile;
       try {
         profile = await apiClient.getProfile();
@@ -335,6 +412,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             isBootstrapping: false,
             bootstrapError: null,
             needsOnboarding: true,
+            currentUser,
+            currentOnboarding,
             profile: null,
             dashboard: null,
             lesson: null,
@@ -374,6 +453,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         isBootstrapping: false,
         bootstrapError: null,
         needsOnboarding: false,
+        currentUser,
+        currentOnboarding,
         profile,
         dashboard,
         lesson: null,
@@ -391,6 +472,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       const message = error instanceof Error ? error.message : "Failed to bootstrap app data";
       set({ isBootstrapping: false, bootstrapError: message });
     }
+  },
+  completeOnboarding: async (payload) => {
+    const response = await apiClient.completeOnboarding(payload);
+    writeStoredActiveUserId(response.user.id);
+    const nextLocale = normalizeLocale(response.profile.preferredUiLanguage, get().locale);
+    writeStoredLocale(nextLocale);
+    set({
+      locale: nextLocale,
+      bootstrapError: null,
+      needsOnboarding: false,
+      currentUser: response.user,
+      currentOnboarding: response.onboarding,
+      profile: response.profile,
+    });
+    await get().bootstrap();
+  },
+  saveCurrentUser: async (payload) => {
+    const savedUser = await apiClient.saveCurrentUser(payload);
+    set({ currentUser: savedUser });
   },
   saveProfile: async (profile) => {
     const savedProfile = await apiClient.saveProfile(profile);

@@ -8,6 +8,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.lessons import router as lessons_router
 from app.api.routes.listening import router as listening_router
 from app.api.routes.mistakes import router as mistakes_router
+from app.api.routes.onboarding import router as onboarding_router
 from app.api.routes.profile import router as profile_router
 from app.api.routes.profession import router as profession_router
 from app.api.routes.progress import router as progress_router
@@ -15,12 +16,15 @@ from app.api.routes.pronunciation import router as pronunciation_router
 from app.api.routes.providers import router as providers_router
 from app.api.routes.recommendations import router as recommendations_router
 from app.api.routes.speaking import router as speaking_router
+from app.api.routes.users import router as users_router
 from app.api.routes.voice import router as voice_router
 from app.api.routes.writing import router as writing_router
 from app.core.config import settings
 
 api_router = APIRouter(prefix=settings.api_prefix)
 api_router.include_router(health_router)
+api_router.include_router(users_router)
+api_router.include_router(onboarding_router)
 api_router.include_router(profile_router)
 api_router.include_router(adaptive_router)
 api_router.include_router(diagnostic_router)

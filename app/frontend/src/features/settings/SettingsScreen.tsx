@@ -1,20 +1,26 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import type { UserAccountDraft } from "../../entities/account/model";
 import type { UserProfile } from "../../entities/user/model";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { AccountIdentityCard } from "../onboarding/AccountIdentityCard";
 import { ProfileEditorCard } from "../onboarding/ProfileEditorCard";
 
 export function SettingsScreen() {
   const { tr } = useLocale();
+  const currentUser = useAppStore((state) => state.currentUser);
   const profile = useAppStore((state) => state.profile);
   const providers = useAppStore((state) => state.providers);
   const providerPreferences = useAppStore((state) => state.providerPreferences);
   const professionTracks = useAppStore((state) => state.professionTracks);
   const saveProviderPreference = useAppStore((state) => state.saveProviderPreference);
+  const saveCurrentUser = useAppStore((state) => state.saveCurrentUser);
   const saveProfile = useAppStore((state) => state.saveProfile);
+  const [accountDraft, setAccountDraft] = useState<UserAccountDraft>({ login: "", email: "" });
 
   const getPreferenceEnabled = (providerType: "llm" | "stt" | "tts" | "scoring") =>
     providerPreferences.find((preference) => preference.providerType === providerType)?.enabled;
@@ -38,6 +44,17 @@ export function SettingsScreen() {
   const handleSaveProfile = async (nextProfile: UserProfile) => {
     await saveProfile(nextProfile);
   };
+
+  const handleSaveUser = async (nextUser: UserAccountDraft) => {
+    await saveCurrentUser(nextUser);
+  };
+
+  useEffect(() => {
+    setAccountDraft({
+      login: currentUser?.login ?? "",
+      email: currentUser?.email ?? "",
+    });
+  }, [currentUser]);
 
   return (
     <div className="space-y-4">
@@ -70,6 +87,19 @@ export function SettingsScreen() {
           <div className="text-sm text-slate-600">{tr("Modules working through fallback or non-primary providers.")}</div>
         </Card>
       </div>
+
+      {currentUser ? (
+        <AccountIdentityCard
+          title={tr("Personal cabinet")}
+          description={tr(
+            "Login and email live in the user account table. Update them here without touching the learning profile itself.",
+          )}
+          account={accountDraft}
+          onChange={setAccountDraft}
+          submitLabel={tr("Save cabinet updates")}
+          onSave={handleSaveUser}
+        />
+      ) : null}
 
       <ProfileEditorCard
         initialProfile={profile}

@@ -13,6 +13,8 @@ from app.models import (  # noqa: F401
     PronunciationDrill,
     SpeakingAttempt,
     SpeakingScenario,
+    UserAccount,
+    UserOnboarding,
     UserProfile,
     UserProviderPreference,
     VocabularyItem,

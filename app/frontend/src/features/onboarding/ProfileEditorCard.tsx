@@ -190,6 +190,8 @@ interface ProfileEditorCardProps {
   title: string;
   description: string;
   submitLabel: string;
+  submitDisabled?: boolean;
+  submitHelperText?: string;
   onSave: (profile: UserProfile) => Promise<void>;
 }
 
@@ -199,6 +201,8 @@ export function ProfileEditorCard({
   title,
   description,
   submitLabel,
+  submitDisabled = false,
+  submitHelperText,
   onSave,
 }: ProfileEditorCardProps) {
   const { tr } = useLocale();
@@ -371,11 +375,12 @@ export function ProfileEditorCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button variant="ghost" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || isSaving}>{tr("Back")}</Button>
           {step === steps.length - 1 ? (
-            <Button onClick={() => void submit()} disabled={isSaving || !steps.slice(0, -1).every((item) => item.ready)}>{isSaving ? tr("Saving...") : submitLabel}</Button>
+            <Button onClick={() => void submit()} disabled={isSaving || submitDisabled || !steps.slice(0, -1).every((item) => item.ready)}>{isSaving ? tr("Saving...") : submitLabel}</Button>
           ) : (
             <Button onClick={() => setStep((value) => Math.min(steps.length - 1, value + 1))} disabled={!steps[step].ready || isSaving}>{tr("Continue")}</Button>
           )}
         </div>
+        {submitDisabled && submitHelperText ? <div className="text-sm text-slate-500">{submitHelperText}</div> : null}
       </Card>
 
       <Card className="space-y-4">

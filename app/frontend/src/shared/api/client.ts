@@ -6,8 +6,15 @@ import type {
   LessonRunState,
 } from "../../entities/lesson/model";
 import type { Mistake } from "../../entities/mistake/model";
+import type {
+  CompleteOnboardingRequest,
+  CompleteOnboardingResponse,
+  UserOnboarding,
+} from "../../entities/onboarding/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
+import type { UserAccount } from "../../entities/account/model";
 import type { UserProfile } from "../../entities/user/model";
+import { readStoredActiveUserId } from "../auth/active-user";
 import type {
   AITextFeedback,
   AdaptiveStudyLoop,
@@ -44,8 +51,21 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init);
+function buildRequestInit(init?: RequestInit, attachActiveUser = true): RequestInit | undefined {
+  const headers = new Headers(init?.headers);
+  const activeUserId = attachActiveUser ? readStoredActiveUserId() : null;
+  if (activeUserId) {
+    headers.set("X-User-Id", activeUserId);
+  }
+
+  return {
+    ...init,
+    headers,
+  };
+}
+
+async function request<T>(path: string, init?: RequestInit, attachActiveUser = true): Promise<T> {
+  const response = await fetch(path, buildRequestInit(init, attachActiveUser));
   if (!response.ok) {
     throw new ApiError(response.status, path);
   }
@@ -54,7 +74,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
-  const response = await fetch(path, init);
+  const response = await fetch(path, buildRequestInit(init));
   if (!response.ok) {
     throw new ApiError(response.status, path);
   }
@@ -81,6 +101,24 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ successful }),
     }),
+  getCurrentUser: () => request<UserAccount>("/api/users/me"),
+  saveCurrentUser: (payload: { login: string; email: string }) =>
+    request<UserAccount>("/api/users/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  getCurrentOnboarding: () => request<UserOnboarding>("/api/onboarding/current"),
+  completeOnboarding: (payload: CompleteOnboardingRequest) =>
+    request<CompleteOnboardingResponse>(
+      "/api/onboarding/complete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      false,
+    ),
   getProfile: () => request<UserProfile>("/api/profile"),
   saveProfile: (profile: UserProfile) =>
     request<UserProfile>("/api/profile", {

@@ -6,12 +6,14 @@ from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.listening_repository import ListeningRepository
 from app.repositories.mistake_repository import MistakeRepository
+from app.repositories.onboarding_repository import OnboardingRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.progress_repository import ProgressRepository
 from app.repositories.provider_preference_repository import ProviderPreferenceRepository
 from app.repositories.pronunciation_attempt_repository import PronunciationAttemptRepository
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.repositories.speaking_attempt_repository import SpeakingAttemptRepository
+from app.repositories.user_account_repository import UserAccountRepository
 from app.repositories.vocabulary_repository import VocabularyRepository
 from app.repositories.writing_attempt_repository import WritingAttemptRepository
 from app.providers.llm.mock_provider import MockLLMProvider
@@ -25,10 +27,13 @@ from app.services.writing_service.service import WritingService
 from app.schemas.lesson import BlockResultSubmission
 from app.schemas.lesson import CompleteLessonRunRequest, StartLessonRunRequest
 from app.schemas.feedback import AITextFeedback
+from app.schemas.onboarding import CompleteOnboardingRequest
 from app.schemas.provider import ProviderPreferenceUpdateRequest, ProviderType
 from app.schemas.profile import OnboardingAnswers, ProfileUpdateRequest
 from app.schemas.mistake import WeakSpot
 from app.schemas.adaptive import MistakeResolutionSignal, VocabularyLoopSummary
+from app.services.onboarding_service.service import OnboardingService
+from app.services.profile_service.service import ProfileService
 
 
 def test_profile_repository_supports_create_and_update(empty_session_factory) -> None:
@@ -107,6 +112,63 @@ def test_profile_repository_supports_create_and_update(empty_session_factory) ->
     assert fetched.preferred_explanation_language == "en"
     assert fetched.onboarding_answers.primary_goal == "work_communication"
     assert "writing" in fetched.onboarding_answers.active_skill_focus
+
+
+def test_onboarding_service_keeps_user_and_answers_in_separate_tables(empty_session_factory) -> None:
+    profile_repository = ProfileRepository(empty_session_factory)
+    user_repository = UserAccountRepository(empty_session_factory)
+    onboarding_repository = OnboardingRepository(empty_session_factory)
+    onboarding_service = OnboardingService(
+        user_repository,
+        onboarding_repository,
+        ProfileService(profile_repository),
+    )
+
+    completed = onboarding_service.complete_onboarding(
+        CompleteOnboardingRequest(
+            login="nina",
+            email="nina@example.com",
+            profile=ProfileUpdateRequest(
+                id="temp-profile-id",
+                name="Nina",
+                native_language="ru",
+                current_level="A2",
+                target_level="B1",
+                profession_track="cross_cultural",
+                preferred_ui_language="ru",
+                preferred_explanation_language="ru",
+                lesson_duration=20,
+                speaking_priority=7,
+                grammar_priority=6,
+                profession_priority=5,
+                onboarding_answers=OnboardingAnswers(
+                    learner_persona="self_learner",
+                    age_group="adult",
+                    learning_context="general_english",
+                    primary_goal="everyday_communication",
+                    secondary_goals=["speaking_confidence"],
+                    active_skill_focus=["speaking", "vocabulary"],
+                    study_preferences=["short_sessions", "gentle_feedback"],
+                    interest_topics=["travel", "culture"],
+                    support_needs=["confidence_support"],
+                    notes="Personal learner flow.",
+                ),
+            ),
+        )
+    )
+
+    saved_user = user_repository.get_user(completed.user.id)
+    saved_onboarding = onboarding_repository.get_onboarding(completed.user.id)
+    saved_profile = profile_repository.get_profile(completed.user.id)
+
+    assert saved_user is not None
+    assert saved_user.login == "nina"
+    assert saved_user.email == "nina@example.com"
+    assert saved_onboarding is not None
+    assert saved_onboarding.answers.primary_goal == "everyday_communication"
+    assert saved_profile is not None
+    assert saved_profile.id == completed.user.id
+    assert saved_profile.profession_track == "cross_cultural"
 
 
 def test_content_repository_reads_bootstrapped_catalogs(seeded_session_factory) -> None:
