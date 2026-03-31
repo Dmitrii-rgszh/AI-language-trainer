@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "LessonRunStatus": {
+      "enum": [
+        "planned",
+        "in_progress",
+        "completed",
+        "skipped"
+      ],
+      "title": "LessonRunStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    },
+    "templateId": {
+      "title": "Templateid",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/LessonRunStatus"
+    },
+    "recommendedBy": {
+      "title": "Recommendedby",
+      "type": "string"
+    },
+    "weakSpotIds": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Weakspotids",
+      "type": "array"
+    },
+    "startedAt": {
+      "title": "Startedat",
+      "type": "string"
+    },
+    "completedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Completedat"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Score"
+    }
+  },
+  "required": [
+    "id",
+    "userId",
+    "templateId",
+    "status",
+    "recommendedBy",
+    "startedAt"
+  ],
+  "title": "LessonRunBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

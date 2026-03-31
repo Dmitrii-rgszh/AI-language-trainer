@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "VocabularyStatus": {
+      "enum": [
+        "new",
+        "active",
+        "mastered"
+      ],
+      "title": "VocabularyStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    },
+    "word": {
+      "title": "Word",
+      "type": "string"
+    },
+    "translation": {
+      "title": "Translation",
+      "type": "string"
+    },
+    "context": {
+      "title": "Context",
+      "type": "string"
+    },
+    "category": {
+      "title": "Category",
+      "type": "string"
+    },
+    "learnedStatus": {
+      "$ref": "#/$defs/VocabularyStatus"
+    },
+    "repetitionStage": {
+      "maximum": 10,
+      "minimum": 0,
+      "title": "Repetitionstage",
+      "type": "integer"
+    },
+    "lastReviewedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lastreviewedat"
+    }
+  },
+  "required": [
+    "id",
+    "userId",
+    "word",
+    "translation",
+    "context",
+    "category",
+    "learnedStatus",
+    "repetitionStage"
+  ],
+  "title": "VocabularyItemBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

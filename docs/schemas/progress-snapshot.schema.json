@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "SkillArea": {
+      "enum": [
+        "grammar",
+        "speaking",
+        "listening",
+        "pronunciation",
+        "writing",
+        "vocabulary",
+        "interview",
+        "profession_english",
+        "insurance_eu",
+        "banking_eu",
+        "regulation_eu",
+        "ai_for_business"
+      ],
+      "title": "SkillArea",
+      "type": "string"
+    },
+    "SkillScore": {
+      "properties": {
+        "area": {
+          "$ref": "#/$defs/SkillArea"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "confidence": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "title": "Updatedat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "area",
+        "score",
+        "confidence",
+        "updatedAt"
+      ],
+      "title": "SkillScore",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    },
+    "lessonRunId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lessonrunid"
+    },
+    "snapshotDate": {
+      "title": "Snapshotdate",
+      "type": "string"
+    },
+    "skillScores": {
+      "items": {
+        "$ref": "#/$defs/SkillScore"
+      },
+      "title": "Skillscores",
+      "type": "array"
+    },
+    "dailyGoalMinutes": {
+      "maximum": 180,
+      "minimum": 0,
+      "title": "Dailygoalminutes",
+      "type": "integer"
+    },
+    "minutesCompletedToday": {
+      "maximum": 180,
+      "minimum": 0,
+      "title": "Minutescompletedtoday",
+      "type": "integer"
+    },
+    "streak": {
+      "minimum": 0,
+      "title": "Streak",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "userId",
+    "snapshotDate",
+    "skillScores",
+    "dailyGoalMinutes",
+    "minutesCompletedToday",
+    "streak"
+  ],
+  "title": "ProgressSnapshotBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

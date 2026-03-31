@@ -1,0 +1,31 @@
+[project]
+name = "ai-english-trainer-pro-backend"
+version = "0.1.0"
+description = "FastAPI backend for AI English Trainer Pro"
+requires-python = ">=3.10"
+dependencies = [
+  "alembic>=1.14.0",
+  "faster-whisper>=1.1.0",
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "pydantic>=2.9.0",
+  "python-multipart>=0.0.9",
+  "sqlalchemy>=2.0.36",
+  "TTS>=0.22.0",
+  "transformers>=4.41.0,<4.42.0",
+  "uvicorn[standard]>=0.32.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0"
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+namespaces = true

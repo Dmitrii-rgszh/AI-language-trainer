@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "BlockRunStatus": {
+      "enum": [
+        "pending",
+        "active",
+        "completed",
+        "skipped"
+      ],
+      "title": "BlockRunStatus",
+      "type": "string"
+    },
+    "UserResponseType": {
+      "enum": [
+        "none",
+        "text",
+        "voice",
+        "multiple_choice"
+      ],
+      "title": "UserResponseType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lessonRunId": {
+      "title": "Lessonrunid",
+      "type": "string"
+    },
+    "blockId": {
+      "title": "Blockid",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/BlockRunStatus"
+    },
+    "userResponseType": {
+      "$ref": "#/$defs/UserResponseType"
+    },
+    "userResponse": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Userresponse"
+    },
+    "transcript": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Transcript"
+    },
+    "feedbackSummary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Feedbacksummary"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Score"
+    },
+    "startedAt": {
+      "title": "Startedat",
+      "type": "string"
+    },
+    "completedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Completedat"
+    }
+  },
+  "required": [
+    "id",
+    "lessonRunId",
+    "blockId",
+    "status",
+    "userResponseType",
+    "startedAt"
+  ],
+  "title": "LessonBlockRunBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

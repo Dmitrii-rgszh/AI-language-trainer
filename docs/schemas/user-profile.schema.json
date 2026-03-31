@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "ProfessionDomain": {
+      "enum": [
+        "insurance",
+        "banking",
+        "trainer_skills",
+        "ai_business",
+        "regulation",
+        "cross_cultural"
+      ],
+      "title": "ProfessionDomain",
+      "type": "string"
+    },
+    "SkillArea": {
+      "enum": [
+        "grammar",
+        "speaking",
+        "listening",
+        "pronunciation",
+        "writing",
+        "vocabulary",
+        "interview",
+        "profession_english",
+        "insurance_eu",
+        "banking_eu",
+        "regulation_eu",
+        "ai_for_business"
+      ],
+      "title": "SkillArea",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "nativeLanguage": {
+      "title": "Nativelanguage",
+      "type": "string"
+    },
+    "currentLevel": {
+      "title": "Currentlevel",
+      "type": "string"
+    },
+    "targetLevel": {
+      "title": "Targetlevel",
+      "type": "string"
+    },
+    "professionTrack": {
+      "$ref": "#/$defs/ProfessionDomain"
+    },
+    "preferredUiLanguage": {
+      "title": "Preferreduilanguage",
+      "type": "string"
+    },
+    "preferredExplanationLanguage": {
+      "title": "Preferredexplanationlanguage",
+      "type": "string"
+    },
+    "lessonDuration": {
+      "maximum": 90,
+      "minimum": 10,
+      "title": "Lessonduration",
+      "type": "integer"
+    },
+    "speakingPriority": {
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Speakingpriority",
+      "type": "integer"
+    },
+    "grammarPriority": {
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Grammarpriority",
+      "type": "integer"
+    },
+    "professionPriority": {
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Professionpriority",
+      "type": "integer"
+    },
+    "activeSkillFocus": {
+      "items": {
+        "$ref": "#/$defs/SkillArea"
+      },
+      "title": "Activeskillfocus",
+      "type": "array"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "string"
+    },
+    "updatedAt": {
+      "title": "Updatedat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "nativeLanguage",
+    "currentLevel",
+    "targetLevel",
+    "professionTrack",
+    "preferredUiLanguage",
+    "preferredExplanationLanguage",
+    "lessonDuration",
+    "speakingPriority",
+    "grammarPriority",
+    "professionPriority",
+    "createdAt",
+    "updatedAt"
+  ],
+  "title": "UserProfileBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

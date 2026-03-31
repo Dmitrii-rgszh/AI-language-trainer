@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "ProfessionDomain": {
+      "enum": [
+        "insurance",
+        "banking",
+        "trainer_skills",
+        "ai_business",
+        "regulation",
+        "cross_cultural"
+      ],
+      "title": "ProfessionDomain",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "domain": {
+      "$ref": "#/$defs/ProfessionDomain"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "difficulty": {
+      "title": "Difficulty",
+      "type": "string"
+    },
+    "content": {
+      "title": "Content",
+      "type": "string"
+    },
+    "examples": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Examples",
+      "type": "array"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "domain",
+    "title",
+    "difficulty",
+    "content",
+    "examples"
+  ],
+  "title": "ProfessionTopicBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

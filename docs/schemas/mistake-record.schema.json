@@ -1,0 +1,104 @@
+{
+  "$defs": {
+    "MistakeCategory": {
+      "enum": [
+        "grammar",
+        "pronunciation",
+        "vocabulary",
+        "speaking",
+        "writing",
+        "profession"
+      ],
+      "title": "MistakeCategory",
+      "type": "string"
+    },
+    "MistakeSeverity": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "MistakeSeverity",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "userId": {
+      "title": "Userid",
+      "type": "string"
+    },
+    "category": {
+      "$ref": "#/$defs/MistakeCategory"
+    },
+    "subtype": {
+      "title": "Subtype",
+      "type": "string"
+    },
+    "sourceModule": {
+      "title": "Sourcemodule",
+      "type": "string"
+    },
+    "sourceBlockRunId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sourceblockrunid"
+    },
+    "originalText": {
+      "title": "Originaltext",
+      "type": "string"
+    },
+    "correctedText": {
+      "title": "Correctedtext",
+      "type": "string"
+    },
+    "explanation": {
+      "title": "Explanation",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/MistakeSeverity"
+    },
+    "repetitionCount": {
+      "minimum": 1,
+      "title": "Repetitioncount",
+      "type": "integer"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "string"
+    },
+    "lastSeenAt": {
+      "title": "Lastseenat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "userId",
+    "category",
+    "subtype",
+    "sourceModule",
+    "originalText",
+    "correctedText",
+    "explanation",
+    "severity",
+    "repetitionCount",
+    "createdAt",
+    "lastSeenAt"
+  ],
+  "title": "MistakeRecordBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}

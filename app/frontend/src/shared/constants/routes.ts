@@ -1,0 +1,16 @@
+export const routes = {
+  onboarding: "/onboarding",
+  dashboard: "/dashboard",
+  activity: "/activity",
+  vocabulary: "/vocabulary",
+  lessonRunner: "/lesson-runner",
+  lessonResults: "/lesson-results",
+  grammar: "/grammar",
+  speaking: "/speaking",
+  pronunciation: "/pronunciation",
+  writing: "/writing",
+  profession: "/profession",
+  mistakes: "/mistakes",
+  progress: "/progress",
+  settings: "/settings",
+} as const;

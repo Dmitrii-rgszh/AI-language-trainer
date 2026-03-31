@@ -1,0 +1,1079 @@
+{
+  "$defs": {
+    "FeedbackMode": {
+      "enum": [
+        "immediate",
+        "after_block",
+        "critical_only"
+      ],
+      "title": "FeedbackMode",
+      "type": "string"
+    },
+    "GrammarBlockPayload": {
+      "properties": {
+        "topicId": {
+          "title": "Topicid",
+          "type": "string"
+        },
+        "focusPoints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Focuspoints",
+          "type": "array"
+        },
+        "prompts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prompts",
+          "type": "array"
+        },
+        "targetErrorTypes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Targeterrortypes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "topicId",
+        "focusPoints",
+        "prompts",
+        "targetErrorTypes"
+      ],
+      "title": "GrammarBlockPayload",
+      "type": "object"
+    },
+    "GrammarLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "grammar_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/GrammarBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "GrammarLessonBlock",
+      "type": "object"
+    },
+    "IntroBlockPayload": {
+      "properties": {
+        "lessonGoal": {
+          "title": "Lessongoal",
+          "type": "string"
+        },
+        "warmupPrompt": {
+          "title": "Warmupprompt",
+          "type": "string"
+        },
+        "successCriteria": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Successcriteria",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lessonGoal",
+        "warmupPrompt",
+        "successCriteria"
+      ],
+      "title": "IntroBlockPayload",
+      "type": "object"
+    },
+    "IntroLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "intro_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/IntroBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "IntroLessonBlock",
+      "type": "object"
+    },
+    "LessonType": {
+      "enum": [
+        "core",
+        "grammar",
+        "speaking",
+        "pronunciation",
+        "writing",
+        "professional",
+        "mixed",
+        "recovery"
+      ],
+      "title": "LessonType",
+      "type": "string"
+    },
+    "ListeningBlockPayload": {
+      "properties": {
+        "audioAssetId": {
+          "title": "Audioassetid",
+          "type": "string"
+        },
+        "transcript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript"
+        },
+        "questions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Questions",
+          "type": "array"
+        },
+        "slowModeAllowed": {
+          "default": true,
+          "title": "Slowmodeallowed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "audioAssetId",
+        "questions"
+      ],
+      "title": "ListeningBlockPayload",
+      "type": "object"
+    },
+    "ListeningLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "listening_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ListeningBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "ListeningLessonBlock",
+      "type": "object"
+    },
+    "ProfessionBlockPayload": {
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/ProfessionDomain"
+        },
+        "topicId": {
+          "title": "Topicid",
+          "type": "string"
+        },
+        "scenario": {
+          "title": "Scenario",
+          "type": "string"
+        },
+        "targetTerms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Targetterms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "domain",
+        "topicId",
+        "scenario",
+        "targetTerms"
+      ],
+      "title": "ProfessionBlockPayload",
+      "type": "object"
+    },
+    "ProfessionDomain": {
+      "enum": [
+        "insurance",
+        "banking",
+        "trainer_skills",
+        "ai_business",
+        "regulation",
+        "cross_cultural"
+      ],
+      "title": "ProfessionDomain",
+      "type": "string"
+    },
+    "ProfessionLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "profession_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ProfessionBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "ProfessionLessonBlock",
+      "type": "object"
+    },
+    "PronunciationBlockPayload": {
+      "properties": {
+        "soundFocus": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Soundfocus",
+          "type": "array"
+        },
+        "phraseDrills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Phrasedrills",
+          "type": "array"
+        },
+        "minimalPairs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Minimalpairs",
+          "type": "array"
+        },
+        "shadowingScript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shadowingscript"
+        }
+      },
+      "required": [
+        "soundFocus",
+        "phraseDrills",
+        "minimalPairs"
+      ],
+      "title": "PronunciationBlockPayload",
+      "type": "object"
+    },
+    "PronunciationLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "pronunciation_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/PronunciationBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "PronunciationLessonBlock",
+      "type": "object"
+    },
+    "ReflectionBlockPayload": {
+      "properties": {
+        "prompts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prompts",
+          "type": "array"
+        },
+        "captureLanguage": {
+          "title": "Capturelanguage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompts",
+        "captureLanguage"
+      ],
+      "title": "ReflectionBlockPayload",
+      "type": "object"
+    },
+    "ReflectionLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "reflection_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReflectionBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "ReflectionLessonBlock",
+      "type": "object"
+    },
+    "ReviewBlockPayload": {
+      "properties": {
+        "sourceMistakeIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sourcemistakeids",
+          "type": "array"
+        },
+        "reviewItems": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reviewitems",
+          "type": "array"
+        },
+        "targetErrorTypes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Targeterrortypes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sourceMistakeIds",
+        "reviewItems",
+        "targetErrorTypes"
+      ],
+      "title": "ReviewBlockPayload",
+      "type": "object"
+    },
+    "ReviewLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "review_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReviewBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "ReviewLessonBlock",
+      "type": "object"
+    },
+    "SpeakingBlockPayload": {
+      "properties": {
+        "scenarioId": {
+          "title": "Scenarioid",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "guided",
+            "free",
+            "roleplay"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "prompts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prompts",
+          "type": "array"
+        },
+        "expectsVoice": {
+          "title": "Expectsvoice",
+          "type": "boolean"
+        },
+        "feedbackFocus": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Feedbackfocus",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenarioId",
+        "mode",
+        "prompts",
+        "expectsVoice",
+        "feedbackFocus"
+      ],
+      "title": "SpeakingBlockPayload",
+      "type": "object"
+    },
+    "SpeakingLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "speaking_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/SpeakingBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "SpeakingLessonBlock",
+      "type": "object"
+    },
+    "SummaryBlockPayload": {
+      "properties": {
+        "recapPrompts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recapprompts",
+          "type": "array"
+        },
+        "nextStep": {
+          "title": "Nextstep",
+          "type": "string"
+        },
+        "saveToProgress": {
+          "default": true,
+          "title": "Savetoprogress",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "recapPrompts",
+        "nextStep"
+      ],
+      "title": "SummaryBlockPayload",
+      "type": "object"
+    },
+    "SummaryLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "summary_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/SummaryBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "SummaryLessonBlock",
+      "type": "object"
+    },
+    "VocabBlockPayload": {
+      "properties": {
+        "lexicalSet": {
+          "title": "Lexicalset",
+          "type": "string"
+        },
+        "vocabularyIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Vocabularyids",
+          "type": "array"
+        },
+        "phrases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Phrases",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lexicalSet",
+        "vocabularyIds",
+        "phrases"
+      ],
+      "title": "VocabBlockPayload",
+      "type": "object"
+    },
+    "VocabLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "vocab_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/VocabBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "VocabLessonBlock",
+      "type": "object"
+    },
+    "WritingBlockPayload": {
+      "properties": {
+        "taskId": {
+          "title": "Taskid",
+          "type": "string"
+        },
+        "brief": {
+          "title": "Brief",
+          "type": "string"
+        },
+        "checklist": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Checklist",
+          "type": "array"
+        },
+        "tone": {
+          "title": "Tone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taskId",
+        "brief",
+        "checklist",
+        "tone"
+      ],
+      "title": "WritingBlockPayload",
+      "type": "object"
+    },
+    "WritingLessonBlock": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "estimatedMinutes": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Estimatedminutes",
+          "type": "integer"
+        },
+        "feedbackMode": {
+          "$ref": "#/$defs/FeedbackMode"
+        },
+        "dependsOnBlockIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependsonblockids",
+          "type": "array"
+        },
+        "blockType": {
+          "const": "writing_block",
+          "title": "Blocktype",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/WritingBlockPayload"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "instructions",
+        "estimatedMinutes",
+        "feedbackMode",
+        "blockType",
+        "payload"
+      ],
+      "title": "WritingLessonBlock",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lessonType": {
+      "$ref": "#/$defs/LessonType"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "goal": {
+      "title": "Goal",
+      "type": "string"
+    },
+    "difficulty": {
+      "title": "Difficulty",
+      "type": "string"
+    },
+    "estimatedDuration": {
+      "maximum": 120,
+      "minimum": 5,
+      "title": "Estimatedduration",
+      "type": "integer"
+    },
+    "blocks": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "grammar_block": "#/$defs/GrammarLessonBlock",
+            "intro_block": "#/$defs/IntroLessonBlock",
+            "listening_block": "#/$defs/ListeningLessonBlock",
+            "profession_block": "#/$defs/ProfessionLessonBlock",
+            "pronunciation_block": "#/$defs/PronunciationLessonBlock",
+            "reflection_block": "#/$defs/ReflectionLessonBlock",
+            "review_block": "#/$defs/ReviewLessonBlock",
+            "speaking_block": "#/$defs/SpeakingLessonBlock",
+            "summary_block": "#/$defs/SummaryLessonBlock",
+            "vocab_block": "#/$defs/VocabLessonBlock",
+            "writing_block": "#/$defs/WritingLessonBlock"
+          },
+          "propertyName": "blockType"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/IntroLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/ReviewLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/GrammarLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/VocabLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/SpeakingLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/PronunciationLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/ListeningLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/WritingLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/ProfessionLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/ReflectionLessonBlock"
+          },
+          {
+            "$ref": "#/$defs/SummaryLessonBlock"
+          }
+        ]
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "enabledTracks": {
+      "items": {
+        "$ref": "#/$defs/ProfessionDomain"
+      },
+      "title": "Enabledtracks",
+      "type": "array"
+    },
+    "generationRules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Generationrules",
+      "type": "array"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "string"
+    },
+    "updatedAt": {
+      "title": "Updatedat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "lessonType",
+    "title",
+    "goal",
+    "difficulty",
+    "estimatedDuration",
+    "blocks",
+    "createdAt",
+    "updatedAt"
+  ],
+  "title": "LessonTemplateBlueprint",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-generated-from": "backend/app/schemas/blueprint.py"
+}
