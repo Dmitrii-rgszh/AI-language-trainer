@@ -9,6 +9,7 @@ import { ProgressBar } from "../shared/ui/ProgressBar";
 
 export function AppShell() {
   const location = useLocation();
+  const isOnboardingRoute = location.pathname === routes.onboarding;
   const bootstrap = useAppStore((state) => state.bootstrap);
   const dashboard = useAppStore((state) => state.dashboard);
   const isBootstrapping = useAppStore((state) => state.isBootstrapping);
@@ -34,8 +35,24 @@ export function AppShell() {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  if (needsOnboarding && location.pathname !== routes.onboarding) {
+  if (needsOnboarding && !isOnboardingRoute) {
     return <Navigate to={routes.onboarding} replace />;
+  }
+
+  if (!needsOnboarding && isOnboardingRoute) {
+    return <Navigate to={routes.dashboard} replace />;
+  }
+
+  if (needsOnboarding && isOnboardingRoute) {
+    return (
+      <div className="onboarding-layout">
+        <div className="onboarding-layout__orb onboarding-layout__orb--left" />
+        <div className="onboarding-layout__orb onboarding-layout__orb--right" />
+        <main className="relative z-10 mx-auto w-full max-w-[1500px] px-4 py-4 lg:px-6 lg:py-6">
+          <Outlet />
+        </main>
+      </div>
+    );
   }
 
   return (

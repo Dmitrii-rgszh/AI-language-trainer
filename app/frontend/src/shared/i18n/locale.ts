@@ -724,6 +724,67 @@ const translationEntries: TranslationEntry[] = [
   { en: "Summary and next conversation step", ru: "Итог и следующий разговорный шаг" },
   { en: "Зафиксируй одну удобную фразу, одно правило и один next step.", ru: "Зафиксируй одну удобную фразу, одно правило и один next step." },
   { en: "Everyday conversation flow", ru: "Поток everyday conversation" },
+  { en: "Not set yet", ru: "Пока не задано" },
+  {
+    en: "Pick a login and email so we can create a private learner workspace and save onboarding answers under the right person.",
+    ru: "Выбери логин и почту, чтобы создать личное пространство ученика и сохранить ответы онбординга за нужным пользователем.",
+  },
+  { en: "Add a valid login and email first.", ru: "Сначала добавь корректный логин и почту." },
+  {
+    en: "Set the learner name, languages, and target level so explanations and lesson pacing start in the right place.",
+    ru: "Задай имя ученика, языки и целевой уровень, чтобы объяснения и темп уроков сразу стартовали с правильной точки.",
+  },
+  { en: "Add a learner name to continue.", ru: "Добавь имя ученика, чтобы продолжить." },
+  {
+    en: "Tell us who this plan is for and in what context English matters most right now.",
+    ru: "Расскажи, для кого этот план и в каком жизненном контексте английский сейчас важнее всего.",
+  },
+  { en: "You can refine this later in Settings.", ru: "Позже это можно спокойно уточнить в настройках." },
+  {
+    en: "Choose the strongest outcomes and the first content lane to shape the starting lesson pack.",
+    ru: "Выбери главные результаты и первый контентный трек, чтобы собрать стартовый набор уроков.",
+  },
+  { en: "Pick a main goal and a first content lane.", ru: "Выбери главную цель и первый контентный трек." },
+  {
+    en: "Balance the engine between speaking, grammar, track depth, and the skills this learner needs most.",
+    ru: "Сбалансируй движок между разговорной практикой, грамматикой, глубиной трека и навыками, которые сейчас важнее всего.",
+  },
+  { en: "Select at least one active skill focus.", ru: "Выбери хотя бы один ключевой навык." },
+  {
+    en: "Tune the rhythm, support needs, and topics so the trainer feels gentle, useful, and personal.",
+    ru: "Настрой ритм, поддержку и темы так, чтобы тренажёр ощущался мягким, полезным и личным.",
+  },
+  { en: "Keep lesson duration between 10 and 60 minutes.", ru: "Оставь длительность урока в диапазоне от 10 до 60 минут." },
+  {
+    en: "Check the summary before we open the personal dashboard and the first lesson track.",
+    ru: "Проверь итог перед тем, как мы откроем личный дашборд и первый учебный трек.",
+  },
+  { en: "Review the setup and create the workspace.", ru: "Проверь настройку и создай личное пространство." },
+  {
+    en: "Login and email create the learner account in one table. The onboarding answers stay separate, so the product can scale cleanly to multiple users later.",
+    ru: "Логин и почта создают аккаунт ученика в одной таблице. Ответы онбординга хранятся отдельно, чтобы продукт чисто масштабировался на нескольких пользователей.",
+  },
+  {
+    en: "This is the only setup screen the learner sees before entering the real workspace. Once it is complete, the dashboard and lesson track open automatically.",
+    ru: "Это единственный экран настройки перед входом в рабочее пространство. Как только он заполнен, дашборд и учебный трек открываются автоматически.",
+  },
+  { en: "Account", ru: "Аккаунт" },
+  {
+    en: "After this step, the learner gets a private dashboard, a first lesson lane, and profile-aware recommendations instead of demo placeholders.",
+    ru: "После этого шага ученик получает личный дашборд, первый маршрут уроков и рекомендации по профилю вместо демо-заглушек.",
+  },
+  { en: "Create a calm, personal start", ru: "Собери спокойный и личный старт" },
+  {
+    en: "This setup replaces the regular workspace until onboarding is complete, so the learner sees only the questions that matter right now.",
+    ru: "Этот экран полностью заменяет обычное рабочее пространство, пока онбординг не завершён, чтобы ученик видел только важные вопросы.",
+  },
+  { en: "What unlocks after setup", ru: "Что откроется после настройки" },
+  { en: "Private learner space", ru: "Личное пространство ученика" },
+  { en: "Skill-balanced lesson track", ru: "Сбалансированный учебный трек" },
+  { en: "Friendly daily dashboard", ru: "Дружелюбный ежедневный дашборд" },
+  { en: "Completion", ru: "Готовность" },
+  { en: "Create workspace", ru: "Создать пространство" },
+  { en: "Current setup", ru: "Текущая настройка" },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();
