@@ -941,12 +941,12 @@ const translationEntries: TranslationEntry[] = [
   { en: "3 short questions", ru: "3 коротких вопроса" },
   { en: "Stop searching", ru: "Хватит искать" },
   {
-    en: "You can stop searching for separate language apps.",
-    ru: "Поздравляем, ты можешь перестать искать отдельные приложения для изучения языка.",
+    en: "You no longer need to search for language-learning tools.",
+    ru: "Больше не нужно искать сервисы для изучения языка.",
   },
   {
-    en: "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
-    ru: "Грамматика, словарь, разговорная речь, чтение и прогресс наконец-то могут жить в одной спокойной системе, а не в разбросанном наборе сервисов.",
+    en: "Language learning no longer has to be stitched together from separate tools.",
+    ru: "Изучение языка больше не нужно собирать по кускам.",
   },
   { en: "The pain", ru: "Боль" },
   {
