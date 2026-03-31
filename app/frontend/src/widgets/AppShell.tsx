@@ -48,7 +48,24 @@ export function AppShell() {
       <div className="onboarding-layout">
         <div className="onboarding-layout__orb onboarding-layout__orb--left" />
         <div className="onboarding-layout__orb onboarding-layout__orb--right" />
-        <main className="relative z-10 mx-auto w-full max-w-[1500px] px-4 py-4 lg:px-6 lg:py-6">
+        <div className="absolute right-4 top-4 z-20 lg:right-6 lg:top-6">
+          <div className="flex rounded-full border border-white/60 bg-white/80 p-1 shadow-soft backdrop-blur">
+            {(["ru", "en"] as const).map((targetLocale) => (
+              <button
+                key={targetLocale}
+                type="button"
+                onClick={() => setLocale(targetLocale)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                  locale === targetLocale ? "bg-accent text-white" : "text-slate-600 hover:text-ink",
+                )}
+              >
+                {tr(targetLocale.toUpperCase())}
+              </button>
+            ))}
+          </div>
+        </div>
+        <main className="relative z-10 mx-auto w-full max-w-[1500px] px-4 py-16 lg:px-6 lg:py-10">
           <Outlet />
         </main>
       </div>

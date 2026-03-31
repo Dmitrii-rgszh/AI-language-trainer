@@ -68,10 +68,7 @@ function StepRailButton({
       >
         {completed ? "OK" : index + 1}
       </div>
-      <div>
-        <div className="text-[11px] uppercase tracking-[0.26em] text-coral">{`0${index + 1}`}</div>
-        <div className="mt-1 text-sm font-semibold">{title}</div>
-      </div>
+      <div className="text-sm font-semibold">{title}</div>
     </button>
   );
 }
@@ -179,6 +176,12 @@ export function OnboardingScreen() {
     setForm(buildProfileDraft(profile));
     setStep(0);
   }, [profile]);
+
+  useEffect(() => {
+    setForm((current) =>
+      current.preferredUiLanguage === locale ? current : { ...current, preferredUiLanguage: locale },
+    );
+  }, [locale]);
 
   const tracks = professionTracks.length > 0 ? professionTracks : fallbackProfessionTracks;
   const activeTrack = useMemo(
@@ -684,33 +687,15 @@ export function OnboardingScreen() {
     <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
       <Card className="onboarding-hero relative overflow-hidden p-0">
         <div className="border-b border-white/50 px-5 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-[20rem]">
-              <div className="text-xs uppercase tracking-[0.28em] text-teal-200">{tr("AI English Trainer Pro")}</div>
-              <div className="mt-4 text-3xl font-semibold leading-tight text-white">
-                {tr("Create a calm, personal start")}
-              </div>
-              <div className="mt-4 text-sm leading-6 text-slate-200">
-                {tr(
-                  "This setup replaces the regular workspace until onboarding is complete, so the learner sees only the questions that matter right now.",
-                )}
-              </div>
+          <div className="max-w-[20rem]">
+            <div className="text-xs uppercase tracking-[0.28em] text-teal-200">{tr("AI English Trainer Pro")}</div>
+            <div className="mt-4 text-3xl font-semibold leading-tight text-white">
+              {tr("Create a calm, personal start")}
             </div>
-
-            <div className="flex rounded-full bg-white/10 p-1 backdrop-blur">
-              {(["ru", "en"] as const).map((targetLocale) => (
-                <button
-                  key={targetLocale}
-                  type="button"
-                  onClick={() => handleLocaleChange(targetLocale)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                    locale === targetLocale ? "bg-white text-ink" : "text-white/80 hover:text-white",
-                  )}
-                >
-                  {tr(targetLocale.toUpperCase())}
-                </button>
-              ))}
+            <div className="mt-4 text-sm leading-6 text-slate-200">
+              {tr(
+                "This setup replaces the regular workspace until onboarding is complete, so the learner sees only the questions that matter right now.",
+              )}
             </div>
           </div>
         </div>
@@ -736,19 +721,11 @@ export function OnboardingScreen() {
             ))}
           </div>
 
-          <div className="grid gap-3">
-            <div className="rounded-[24px] bg-white/12 p-4 text-sm leading-6 text-white/90">
-              <div className="text-xs uppercase tracking-[0.24em] text-white/60">{tr("What unlocks after setup")}</div>
-              <div className="mt-3">{tr("Private learner space")}</div>
-              <div>{tr("Skill-balanced lesson track")}</div>
-              <div>{tr("Friendly daily dashboard")}</div>
-            </div>
-            <div className="rounded-[24px] bg-white/12 p-4 text-sm leading-6 text-white/90">
-              <div className="text-xs uppercase tracking-[0.24em] text-white/60">{tr("Current setup")}</div>
-              <div className="mt-3">{form.name.trim() || tr("This learner")}</div>
-              <div>{`${form.currentLevel} -> ${form.targetLevel}`}</div>
-              <div>{tr(activeTrack?.title ?? form.professionTrack)}</div>
-            </div>
+          <div className="rounded-[24px] bg-white/12 p-4 text-sm leading-6 text-white/90">
+            <div className="text-xs uppercase tracking-[0.24em] text-white/60">{tr("What unlocks after setup")}</div>
+            <div className="mt-3">{tr("Private learner space")}</div>
+            <div>{tr("Skill-balanced lesson track")}</div>
+            <div>{tr("Friendly daily dashboard")}</div>
           </div>
         </div>
       </Card>
