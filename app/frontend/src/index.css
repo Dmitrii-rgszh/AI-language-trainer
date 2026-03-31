@@ -147,6 +147,17 @@ a {
   position: relative;
 }
 
+.welcome-brandmark {
+  background: linear-gradient(145deg, #1d2a38 0%, #2b3f55 100%);
+  box-shadow:
+    0 10px 24px rgba(29, 42, 56, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.welcome-locale-switch {
+  box-shadow: 0 10px 24px rgba(29, 42, 56, 0.05);
+}
+
 .welcome-screen {
   position: relative;
   min-height: 100vh;
