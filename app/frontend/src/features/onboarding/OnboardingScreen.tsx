@@ -16,7 +16,6 @@ import {
   fallbackProfessionTracks,
   goalOptions,
   interestTopicOptions,
-  learnerPersonaOptions,
   learningContextOptions,
   skillFocusOptions,
   studyPreferenceOptions,
@@ -27,6 +26,35 @@ import {
 
 const currentLevelOptions = ["A1", "A2", "B1", "B2", "C1"] as const;
 const targetLevelOptions = ["A2", "B1", "B2", "C1", "C2"] as const;
+const learnerAgeQuestionOptions = ageGroupOptions.filter((option) => option.value !== "family_plan");
+const adultSupportOptions: Array<{ value: "yes" | "no"; label: string }> = [
+  { value: "yes", label: "Yes, adult support helps" },
+  { value: "no", label: "No, independent enough" },
+];
+
+function inferLearnerPersona(ageGroup: string, learningContext: string) {
+  if (ageGroup === "family_plan") {
+    return "parent_or_guardian";
+  }
+
+  if (learningContext === "career_growth") {
+    return "professional_learner";
+  }
+
+  if (ageGroup === "child" || ageGroup === "teen" || learningContext === "school_support") {
+    return "school_learner";
+  }
+
+  return "self_learner";
+}
+
+function applyAdultSupportPreference(studyPreferences: string[], enabled: boolean) {
+  if (enabled) {
+    return studyPreferences.includes("parent_guided") ? studyPreferences : [...studyPreferences, "parent_guided"];
+  }
+
+  return studyPreferences.filter((item) => item !== "parent_guided");
+}
 
 function StepRailButton({
   index,
@@ -214,9 +242,9 @@ export function OnboardingScreen() {
     },
     {
       title: tr("Learner"),
-      description: tr("Tell us who this plan is for and in what context English matters most right now."),
+      description: tr("Tell us the learner's age and where English is most needed right now."),
       ready: true,
-      helper: tr("You can refine this later in Settings."),
+      helper: tr("Choose the age group and the main context."),
     },
     {
       title: tr("Goals"),
@@ -246,6 +274,9 @@ export function OnboardingScreen() {
 
   const activeStep = steps[step];
   const allCoreStepsReady = steps.slice(0, -1).every((item) => item.ready);
+  const needsAdultSupportQuestion =
+    form.onboardingAnswers.ageGroup === "child" || form.onboardingAnswers.ageGroup === "teen";
+  const adultSupportEnabled = form.onboardingAnswers.studyPreferences.includes("parent_guided");
 
   const updateField = <K extends keyof UserProfile>(field: K, value: UserProfile[K]) =>
     setForm((current) => ({ ...current, [field]: value }));
@@ -253,6 +284,36 @@ export function OnboardingScreen() {
     setForm((current) => ({
       ...current,
       onboardingAnswers: { ...current.onboardingAnswers, [field]: value },
+    }));
+  const updateAgeGroup = (value: string) =>
+    setForm((current) => ({
+      ...current,
+      onboardingAnswers: {
+        ...current.onboardingAnswers,
+        ageGroup: value,
+        learnerPersona: inferLearnerPersona(value, current.onboardingAnswers.learningContext),
+        studyPreferences:
+          value === "child" || value === "teen"
+            ? current.onboardingAnswers.studyPreferences
+            : applyAdultSupportPreference(current.onboardingAnswers.studyPreferences, false),
+      },
+    }));
+  const updateLearningContext = (value: string) =>
+    setForm((current) => ({
+      ...current,
+      onboardingAnswers: {
+        ...current.onboardingAnswers,
+        learningContext: value,
+        learnerPersona: inferLearnerPersona(current.onboardingAnswers.ageGroup, value),
+      },
+    }));
+  const updateAdultSupport = (enabled: boolean) =>
+    setForm((current) => ({
+      ...current,
+      onboardingAnswers: {
+        ...current.onboardingAnswers,
+        studyPreferences: applyAdultSupportPreference(current.onboardingAnswers.studyPreferences, enabled),
+      },
     }));
   const toggleAnswer = (
     field: "secondaryGoals" | "activeSkillFocus" | "studyPreferences" | "supportNeeds" | "interestTopics",
@@ -459,25 +520,37 @@ export function OnboardingScreen() {
       return (
         <div className="space-y-6">
           <div className="space-y-3">
-            <div className="text-sm font-semibold text-ink">{tr("Who is this plan for?")}</div>
+            <div className="text-sm font-semibold text-ink">{tr("Learner age group")}</div>
             {renderOptionGrid(
-              learnerPersonaOptions,
-              form.onboardingAnswers.learnerPersona,
-              (value) => updateAnswer("learnerPersona", value),
+              learnerAgeQuestionOptions,
+              form.onboardingAnswers.ageGroup,
+              (value) => updateAgeGroup(value),
             )}
           </div>
           <div className="space-y-3">
-            <div className="text-sm font-semibold text-ink">{tr("Age group")}</div>
-            {renderOptionGrid(ageGroupOptions, form.onboardingAnswers.ageGroup, (value) => updateAnswer("ageGroup", value))}
-          </div>
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-ink">{tr("Learning context")}</div>
+            <div className="text-sm font-semibold text-ink">{tr("Where is English most needed right now?")}</div>
             {renderOptionGrid(
               learningContextOptions,
               form.onboardingAnswers.learningContext,
-              (value) => updateAnswer("learningContext", value),
+              (value) => updateLearningContext(value),
             )}
           </div>
+          {needsAdultSupportQuestion ? (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-ink">{tr("Does the learner need adult support?")}</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {adultSupportOptions.map((option, index) => (
+                  <ChoiceCard
+                    key={option.value}
+                    title={tr(option.label)}
+                    active={adultSupportEnabled === (option.value === "yes")}
+                    onClick={() => updateAdultSupport(option.value === "yes")}
+                    delay={index * 55}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -621,9 +694,11 @@ export function OnboardingScreen() {
             <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("Profile summary")}</div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Learner type")}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Study format")}</div>
                 <div className="mt-2 font-semibold text-ink">
-                  {resolveOptionLabel(form.onboardingAnswers.learnerPersona, learnerPersonaOptions, tr)}
+                  {needsAdultSupportQuestion && adultSupportEnabled
+                    ? tr("With adult support")
+                    : tr("Independent format")}
                 </div>
               </div>
               <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">

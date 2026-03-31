@@ -21,12 +21,12 @@ export const ageGroupOptions: OnboardingOption[] = [
 ];
 
 export const learningContextOptions: OnboardingOption[] = [
-  { value: "general_english", label: "General English" },
-  { value: "school_support", label: "School support" },
-  { value: "exam_prep", label: "Exam prep" },
-  { value: "career_growth", label: "Career growth" },
-  { value: "relocation", label: "Relocation" },
-  { value: "travel", label: "Travel" },
+  { value: "general_english", label: "For life and communication" },
+  { value: "career_growth", label: "For work" },
+  { value: "school_support", label: "For school" },
+  { value: "travel", label: "For trips" },
+  { value: "relocation", label: "For relocation" },
+  { value: "exam_prep", label: "For exams" },
 ];
 
 export const goalOptions: OnboardingOption[] = [

@@ -785,6 +785,22 @@ const translationEntries: TranslationEntry[] = [
   { en: "Completion", ru: "Готовность" },
   { en: "Create workspace", ru: "Создать пространство" },
   { en: "Current setup", ru: "Текущая настройка" },
+  { en: "Tell us the learner's age and where English is most needed right now.", ru: "Расскажи, какой возраст у ученика и где английский нужнее всего прямо сейчас." },
+  { en: "Choose the age group and the main context.", ru: "Выбери возрастную группу и главный контекст." },
+  { en: "Learner age group", ru: "Возраст ученика" },
+  { en: "Where is English most needed right now?", ru: "Где английский нужен больше всего сейчас?" },
+  { en: "For life and communication", ru: "Для жизни и общения" },
+  { en: "For work", ru: "Для работы" },
+  { en: "For school", ru: "Для школы" },
+  { en: "For trips", ru: "Для поездок" },
+  { en: "For relocation", ru: "Для переезда" },
+  { en: "For exams", ru: "Для экзамена" },
+  { en: "Does the learner need adult support?", ru: "Нужна ли ученику поддержка взрослого?" },
+  { en: "Yes, adult support helps", ru: "Да, поддержка взрослого поможет" },
+  { en: "No, independent enough", ru: "Нет, справится самостоятельно" },
+  { en: "Study format", ru: "Формат занятий" },
+  { en: "With adult support", ru: "С поддержкой взрослого" },
+  { en: "Independent format", ru: "Самостоятельный формат" },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();
