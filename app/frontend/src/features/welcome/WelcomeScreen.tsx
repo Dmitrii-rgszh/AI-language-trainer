@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
@@ -20,109 +20,67 @@ type MiniOnboardingOption = {
 };
 
 const directionCards: WelcomeDirection[] = [
-  {
-    id: "speaking",
-    title: "Speaking confidence",
-    subtitle: "Start speaking more freely instead of freezing on simple phrases.",
-  },
-  {
-    id: "grammar",
-    title: "Grammar clarity",
-    subtitle: "Fix the patterns that keep making your speech feel uncertain.",
-  },
-  {
-    id: "vocabulary",
-    title: "Vocabulary growth",
-    subtitle: "Learn words you can actually reuse in daily conversations.",
-  },
-  {
-    id: "reading",
-    title: "Reading flow",
-    subtitle: "Read faster and keep the meaning without translating every line.",
-  },
-  {
-    id: "work",
-    title: "English for work",
-    subtitle: "Handle meetings, client language, and work messages in one place.",
-  },
-  {
-    id: "travel",
-    title: "Travel English",
-    subtitle: "Feel calmer in airports, hotels, directions, and everyday trip situations.",
-  },
-  {
-    id: "exam",
-    title: "Exam focus",
-    subtitle: "Build a cleaner route to tasks, structure, and measurable progress.",
-  },
+  { id: "speaking", title: "Speaking confidence", subtitle: "Start with speaking and real conversation confidence." },
+  { id: "grammar", title: "Grammar clarity", subtitle: "Fix the grammar patterns that slow you down." },
+  { id: "vocabulary", title: "Vocabulary growth", subtitle: "Learn words you can immediately reuse." },
+  { id: "reading", title: "Reading flow", subtitle: "Read faster and keep the meaning more easily." },
+  { id: "work", title: "English for work", subtitle: "Cover work tasks, meetings, and client language." },
+  { id: "travel", title: "Travel English", subtitle: "Feel calmer in airports, hotels, and routes." },
+  { id: "exam", title: "Exam focus", subtitle: "Build a cleaner path toward exam tasks." },
 ];
 
 const painOptions: MiniOnboardingOption[] = [
   {
-    value: "app_overload",
-    title: "I am tired of jumping between different apps",
-    subtitle: "I want one place for grammar, words, speaking, and progress.",
-  },
-  {
     value: "speaking_block",
-    title: "I understand more than I can say",
-    subtitle: "I know something already, but confidence breaks at the moment of speaking.",
+    title: "I know something, but I freeze when I need to speak",
+    subtitle: "I want the first lesson to unlock speaking confidence.",
   },
   {
     value: "forgetting",
     title: "I keep forgetting words and structures",
-    subtitle: "I learn something, then lose it because there is no steady route.",
+    subtitle: "I need a route that helps me remember and reuse.",
   },
   {
-    value: "no_system",
-    title: "I need a clear daily system",
-    subtitle: "I want the platform to tell me what matters next instead of guessing alone.",
+    value: "grammar_confusion",
+    title: "I get lost in grammar and start doubting myself",
+    subtitle: "I want clearer explanations and simple progress.",
+  },
+  {
+    value: "app_overload",
+    title: "I am tired of using different apps for different tasks",
+    subtitle: "I want one place that closes the whole learning loop.",
   },
 ];
 
 const lessonToneOptions: MiniOnboardingOption[] = [
   {
     value: "quick_win",
-    title: "Quick win in a few minutes",
-    subtitle: "Show me the platform value fast and keep the first step light.",
+    title: "Give me a quick result",
+    subtitle: "Show platform value in 1-2 minutes.",
   },
   {
     value: "guided",
-    title: "Calm guided mini-lesson",
-    subtitle: "I want a smooth first lesson with a clear sense of progress.",
+    title: "Give me a calm guided tryout",
+    subtitle: "I want a smooth first lesson with clear support.",
   },
   {
     value: "diagnostic",
-    title: "Smart diagnostic preview",
-    subtitle: "Show me where my first strong result can come from.",
+    title: "Show me a smart skill snapshot",
+    subtitle: "I want a short lesson plus a useful skill insight.",
   },
 ];
 
-const painTags = ["Speaking", "Grammar", "Vocabulary", "Reading", "Progress"] as const;
-const miniStepLabels = ["Focus", "Pain", "Tone"] as const;
-
 export function WelcomeScreen() {
   const [selectedDirections, setSelectedDirections] = useState<GuestDirectionId[]>([]);
-  const [painPoint, setPainPoint] = useState<string>("");
-  const [lessonTone, setLessonTone] = useState<string>("");
+  const [painPoint, setPainPoint] = useState("");
+  const [lessonTone, setLessonTone] = useState("");
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
   const { tr } = useLocale();
 
-  const selectedCards = useMemo(
-    () => directionCards.filter((card) => selectedDirections.includes(card.id)),
-    [selectedDirections],
-  );
-  const previewTitle =
-    selectedCards.length > 0
-      ? selectedCards.map((card) => tr(card.title)).join(" + ")
-      : tr("Unified English route");
+  const selectionLimitReached = selectedDirections.length >= 3;
   const stepReady =
     step === 0 ? selectedDirections.length > 0 : step === 1 ? painPoint.length > 0 : lessonTone.length > 0;
-  const stepProgress = ((step + 1) / 3) * 100;
-  const selectionLimitReached = selectedDirections.length >= 3;
-  const selectedPain = painOptions.find((option) => option.value === painPoint);
-  const selectedLessonTone = lessonToneOptions.find((option) => option.value === lessonTone);
 
   const handleDirectionToggle = (id: GuestDirectionId) => {
     setSelectedDirections((current) => {
@@ -138,7 +96,12 @@ export function WelcomeScreen() {
     });
   };
 
-  const continueToOnboarding = () => {
+  const continueFlow = () => {
+    if (step < 2) {
+      setStep((current) => current + 1);
+      return;
+    }
+
     writeGuestIntent({
       directions: selectedDirections,
       painPoint,
@@ -149,16 +112,17 @@ export function WelcomeScreen() {
 
   const activeStepTitle =
     step === 0
-      ? tr("What do you want the platform to improve first?")
+      ? tr("What do you want to improve first?")
       : step === 1
-        ? tr("What is the most annoying part of learning right now?")
-        : tr("What should your first mini-lesson feel like?");
+        ? tr("What annoys you the most right now?")
+        : tr("How should the first lesson feel?");
+
   const activeStepDescription =
     step === 0
-      ? tr("Choose one to three directions so the first lesson starts from your real goal, not from a generic template.")
+      ? tr("Choose one to three directions for the first 1-2 minute lesson.")
       : step === 1
-        ? tr("Pick the pain that feels closest right now. We will use it as the emotional entry point for the first experience.")
-        : tr("Choose the tone of the first experience. We will use it to shape the mini-lesson and the handoff into the full route.");
+        ? tr("Choose the main friction so the first lesson solves something real.")
+        : tr("Choose the tone of the first mini-lesson and quick skill snapshot.");
 
   return (
     <Card className="overflow-hidden border-white/70 p-0 shadow-soft">
@@ -166,84 +130,53 @@ export function WelcomeScreen() {
         <div className="welcome-shell__noise" />
 
         <div className="relative z-10">
-          <header className="flex flex-col gap-4 border-b border-white/45 pb-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink text-sm font-semibold tracking-[0.28em] text-white">
-                AI
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-[0.28em] text-slate-500">{tr("AI English Trainer Pro")}</div>
-                <div className="mt-1 text-sm text-slate-600">{tr("One platform instead of a stack of disconnected language tools.")}</div>
-              </div>
+          <header className="flex items-center gap-3 border-b border-white/45 pb-5">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink text-sm font-semibold tracking-[0.28em] text-white">
+              AI
             </div>
-
+            <div>
+              <div className="text-xs uppercase tracking-[0.28em] text-slate-500">{tr("AI English Trainer Pro")}</div>
+              <div className="mt-1 text-sm text-slate-600">{tr("One platform instead of a stack of disconnected language tools.")}</div>
+            </div>
           </header>
 
-          <div className="mt-8 grid gap-8 xl:grid-cols-[1.05fr_0.95fr] xl:items-center">
-            <section className="max-w-[46rem]">
+          <div className="mt-8 grid gap-8 xl:grid-cols-[1.02fr_0.98fr] xl:items-start">
+            <section className="max-w-[44rem] pt-2">
               <div className="text-xs uppercase tracking-[0.34em] text-coral">{tr("Stop searching")}</div>
-              <h1 className="mt-5 max-w-[40rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.35rem]">
+              <h1 className="mt-5 max-w-[40rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.25rem]">
                 {tr("You can stop searching for separate language apps.")}
               </h1>
-              <p className="mt-5 max-w-[36rem] text-lg leading-8 text-slate-600">
+              <p className="mt-5 max-w-[35rem] text-lg leading-8 text-slate-600">
                 {tr(
                   "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
                 )}
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-2.5">
-                {painTags.map((tag) => (
-                  <div
-                    key={tag}
-                    className="rounded-full border border-white/60 bg-white/75 px-4 py-2 text-sm font-medium text-slate-700"
-                  >
-                    {tr(tag)}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-10 grid gap-4 md:grid-cols-2">
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
                 <div className="rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-soft">
-                  <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("The pain")}</div>
-                  <div className="mt-3 text-lg font-semibold leading-8 text-ink">
-                    {tr("Most learners waste time building a personal stack of apps just to cover the basics.")}
+                  <div className="text-base font-semibold leading-8 text-ink">
+                    {tr("This platform replaces that stack with one smarter route that adapts around you.")}
                   </div>
                 </div>
-                <div className="rounded-[28px] border border-accent/20 bg-accent/[0.07] p-6 shadow-soft">
-                  <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("The promise")}</div>
-                  <div className="mt-3 text-lg font-semibold leading-8 text-ink">
-                    {tr("This platform should replace that stack with one smarter route that adapts around you.")}
+                <div className="rounded-[28px] border border-accent/20 bg-accent/[0.06] p-6 shadow-soft">
+                  <div className="text-base font-semibold leading-8 text-ink">
+                    {tr("Your first lesson and skill snapshot start before payment or registration.")}
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                  {tr("Do not pay until you try it yourself.")}
+                </div>
+                <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
+                  {tr("Do not register until you see the value.")}
                 </div>
               </div>
             </section>
 
             <section className="rounded-[34px] border border-white/65 bg-white/82 p-5 shadow-soft backdrop-blur md:p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                {miniStepLabels.map((label, index) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => {
-                      if (index <= step) {
-                        setStep(index);
-                      }
-                    }}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] transition-colors",
-                      index === step
-                        ? "border-accent/30 bg-accent/10 text-accent"
-                        : index < step
-                          ? "border-teal-200 bg-teal-50 text-teal-700"
-                          : "border-white/70 bg-white/70 text-slate-400",
-                    )}
-                  >
-                    {tr(label)}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-coral">{tr("Mini-onboarding")}</div>
                   <div className="mt-2 text-2xl font-semibold text-ink">{activeStepTitle}</div>
@@ -255,25 +188,10 @@ export function WelcomeScreen() {
               </div>
 
               <div className="mt-4 h-2 rounded-full bg-sand/80">
-                <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${stepProgress}%` }} />
+                <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${((step + 1) / 3) * 100}%` }} />
               </div>
 
               <div className="mt-5 text-sm leading-6 text-slate-600">{activeStepDescription}</div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
-                  {tr("Focus")}:{" "}
-                  <span className="text-ink">
-                    {selectedCards.length > 0 ? selectedCards.map((card) => tr(card.title)).join(", ") : tr("Not set yet")}
-                  </span>
-                </div>
-                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
-                  {tr("Pain")}: <span className="text-ink">{selectedPain ? tr(selectedPain.title) : tr("Not set yet")}</span>
-                </div>
-                <div className="rounded-full border border-white/70 bg-[#fffaf4] px-3 py-1.5 text-xs font-semibold text-slate-500">
-                  {tr("Tone")}: <span className="text-ink">{selectedLessonTone ? tr(selectedLessonTone.title) : tr("Not set yet")}</span>
-                </div>
-              </div>
 
               <div key={step} className="mt-6 onboarding-step-panel">
                 {step === 0 ? (
@@ -336,7 +254,7 @@ export function WelcomeScreen() {
                 ) : null}
 
                 {step === 2 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {lessonToneOptions.map((option) => (
                       <button
                         key={option.value}
@@ -353,50 +271,33 @@ export function WelcomeScreen() {
                         <div className="mt-2 text-sm leading-6 text-slate-600">{tr(option.subtitle)}</div>
                       </button>
                     ))}
-
-                    <div className="rounded-[24px] border border-dashed border-accent/20 bg-accent/5 p-4 text-sm leading-6 text-slate-700">
-                      <div className="text-xs uppercase tracking-[0.22em] text-coral">{tr("Mini-lesson preview")}</div>
-                      <div className="mt-3 text-lg font-semibold text-ink">{previewTitle}</div>
-                      <div className="mt-2">
-                        {tr("Your first route will start from these choices, then hand off into the deeper onboarding and your full learning workspace.")}
-                      </div>
-                    </div>
                   </div>
                 ) : null}
               </div>
 
               <div className="mt-6 rounded-[24px] border border-white/65 bg-[#fffaf4] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="max-w-[28rem] text-sm leading-6 text-slate-500">
+                  <div className="max-w-[29rem] text-sm leading-6 text-slate-500">
                     {step === 0
-                      ? selectionLimitReached
-                        ? tr("You already picked 3 directions. That is enough for a strong focused start.")
-                        : tr("Choose one to three directions. A focused start works better than trying to fix everything.")
+                      ? tr("Choose one to three directions for the first 1-2 minute lesson.")
                       : step === 1
-                        ? tr("Pick the frustration we should solve first. That is where the wow-effect should begin.")
-                        : tr("Choose the tone, then we will carry this setup into your next step.")}
+                        ? tr("Choose the main friction so the first lesson solves something real.")
+                        : tr("Pick the tone, then start the first short lesson and see the result.")}
                   </div>
 
                   <div className="flex flex-wrap gap-3">
                     <Button type="button" variant="ghost" disabled={step === 0} onClick={() => setStep((current) => current - 1)}>
                       {tr("Back")}
                     </Button>
-                    {step < 2 ? (
-                      <Button type="button" disabled={!stepReady} onClick={() => setStep((current) => current + 1)}>
-                        {tr("Continue")}
-                      </Button>
-                    ) : (
-                      <Button type="button" disabled={!stepReady || selectedDirections.length === 0} onClick={continueToOnboarding}>
-                        {tr("Build my mini-lesson")}
-                      </Button>
-                    )}
+                    <Button type="button" disabled={!stepReady} onClick={continueFlow}>
+                      {step === 2 ? tr("Build my mini-lesson") : tr("Continue")}
+                    </Button>
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-4 rounded-[18px] bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-                  <span className="font-semibold text-ink">{tr("What happens next")}:</span>{" "}
-                  {tr("We use these answers to shape the first lesson feeling, then carry them into the deeper onboarding and your full route.")}
-                </div>
+              <div className="mt-4 text-sm leading-6 text-slate-500">
+                {tr("A short lesson comes first. Registration and payment can wait until the value feels obvious.")}
               </div>
             </section>
           </div>

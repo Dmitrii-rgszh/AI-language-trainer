@@ -959,6 +959,18 @@ const translationEntries: TranslationEntry[] = [
     ru: "Эта платформа заменяет такой стек одним более умным маршрутом, который подстраивается под тебя.",
   },
   {
+    en: "Your first lesson and skill snapshot start before payment or registration.",
+    ru: "Твой первый урок и краткий срез навыков начинаются ещё до оплаты и регистрации.",
+  },
+  {
+    en: "Do not pay until you try it yourself.",
+    ru: "Не плати, пока не попробуешь сам.",
+  },
+  {
+    en: "Do not register until you see the value.",
+    ru: "Не регистрируйся, пока не увидишь ценность.",
+  },
+  {
     en: "Start with three light questions, see what the platform can tailor, and only then move deeper.",
     ru: "Начни с трёх лёгких вопросов, посмотри, как платформа умеет подстроиться, и только потом иди глубже.",
   },
@@ -1036,6 +1048,14 @@ const translationEntries: TranslationEntry[] = [
     ru: "Я постоянно забываю слова и конструкции",
   },
   {
+    en: "I get lost in grammar and start doubting myself",
+    ru: "Я путаюсь в грамматике и начинаю сомневаться в себе",
+  },
+  {
+    en: "I want clearer explanations and simple progress.",
+    ru: "Я хочу более понятные объяснения и простой прогресс.",
+  },
+  {
     en: "I learn something, then lose it because there is no steady route.",
     ru: "Я что-то учу, а потом теряю, потому что нет стабильного маршрута.",
   },
@@ -1064,6 +1084,34 @@ const translationEntries: TranslationEntry[] = [
   {
     en: "Show me where my first strong result can come from.",
     ru: "Покажи, откуда может прийти мой первый сильный результат.",
+  },
+  {
+    en: "What do you want to improve first?",
+    ru: "Что ты хочешь улучшить в первую очередь?",
+  },
+  {
+    en: "How should the first lesson feel?",
+    ru: "Каким должен ощущаться первый урок?",
+  },
+  {
+    en: "Choose one to three directions for the first 1-2 minute lesson.",
+    ru: "Выбери от одного до трёх направлений для первого урока на 1-2 минуты.",
+  },
+  {
+    en: "Choose the main friction so the first lesson solves something real.",
+    ru: "Выбери главное затруднение, чтобы первый урок решил что-то реальное.",
+  },
+  {
+    en: "Choose the tone of the first mini-lesson and quick skill snapshot.",
+    ru: "Выбери тон первого мини-урока и короткого среза навыков.",
+  },
+  {
+    en: "Pick the tone, then start the first short lesson and see the result.",
+    ru: "Выбери тон, а затем начни первый короткий урок и увидь результат.",
+  },
+  {
+    en: "A short lesson comes first. Registration and payment can wait until the value feels obvious.",
+    ru: "Сначала идёт короткий урок. Регистрация и оплата подождут, пока ценность не станет очевидной.",
   },
   { en: "Unified English route", ru: "Единый маршрут по английскому" },
   { en: "Mini-onboarding", ru: "Мини-онбординг" },
