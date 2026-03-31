@@ -114,6 +114,23 @@ a {
     linear-gradient(160deg, #1d2a38 0%, #24414b 52%, #1e2f36 100%);
 }
 
+.welcome-stage {
+  background:
+    radial-gradient(circle at top left, rgba(129, 230, 217, 0.16), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(255, 210, 168, 0.15), transparent 32%),
+    linear-gradient(165deg, #183441 0%, #1f4753 55%, #17313b 100%);
+}
+
+.welcome-stage__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 78%);
+}
+
 .onboarding-step-panel {
   animation: onboarding-fade-up 420ms ease both;
 }

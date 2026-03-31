@@ -850,6 +850,88 @@ const translationEntries: TranslationEntry[] = [
     en: "Could not complete onboarding right now.",
     ru: "Сейчас не удалось завершить онбординг.",
   },
+  { en: "Start free", ru: "Старт бесплатно" },
+  {
+    en: "Find your first useful English lesson before any registration.",
+    ru: "Найди свой первый полезный урок английского ещё до регистрации.",
+  },
+  {
+    en: "Pick one to three directions, and we will shape the first route around the result you want to feel right away.",
+    ru: "Выбери от одного до трёх направлений, и мы соберём первый маршрут вокруг результата, который хочется почувствовать сразу.",
+  },
+  { en: "No account wall at the start", ru: "Без аккаунта и барьера на старте" },
+  { en: "Choose up to 3 focus areas", ru: "Выбери до 3 направлений" },
+  { en: "Personal route starts from your picks", ru: "Личный маршрут начнётся с твоего выбора" },
+  { en: "Pick your direction", ru: "Выбери направление" },
+  { en: "What should this trainer help with first?", ru: "С чем этот тренажёр должен помочь в первую очередь?" },
+  {
+    en: "Choose from one to three goals. The first experience should feel relevant, light, and worth continuing.",
+    ru: "Выбери от одной до трёх целей. Первый опыт должен ощущаться уместным, лёгким и стоящим продолжения.",
+  },
+  { en: "Speaking confidence", ru: "Уверенное говорение" },
+  {
+    en: "Short real-life prompts, answers, and quick speaking support.",
+    ru: "Короткие жизненные prompts, ответы и быстрая поддержка разговорной практики.",
+  },
+  { en: "Grammar clarity", ru: "Понятная грамматика" },
+  {
+    en: "Fix the mistakes that slow your speech down in daily use.",
+    ru: "Исправляй ошибки, которые тормозят речь в обычном общении.",
+  },
+  { en: "Vocabulary growth", ru: "Рост словаря" },
+  {
+    en: "Useful words you can actually use, not random word lists.",
+    ru: "Полезные слова, которые реально пригодятся, а не случайные списки.",
+  },
+  { en: "Reading flow", ru: "Лёгкое чтение" },
+  {
+    en: "Understand texts faster and keep the main idea without stress.",
+    ru: "Понимай тексты быстрее и держи главный смысл без лишнего стресса.",
+  },
+  { en: "English for work", ru: "Английский для работы" },
+  {
+    en: "Meetings, clients, messages, and confident professional wording.",
+    ru: "Встречи, клиенты, сообщения и уверенные профессиональные формулировки.",
+  },
+  { en: "Travel English", ru: "Английский для поездок" },
+  {
+    en: "Phrases and confidence for airports, hotels, and everyday situations.",
+    ru: "Фразы и уверенность для аэропортов, отелей и повседневных ситуаций.",
+  },
+  { en: "Exam focus", ru: "Фокус на экзамене" },
+  {
+    en: "A cleaner route toward test tasks, structure, and steady progress.",
+    ru: "Более понятный маршрут к заданиям, структуре и спокойному прогрессу.",
+  },
+  { en: "Your preview", ru: "Твой предварительный маршрут" },
+  { en: "Personal English route", ru: "Личный маршрут по английскому" },
+  {
+    en: "Good start. We will carry these directions into the next setup so your route already leans toward what matters most.",
+    ru: "Хороший старт. Мы перенесём эти направления в следующую настройку, чтобы маршрут сразу опирался на то, что для тебя важнее всего.",
+  },
+  {
+    en: "Choose at least one direction to build a more relevant first experience.",
+    ru: "Выбери хотя бы одно направление, чтобы собрать более уместный первый опыт.",
+  },
+  { en: "1 to 3 choices", ru: "От 1 до 3 выборов" },
+  {
+    en: "The full free lesson hook is the next layer we will shape around these picks.",
+    ru: "Полный бесплатный урок-хук станет следующим слоем, который мы соберём вокруг этих выборов.",
+  },
+  {
+    en: "For now this first page already removes the cold account wall and starts from the learner's intention.",
+    ru: "Пока что эта первая страница уже убирает холодный барьер аккаунта и начинает путь с намерения ученика.",
+  },
+  { en: "Build my route", ru: "Собрать мой маршрут" },
+  { en: "Skip to full onboarding", ru: "Сразу перейти к полному онбордингу" },
+  {
+    en: "You already picked 3 directions. Remove one if you want to swap the focus.",
+    ru: "Ты уже выбрал 3 направления. Убери одно, если хочешь сменить фокус.",
+  },
+  {
+    en: "The strongest start usually comes from one to three priorities, not from trying to fix everything at once.",
+    ru: "Самый сильный старт обычно рождается из 1-3 приоритетов, а не из попытки исправить всё сразу.",
+  },
 ];
 
 const translationTable = new Map<string, TranslationEntry>();

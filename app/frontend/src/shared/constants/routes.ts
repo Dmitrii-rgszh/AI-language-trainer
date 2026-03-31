@@ -1,4 +1,5 @@
 export const routes = {
+  welcome: "/welcome",
   onboarding: "/onboarding",
   dashboard: "/dashboard",
   activity: "/activity",

@@ -12,6 +12,7 @@ import { PronunciationPage } from "../pages/PronunciationPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { SpeakingPage } from "../pages/SpeakingPage";
 import { VocabularyPage } from "../pages/VocabularyPage";
+import { WelcomePage } from "../pages/WelcomePage";
 import { WritingPage } from "../pages/WritingPage";
 import { routes } from "../shared/constants/routes";
 import { AppShell } from "../widgets/AppShell";
@@ -21,7 +22,8 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to={routes.dashboard} replace /> },
+      { index: true, element: <Navigate to={routes.welcome} replace /> },
+      { path: routes.welcome, element: <WelcomePage /> },
       { path: routes.onboarding, element: <OnboardingPage /> },
       { path: routes.dashboard, element: <DashboardPage /> },
       { path: routes.activity, element: <ActivityPage /> },

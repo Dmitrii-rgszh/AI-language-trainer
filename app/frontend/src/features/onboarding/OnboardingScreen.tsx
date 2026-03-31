@@ -24,6 +24,7 @@ import {
   toggleValue,
   type OnboardingOption,
 } from "./profile-form-config";
+import { applyGuestIntentToProfile, consumeGuestIntent } from "../welcome/guest-intent";
 
 const currentLevelOptions = ["A1", "A2", "B1", "B2", "C1"] as const;
 const targetLevelOptions = ["A2", "B1", "B2", "C1", "C2"] as const;
@@ -226,6 +227,15 @@ export function OnboardingScreen() {
     setForm(buildProfileDraft(profile));
     setStep(0);
   }, [profile]);
+
+  useEffect(() => {
+    const guestIntent = consumeGuestIntent();
+    if (!guestIntent || guestIntent.directions.length === 0) {
+      return;
+    }
+
+    setForm((current) => applyGuestIntentToProfile(current, guestIntent.directions));
+  }, []);
 
   useEffect(() => {
     setForm((current) =>

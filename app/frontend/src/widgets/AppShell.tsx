@@ -9,6 +9,7 @@ import { ProgressBar } from "../shared/ui/ProgressBar";
 
 export function AppShell() {
   const location = useLocation();
+  const isWelcomeRoute = location.pathname === routes.welcome;
   const isOnboardingRoute = location.pathname === routes.onboarding;
   const bootstrap = useAppStore((state) => state.bootstrap);
   const dashboard = useAppStore((state) => state.dashboard);
@@ -39,15 +40,15 @@ export function AppShell() {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  if (needsOnboarding && !isOnboardingRoute) {
-    return <Navigate to={routes.onboarding} replace />;
+  if (needsOnboarding && !isOnboardingRoute && !isWelcomeRoute) {
+    return <Navigate to={routes.welcome} replace />;
   }
 
-  if (!needsOnboarding && isOnboardingRoute) {
+  if (!needsOnboarding && (isOnboardingRoute || isWelcomeRoute)) {
     return <Navigate to={routes.dashboard} replace />;
   }
 
-  if (needsOnboarding && isOnboardingRoute) {
+  if (needsOnboarding && (isOnboardingRoute || isWelcomeRoute)) {
     return (
       <div className="onboarding-layout">
         <div className="onboarding-layout__orb onboarding-layout__orb--left" />
