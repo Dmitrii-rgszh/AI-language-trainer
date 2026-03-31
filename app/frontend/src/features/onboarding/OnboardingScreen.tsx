@@ -23,7 +23,7 @@ export function OnboardingScreen() {
         eyebrow={tr("Start")}
         title={tr("Onboarding")}
         description={tr(
-          "Your profile drives the roadmap, lesson flow, and skill balance from the first session.",
+          "Build a flexible learner profile for adults, children, career goals, school support, and future multi-user use cases.",
         )}
       />
       <ProfileEditorCard
@@ -31,7 +31,7 @@ export function OnboardingScreen() {
         professionTracks={professionTracks}
         title={tr("Profile summary")}
         description={tr(
-          "Сохрани базовый профиль, чтобы dashboard, recommendations и lesson flow сразу подстроились под твой уровень и трек.",
+          "Save a broader learning blueprint so the dashboard, lesson flow, and future personalization can adapt to different ages, goals, and study styles.",
         )}
         submitLabel={tr("Save profile and continue")}
         onSave={handleSubmit}

@@ -24,6 +24,7 @@ WEAK_SPOT_TITLE_MAP = {
     "client-needs-language": "Client needs analysis language",
     "banking-clarity-language": "Banking product clarity",
     "risk-aware-language": "Risk-aware AI explanations",
+    "conversation-flow-language": "Everyday conversation flow",
 }
 
 WEAK_SPOT_RECOMMENDATION_MAP = {

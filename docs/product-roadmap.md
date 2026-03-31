@@ -31,6 +31,8 @@
 - собирать достаточно данных, чтобы строить сильный стартовый трек по grammar, reading, vocabulary, speaking, writing и profession English;
 - быть пригодным для дальнейшей монетизации: reusable для разных сегментов пользователей, с понятным профилем, историей ответов и возможностью premium personalization;
 - закладывать основу для multi-user сценария, а не быть заточенным только под одного локального пользователя.
+- одинаково хорошо подходить для взрослых, подростков, детей, семейного сценария и parent-guided use case, а не только для professional audience.
+- поддерживать не только рабочие цели, но и school support, exams, relocation, travel, general communication и long-tail личные запросы.
 
 ## Onboarding Question Line
 
@@ -43,19 +45,23 @@
 3. `Target outcome`
    Желаемый уровень и желаемый practical outcome на горизонте 1-3 месяцев.
 4. `Professional context`
-   Сфера, роль, тип задач, рабочие сценарии, кто собеседник: клиенты, коллеги, менеджеры, кандидаты, команды.
+   Сфера, роль, тип задач, рабочие сценарии, кто собеседник: клиенты, коллеги, менеджеры, кандидаты, команды. Для non-professional use case здесь нужен универсальный content lane: general English, school-safe conversation, travel, family, relocation.
 5. `Skill self-rating`
    Самооценка по grammar, reading, vocabulary, speaking, listening, pronunciation, writing.
 6. `Confidence and blockers`
    Где сложнее всего: времена, словарь, скорость речи, понимание аудио, small talk, письма, созвоны, чтение документов.
-7. `Input preferences`
+7. `Learner setup`
+   Кто учится: сам пользователь, ребёнок, подросток, семейный аккаунт, parent-guided сценарий, adult career learner.
+8. `Input preferences`
    Как удобнее учиться: короткие daily sessions, длинные deep-work sessions, voice-first, text-first, mixed.
-8. `Time budget`
+9. `Time budget`
    Длительность уроков, частота в неделю, preferred session windows.
-9. `Diagnostic readiness`
+10. `Diagnostic readiness`
    Готов ли пользователь пройти короткий стартовый checkpoint сейчас или хочет начать мягко.
-10. `Content preference`
+11. `Content preference`
    Больше general English, profession English, reading-heavy, speaking-heavy, vocabulary-heavy или balanced plan.
+12. `Support profile`
+   Нужны ли gentle feedback, more repetition, slower pace, visual structure, child-safe wording или parent notes.
 
 ## How Answers Should Drive the Track
 
@@ -75,6 +81,8 @@
   Выбор track-specific content, roleplay direction, topic bank и client-facing language.
 - `adaptive loop`
   Начальный focus area, threshold для recovery lessons, next-step rotation и quick actions.
+- `family and child mode`
+  Мягкость формулировок, длина сессий, допустимые темы, parent-guided framing и безопасный стартовый workload.
 
 ## Delivery Plan
 
@@ -85,6 +93,7 @@
 - draft save между шагами;
 - summary screen перед финальным сохранением;
 - mobile-safe и desktop-first presentation.
+- отдельный `onboarding_answers` слой в профиле, чтобы можно было хранить гибкие ответы без поломки текущего lesson engine.
 
 ### Phase 2. Learning Blueprint Engine
 
@@ -93,6 +102,7 @@
 - формирование стартового diagnostic mode:
   мягкий старт или checkpoint-first;
 - стартовый profession pack и initial vocabulary pack.
+- универсальный `general communication` lane для тех, кому не нужен pure professional track.
 
 ### Phase 3. Monetization Readiness
 

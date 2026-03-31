@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, String
+from sqlalchemy import JSON, CheckConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -41,6 +41,7 @@ class UserProfile(TimestampMixin, Base):
     speaking_priority: Mapped[int] = mapped_column(nullable=False)
     grammar_priority: Mapped[int] = mapped_column(nullable=False)
     profession_priority: Mapped[int] = mapped_column(nullable=False)
+    onboarding_answers: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     lesson_runs = relationship("LessonRun", back_populates="user", cascade="all, delete-orphan")
     mistake_records = relationship("MistakeRecord", back_populates="user", cascade="all, delete-orphan")

@@ -35,6 +35,7 @@ class ProfileRepository:
             model.speaking_priority = payload.speaking_priority
             model.grammar_priority = payload.grammar_priority
             model.profession_priority = payload.profession_priority
+            model.onboarding_answers = payload.onboarding_answers.model_dump(mode="json")
 
             session.commit()
             session.refresh(model)
@@ -46,4 +47,3 @@ class ProfileRepository:
             return session.get(UserProfileModel, profile_id)
 
         return session.scalar(select(UserProfileModel).order_by(UserProfileModel.created_at.asc()).limit(1))
-

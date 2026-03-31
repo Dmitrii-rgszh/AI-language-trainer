@@ -15,5 +15,12 @@ SPEAKING_SCENARIO_CATALOG = [
         "prompt": "Explain what went well and what should improve before the next session.",
         "feedback_hint": "Используй softer language: could, might, let's.",
     },
+    {
+        "id": "speaking-everyday-check-in",
+        "title": "Everyday Check-in",
+        "mode": "guided",
+        "goal": "Поддерживать простой, понятный и дружелюбный разговор на everyday topics.",
+        "prompt": "Share one recent update, ask one polite question, and keep the tone warm and clear.",
+        "feedback_hint": "Держи фокус на простых фразах, вежливом тоне и уверенном ритме.",
+    },
 ]
-

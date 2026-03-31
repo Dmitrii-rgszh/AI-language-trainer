@@ -10,7 +10,7 @@ from app.models.user_profile import UserProfile as UserProfileModel
 from app.schemas.lesson import Lesson, LessonBlock, LessonBlockRunState, LessonRecommendation, LessonRunState
 from app.schemas.mistake import Mistake
 from app.schemas.provider import ProviderPreference
-from app.schemas.profile import UserProfile
+from app.schemas.profile import OnboardingAnswers, UserProfile
 from app.schemas.progress import LessonHistoryItem, ProgressSnapshot
 
 
@@ -39,6 +39,7 @@ def to_user_profile(model: UserProfileModel) -> UserProfile:
         speaking_priority=model.speaking_priority,
         grammar_priority=model.grammar_priority,
         profession_priority=model.profession_priority,
+        onboarding_answers=OnboardingAnswers.model_validate(model.onboarding_answers or {}),
     )
 
 

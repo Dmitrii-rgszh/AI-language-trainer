@@ -1,7 +1,7 @@
 import type { Lesson, LessonRecommendation } from "../../entities/lesson/model";
 import type { Mistake, WeakSpot } from "../../entities/mistake/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
-import type { UserProfile } from "../../entities/user/model";
+import { defaultOnboardingAnswers, type UserProfile } from "../../entities/user/model";
 import type {
   DiagnosticRoadmap,
   DashboardData,
@@ -21,13 +21,19 @@ export const mockProfile: UserProfile = {
   nativeLanguage: "ru",
   currentLevel: "A2",
   targetLevel: "B2",
-  professionTrack: "trainer_skills",
+  professionTrack: "cross_cultural",
   preferredUiLanguage: "ru",
   preferredExplanationLanguage: "ru",
   lessonDuration: 25,
   speakingPriority: 8,
   grammarPriority: 7,
-  professionPriority: 9,
+  professionPriority: 5,
+  onboardingAnswers: {
+    ...defaultOnboardingAnswers,
+    primaryGoal: "everyday_communication",
+    learningContext: "general_english",
+    interestTopics: ["daily_life", "travel", "stories"],
+  },
 };
 
 export const mockProgress: ProgressSnapshot = {
@@ -517,6 +523,13 @@ export const mockProfessionTracks: ProfessionTrackCard[] = [
     domain: "ai_business",
     summary: "AI workflows, prompts, limitations и объяснение кейсов на английском.",
     lessonFocus: ["prompts", "AI assistants", "risk-aware explanations"],
+  },
+  {
+    id: "track-5",
+    title: "Everyday Communication",
+    domain: "cross_cultural",
+    summary: "Повседневный английский, поездки, дружелюбные разговорные сценарии и school-safe practice.",
+    lessonFocus: ["daily conversations", "travel confidence", "friendly communication"],
   },
 ];
 

@@ -29,6 +29,13 @@ PROFESSION_TRACK_CATALOG = [
         "summary": "Промпты, AI assistants, workflows и explanation style для бизнеса.",
         "lesson_focus": ["prompts", "AI assistants", "risk-aware explanations"],
     },
+    {
+        "id": "track-cross-cultural",
+        "title": "Everyday Communication",
+        "domain": ProfessionDomain.CROSS_CULTURAL,
+        "summary": "Повседневное общение, travel English, school-safe practice и понятные разговорные паттерны.",
+        "lesson_focus": ["daily conversations", "travel confidence", "friendly communication"],
+    },
 ]
 
 PROFESSION_TOPIC_CATALOG = [
@@ -78,5 +85,17 @@ PROFESSION_TOPIC_CATALOG = [
             "This automation saves time, yet we still need a clear approval path.",
         ],
         "tags": ["ai", "workflow", "business explanation"],
+    },
+    {
+        "id": "topic-cross-cultural-everyday-communication",
+        "domain": ProfessionDomain.CROSS_CULTURAL,
+        "title": "Everyday Conversation Builder",
+        "difficulty": "A1-B1",
+        "content": "Simple phrases for daily questions, friendly replies, travel moments and confident small talk.",
+        "examples": [
+            "Could you tell me how to get there?",
+            "I would like to ask one more question before we decide.",
+        ],
+        "tags": ["general english", "conversation", "travel", "family-friendly"],
     },
 ]

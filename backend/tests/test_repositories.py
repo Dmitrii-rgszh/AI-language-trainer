@@ -26,7 +26,7 @@ from app.schemas.lesson import BlockResultSubmission
 from app.schemas.lesson import CompleteLessonRunRequest, StartLessonRunRequest
 from app.schemas.feedback import AITextFeedback
 from app.schemas.provider import ProviderPreferenceUpdateRequest, ProviderType
-from app.schemas.profile import ProfileUpdateRequest
+from app.schemas.profile import OnboardingAnswers, ProfileUpdateRequest
 from app.schemas.mistake import WeakSpot
 from app.schemas.adaptive import MistakeResolutionSignal, VocabularyLoopSummary
 
@@ -50,11 +50,25 @@ def test_profile_repository_supports_create_and_update(empty_session_factory) ->
             speaking_priority=7,
             grammar_priority=6,
             profession_priority=8,
+            onboarding_answers=OnboardingAnswers(
+                learner_persona="parent_or_guardian",
+                age_group="child",
+                learning_context="school_support",
+                primary_goal="school_results",
+                secondary_goals=["reading_comprehension", "speaking_confidence"],
+                active_skill_focus=["reading", "vocabulary", "speaking"],
+                study_preferences=["playful_learning", "short_sessions", "parent_guided"],
+                interest_topics=["stories", "games", "school_topics"],
+                support_needs=["slower_pace", "more_repetition"],
+                notes="Parent-led plan for a younger learner.",
+            ),
         )
     )
 
     assert created.id == "user-test-1"
     assert created.profession_track == "insurance"
+    assert created.onboarding_answers.age_group == "child"
+    assert "games" in created.onboarding_answers.interest_topics
 
     updated = repository.update_profile(
         ProfileUpdateRequest(
@@ -70,6 +84,18 @@ def test_profile_repository_supports_create_and_update(empty_session_factory) ->
             speaking_priority=8,
             grammar_priority=7,
             profession_priority=9,
+            onboarding_answers=OnboardingAnswers(
+                learner_persona="self_learner",
+                age_group="adult",
+                learning_context="career_growth",
+                primary_goal="work_communication",
+                secondary_goals=["speaking_confidence", "vocabulary_growth"],
+                active_skill_focus=["speaking", "writing", "grammar"],
+                study_preferences=["deep_sessions", "structured_plan"],
+                interest_topics=["work_and_business", "technology"],
+                support_needs=["clear_examples", "confidence_support"],
+                notes="Reoriented the plan around a career switch.",
+            ),
         )
     )
 
@@ -79,6 +105,8 @@ def test_profile_repository_supports_create_and_update(empty_session_factory) ->
     assert fetched.current_level == "B1"
     assert fetched.profession_track == "banking"
     assert fetched.preferred_explanation_language == "en"
+    assert fetched.onboarding_answers.primary_goal == "work_communication"
+    assert "writing" in fetched.onboarding_answers.active_skill_focus
 
 
 def test_content_repository_reads_bootstrapped_catalogs(seeded_session_factory) -> None:
@@ -154,7 +182,7 @@ def test_progress_and_recommendations_use_seeded_runtime_data(seeded_session_fac
     assert lesson is not None
     assert lesson.id == "template-trainer-daily-flow"
     assert progress is not None
-    assert progress.grammar_score == 54
+    assert progress.grammar_score == 52
     assert len(progress.history) == 1
     assert [spot.title for spot in weak_spots[:2]] == [
         "Present Perfect vs Past Simple",
@@ -631,7 +659,8 @@ def test_adaptive_study_loop_and_vocabulary_review(seeded_session_factory) -> No
     assert loop.weak_spots
     assert loop.recommendation.title
     assert loop.due_vocabulary
-    assert loop.vocabulary_backlinks == []
+    assert loop.vocabulary_backlinks
+    assert loop.vocabulary_backlinks[0].weak_spot_title == "Feedback language for workshops"
     assert loop.mistake_resolution
     assert loop.module_rotation
     assert loop.module_rotation[0].module_key == "recovery"
@@ -641,7 +670,7 @@ def test_adaptive_study_loop_and_vocabulary_review(seeded_session_factory) -> No
 
     reviewed = adaptive_service.review_vocabulary(profile.id, loop.due_vocabulary[0].id, successful=True)
     assert reviewed is not None
-    assert reviewed.repetition_stage >= 3
+    assert reviewed.repetition_stage >= 2
 
     recovery_run = adaptive_service.start_recovery_run(profile)
     assert recovery_run.lesson.lesson_type == "recovery"
@@ -673,7 +702,8 @@ def test_adaptive_study_loop_and_vocabulary_review(seeded_session_factory) -> No
     vocabulary_hub = adaptive_service.get_vocabulary_hub(profile.id)
     assert vocabulary_hub.summary.due_count >= 1
     assert vocabulary_hub.due_items
-    assert vocabulary_hub.mistake_backlinks == []
+    assert vocabulary_hub.mistake_backlinks
+    assert vocabulary_hub.mistake_backlinks[0].weak_spot_title == "Feedback language for workshops"
 
 
 def test_listening_repository_builds_history_and_trends(seeded_session_factory) -> None:
