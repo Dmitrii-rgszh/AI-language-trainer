@@ -210,7 +210,7 @@ export function WritingScreen() {
                         </div>
                       </div>
                       <div className="rounded-full bg-sand/80 px-3 py-1 text-xs font-semibold text-slate-700">
-                        {attempt.feedbackSource === "ai" ? tr("AI-backed") : tr("Mock")}
+                        {attempt.feedbackSource === "ai" ? tr("AI-backed") : tr("Fallback review")}
                       </div>
                     </div>
                     <div className="mt-3 rounded-2xl bg-white p-3 text-sm leading-6 text-slate-700">{attempt.draft}</div>
