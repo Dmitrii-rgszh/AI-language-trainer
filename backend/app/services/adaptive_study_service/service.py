@@ -7,8 +7,15 @@ from app.repositories.mistake_repository import MistakeRepository
 from app.repositories.progress_repository import ProgressRepository
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.repositories.vocabulary_repository import VocabularyRepository
-from app.schemas.adaptive import AdaptiveStudyLoop, VocabularyHub, VocabularyReviewItem
+from app.schemas.adaptive import (
+    AdaptiveStudyLoop,
+    MistakeResolutionSignal,
+    VocabularyHub,
+    VocabularyLoopSummary,
+    VocabularyReviewItem,
+)
 from app.schemas.lesson import LessonRunState
+from app.schemas.mistake import WeakSpot
 from app.schemas.profile import UserProfile
 from app.services.adaptive_study_service.loop_copy import (
     build_generation_rationale,
@@ -23,6 +30,7 @@ from app.services.adaptive_study_service.loop_rotation import (
     build_module_rotation,
     build_next_steps,
 )
+from app.services.recommendation_service.service import RecommendationService
 
 
 class AdaptiveStudyService:
@@ -30,20 +38,20 @@ class AdaptiveStudyService:
         self,
         lesson_repository: LessonRepository,
         lesson_runtime_repository: LessonRuntimeRepository,
-        recommendation_repository: RecommendationRepository,
+        recommendation_service: RecommendationService | RecommendationRepository,
         mistake_repository: MistakeRepository,
         progress_repository: ProgressRepository,
         vocabulary_repository: VocabularyRepository,
     ) -> None:
         self._lesson_repository = lesson_repository
         self._lesson_runtime_repository = lesson_runtime_repository
-        self._recommendation_repository = recommendation_repository
+        self._recommendation_service = recommendation_service
         self._mistake_repository = mistake_repository
         self._progress_repository = progress_repository
         self._vocabulary_repository = vocabulary_repository
 
     def get_loop(self, profile: UserProfile) -> AdaptiveStudyLoop | None:
-        recommendation = self._recommendation_repository.get_next_step(profile)
+        recommendation = self._recommendation_service.get_next_step(profile)
         if recommendation is None:
             return None
 
@@ -135,3 +143,19 @@ class AdaptiveStudyService:
             raise ServiceUnavailableError("Recovery lesson could not be generated.")
 
         return lesson_run
+
+    @staticmethod
+    def _build_generation_rationale(
+        recommendation_lesson_type: str,
+        weak_spots: list[WeakSpot],
+        vocabulary_summary: VocabularyLoopSummary,
+        listening_focus: str | None,
+        mistake_resolution: list[MistakeResolutionSignal],
+    ) -> list[str]:
+        return build_generation_rationale(
+            recommendation_lesson_type=recommendation_lesson_type,
+            weak_spots=weak_spots,
+            vocabulary_summary=vocabulary_summary,
+            listening_focus=listening_focus,
+            mistake_resolution=mistake_resolution,
+        )

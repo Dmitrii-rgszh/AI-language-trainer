@@ -147,11 +147,17 @@ def build_app_runtime(
     repositories: AppRepositories,
     dependencies: AppRuntimeDependencies,
 ) -> AppRuntime:
+    recommendation_service = RecommendationService(
+        repositories.lesson_repository,
+        repositories.mistake_repository,
+        repositories.vocabulary_repository,
+    )
+
     return AppRuntime(
         adaptive_study_service=AdaptiveStudyService(
             repositories.lesson_repository,
             repositories.lesson_runtime_repository,
-            repositories.recommendation_repository,
+            recommendation_service,
             repositories.mistake_repository,
             repositories.progress_repository,
             repositories.vocabulary_repository,
@@ -190,7 +196,7 @@ def build_app_runtime(
             repositories.provider_preference_repository,
             dependencies.provider_registry,
         ),
-        recommendation_service=RecommendationService(repositories.recommendation_repository),
+        recommendation_service=recommendation_service,
         speaking_service=SpeakingService(
             repositories.content_repository,
             dependencies.ai_orchestrator,

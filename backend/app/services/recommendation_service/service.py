@@ -1,11 +1,26 @@
-from app.repositories.recommendation_repository import RecommendationRepository
+from app.repositories.lesson_repository import LessonRepository
+from app.repositories.mistake_repository import MistakeRepository
+from app.repositories.vocabulary_repository import VocabularyRepository
 from app.schemas.lesson import LessonRecommendation
 from app.schemas.profile import UserProfile
+from app.services.recommendation_service.engine import build_next_recommendation
 
 
 class RecommendationService:
-    def __init__(self, repository: RecommendationRepository) -> None:
-        self._repository = repository
+    def __init__(
+        self,
+        lesson_repository: LessonRepository,
+        mistake_repository: MistakeRepository,
+        vocabulary_repository: VocabularyRepository,
+    ) -> None:
+        self._lesson_repository = lesson_repository
+        self._mistake_repository = mistake_repository
+        self._vocabulary_repository = vocabulary_repository
 
     def get_next_step(self, profile: UserProfile) -> LessonRecommendation | None:
-        return self._repository.get_next_step(profile)
+        return build_next_recommendation(
+            profile,
+            self._lesson_repository,
+            self._mistake_repository,
+            self._vocabulary_repository,
+        )
