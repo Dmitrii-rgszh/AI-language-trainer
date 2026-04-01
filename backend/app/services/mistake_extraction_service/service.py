@@ -1,21 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
 
+from app.schemas.mistake_extraction import ExtractedMistake
 from app.schemas.blueprint import MistakeCategory, MistakeSeverity
 from app.schemas.lesson import BlockResultSubmission, Lesson
-
-
-@dataclass
-class ExtractedMistake:
-    category: MistakeCategory
-    subtype: str
-    source_module: str
-    original_text: str
-    corrected_text: str
-    explanation: str
-    severity: MistakeSeverity
 
 
 class MistakeExtractionService:

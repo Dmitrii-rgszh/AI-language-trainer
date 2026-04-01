@@ -1,5 +1,5 @@
 import { defaultOnboardingAnswers, type OnboardingAnswers, type UserProfile } from "../../entities/user/model";
-import type { ProfessionTrackCard } from "../../shared/types/app-data";
+import type { ProfessionTrackCard } from "../types/app-data";
 
 export type OnboardingOption = {
   value: string;

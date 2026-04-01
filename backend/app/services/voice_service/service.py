@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
-
+from app.core.errors import AppError, BadGatewayError, ServiceUnavailableError
 from app.providers.tts.base import BaseTTSProvider
 
 
@@ -11,12 +10,11 @@ class VoiceService:
 
     def synthesize(self, text: str, language: str, speaker: str | None = None) -> bytes:
         if self._provider is None:
-            raise HTTPException(status_code=503, detail="TTS provider is not configured.")
+            raise ServiceUnavailableError("TTS provider is not configured.")
 
         try:
             return self._provider.synthesize(text=text, language=language, speaker=speaker)
-        except HTTPException:
+        except AppError:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Speech synthesis failed: {exc}") from exc
-
+            raise BadGatewayError(f"Speech synthesis failed: {exc}") from exc

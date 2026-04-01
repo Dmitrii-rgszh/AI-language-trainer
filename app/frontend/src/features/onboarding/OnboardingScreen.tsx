@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { defaultUserAccountDraft, type UserAccountDraft } from "../../entities/account/model";
 import type { OnboardingAnswers, UserProfile } from "../../entities/user/model";
-import { ApiError, apiClient } from "../../shared/api/client";
+import { ApiError } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
-import { useAppStore } from "../../shared/store/app-store";
-import type { ProfessionTrackCard } from "../../shared/types/app-data";
-import { Button } from "../../shared/ui/Button";
-import { Card } from "../../shared/ui/Card";
-import { cn } from "../../shared/utils/cn";
 import {
   ageGroupOptions,
   buildProfileDraft,
@@ -23,8 +18,14 @@ import {
   supportNeedOptions,
   toggleValue,
   type OnboardingOption,
-} from "./profile-form-config";
+} from "../../shared/profile/profile-form-config";
+import { useAppStore } from "../../shared/store/app-store";
+import type { ProfessionTrackCard } from "../../shared/types/app-data";
+import { Button } from "../../shared/ui/Button";
+import { Card } from "../../shared/ui/Card";
+import { cn } from "../../shared/utils/cn";
 import { applyGuestIntentToProfile, consumeGuestIntent } from "../welcome/guest-intent";
+import { useAccountAvailability } from "./useAccountAvailability";
 
 const currentLevelOptions = ["A1", "A2", "B1", "B2", "C1"] as const;
 const targetLevelOptions = ["A2", "B1", "B2", "C1", "C2"] as const;
@@ -33,19 +34,6 @@ const adultSupportOptions: Array<{ value: "yes" | "no"; label: string }> = [
   { value: "yes", label: "Yes, adult support helps" },
   { value: "no", label: "No, independent enough" },
 ];
-
-type LoginCheckState = {
-  status: "idle" | "checking" | "available" | "taken" | "existing_account" | "error";
-  suggestions: string[];
-};
-
-type EmailCheckState = {
-  status: "idle" | "valid" | "invalid";
-};
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
 
 function inferLearnerPersona(ageGroup: string, learningContext: string) {
   if (ageGroup === "family_plan") {
@@ -204,13 +192,7 @@ export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [loginCheck, setLoginCheck] = useState<LoginCheckState>({
-    status: "idle",
-    suggestions: [],
-  });
-  const [emailCheck, setEmailCheck] = useState<EmailCheckState>({
-    status: "idle",
-  });
+  const { loginCheck, emailCheck, emailIsValid } = useAccountAvailability(account);
 
   useEffect(() => {
     setAccount(
@@ -247,71 +229,6 @@ export function OnboardingScreen() {
     setSubmitError(null);
   }, [account.email, account.login]);
 
-  useEffect(() => {
-    const trimmedEmail = account.email.trim();
-
-    if (trimmedEmail.length === 0) {
-      setEmailCheck({ status: "idle" });
-      return;
-    }
-
-    setEmailCheck({
-      status: isValidEmail(trimmedEmail) ? "valid" : "invalid",
-    });
-  }, [account.email]);
-
-  useEffect(() => {
-    const trimmedLogin = account.login.trim();
-    const trimmedEmail = account.email.trim();
-
-    if (trimmedLogin.length === 0) {
-      setLoginCheck({ status: "idle", suggestions: [] });
-      return;
-    }
-
-    if (trimmedLogin.length < 3) {
-      setLoginCheck({ status: "idle", suggestions: [] });
-      return;
-    }
-
-    let cancelled = false;
-    const timeoutId = window.setTimeout(async () => {
-      setLoginCheck((current) => ({ ...current, status: "checking" }));
-
-      try {
-        const result = await apiClient.checkLoginAvailability({
-          login: trimmedLogin,
-          email: trimmedEmail.length >= 5 ? trimmedEmail : undefined,
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        setLoginCheck({
-          status: result.status,
-          suggestions: result.suggestions,
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 422) {
-          setLoginCheck({ status: "idle", suggestions: [] });
-          return;
-        }
-
-        setLoginCheck({ status: "error", suggestions: [] });
-      }
-    }, 320);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [account.email, account.login]);
-
   const tracks = professionTracks.length > 0 ? professionTracks : fallbackProfessionTracks;
   const activeTrack = useMemo(
     () => tracks.find((track) => track.domain === form.professionTrack) ?? tracks[0],
@@ -320,7 +237,6 @@ export function OnboardingScreen() {
 
   const loginStatusAllowsContinue =
     loginCheck.status === "available" || loginCheck.status === "existing_account";
-  const emailIsValid = isValidEmail(account.email.trim());
   const accountReady =
     account.login.trim().length >= 3 && emailIsValid && loginStatusAllowsContinue;
   const basicsReady = form.name.trim().length > 0;

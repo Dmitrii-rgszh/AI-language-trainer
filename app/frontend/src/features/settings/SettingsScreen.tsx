@@ -7,8 +7,8 @@ import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
-import { AccountIdentityCard } from "../onboarding/AccountIdentityCard";
-import { ProfileEditorCard } from "../onboarding/ProfileEditorCard";
+import { AccountIdentityCard } from "../../widgets/profile-settings/AccountIdentityCard";
+import { ProfileEditorCard } from "../../widgets/profile-settings/ProfileEditorCard";
 
 export function SettingsScreen() {
   const { tr } = useLocale();

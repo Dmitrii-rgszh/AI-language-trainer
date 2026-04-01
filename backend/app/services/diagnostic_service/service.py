@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
-
+from app.core.errors import ServiceUnavailableError
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.mistake_repository import MistakeRepository
@@ -106,7 +105,7 @@ class DiagnosticService:
             template_id=template.id,
         )
         if lesson_run is None:
-            raise HTTPException(status_code=503, detail="Diagnostic checkpoint could not be started.")
+            raise ServiceUnavailableError("Diagnostic checkpoint could not be started.")
         return lesson_run
 
     @staticmethod

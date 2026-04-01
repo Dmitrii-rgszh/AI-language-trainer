@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LessonBlock } from "../../entities/lesson/model";
-import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
@@ -9,37 +8,12 @@ import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { LessonStepper } from "../../shared/ui/LessonStepper";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
-
-function renderPayload(block: LessonBlock) {
-  return Object.entries(block.payload)
-    .filter(
-      ([key]) =>
-        !(
-          block.blockType === "listening_block" &&
-          ["transcript", "audio_asset_id", "audio_variants", "questions", "answer_key", "answerKey"].includes(key)
-        ),
-    )
-    .map(([key, value]) => {
-    if (Array.isArray(value)) {
-      return (
-        <div key={key} className="rounded-2xl bg-white/70 p-4">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">{key}</div>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            {value.map((item, index) => (
-              <li key={`${block.id}-${index}`}>• {String(item)}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-
-    return (
-      <div key={key} className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
-        <span className="font-semibold text-ink">{key}:</span> {String(value)}
-      </div>
-    );
-    });
-}
+import { getListeningBlockState, getPronunciationTargets } from "./lesson-runner-blocks";
+import { LessonBlockPayload } from "./LessonBlockPayload";
+import { ListeningBlockPanel } from "./ListeningBlockPanel";
+import { PronunciationBlockPanel } from "./PronunciationBlockPanel";
+import { useLessonAudio } from "./useLessonAudio";
+import { usePronunciationAssessment } from "./usePronunciationAssessment";
 
 export function LessonRunnerScreen() {
   const { tr, tt } = useLocale();
@@ -59,18 +33,9 @@ export function LessonRunnerScreen() {
   const discardLessonRun = useAppStore((state) => state.discardLessonRun);
   const restartLesson = useAppStore((state) => state.restartLesson);
   const navigate = useNavigate();
-  const [isPlayingListening, setIsPlayingListening] = useState(false);
   const [showListeningTranscript, setShowListeningTranscript] = useState(false);
   const [selectedListeningVariantIndex, setSelectedListeningVariantIndex] = useState(0);
-  const [isRecordingPronunciation, setIsRecordingPronunciation] = useState(false);
-  const [isAssessingPronunciation, setIsAssessingPronunciation] = useState(false);
   const [runnerError, setRunnerError] = useState<string | null>(null);
-  const [pronunciationTarget, setPronunciationTarget] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const currentAudioUrlRef = useRef<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!lesson) {
@@ -102,135 +67,21 @@ export function LessonRunnerScreen() {
 
   const activeBlockCurrent = lesson.blocks[selectedBlockIndex] ?? lesson.blocks[0];
   const isLastBlock = selectedBlockIndex === lesson.blocks.length - 1;
-  const listeningVariants = Array.isArray(activeBlockCurrent.payload.audio_variants)
-    ? activeBlockCurrent.payload.audio_variants.filter(
-        (
-          item,
-        ): item is {
-          id?: string;
-          label?: string;
-          transcript?: string;
-          questions?: Array<{ prompt?: string; acceptable_answers?: string[] }>;
-        } => Boolean(item && typeof item === "object"),
-      )
-    : [];
-  const selectedListeningVariant =
-    listeningVariants[selectedListeningVariantIndex] ?? listeningVariants[0] ?? null;
-  const listeningTranscript =
-    selectedListeningVariant && typeof selectedListeningVariant.transcript === "string"
-      ? selectedListeningVariant.transcript
-      : typeof activeBlockCurrent.payload.transcript === "string"
-        ? activeBlockCurrent.payload.transcript
-        : null;
-  const listeningQuestions =
-    selectedListeningVariant && Array.isArray(selectedListeningVariant.questions)
-      ? selectedListeningVariant.questions
-          .filter(
-            (
-              item,
-            ): item is {
-              prompt: string;
-              acceptable_answers?: string[];
-            } => Boolean(item && typeof item === "object" && typeof item.prompt === "string"),
-          )
-          .map((item) => item.prompt)
-      : Array.isArray(activeBlockCurrent.payload.questions)
-        ? activeBlockCurrent.payload.questions.filter((item): item is string => typeof item === "string")
-        : [];
-  const pronunciationTargets = [
-    ...((activeBlockCurrent?.payload.phraseDrills as string[] | undefined) ?? []),
-    ...((activeBlockCurrent?.payload.phrase_drills as string[] | undefined) ?? []),
-  ].filter(Boolean);
-
-  async function playText(text: string, style: "neutral" | "coach" = "neutral") {
-    if (!text) {
-      return;
-    }
-
-    setRunnerError(null);
-    setIsPlayingListening(true);
-    try {
-      const audioBlob = await apiClient.synthesizeSpeech({
-        text,
-        language: "en",
-        style,
-      });
-      if (currentAudioUrlRef.current) {
-        URL.revokeObjectURL(currentAudioUrlRef.current);
-      }
-      const audioUrl = URL.createObjectURL(audioBlob);
-      currentAudioUrlRef.current = audioUrl;
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-      }
-      audioRef.current.src = audioUrl;
-      audioRef.current.onended = () => setIsPlayingListening(false);
-      await audioRef.current.play();
-    } catch (error) {
-      setIsPlayingListening(false);
-      setRunnerError(error instanceof Error ? error.message : "Listening playback failed");
-    }
-  }
-
-  async function playListeningAudio() {
-    if (!listeningTranscript) {
-      return;
-    }
-    await playText(listeningTranscript, "neutral");
-  }
-
-  async function startPronunciationRecording(target: string) {
-    setRunnerError(null);
-    setPronunciationTarget(target);
-    recordedChunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      };
-      mediaRecorder.start();
-      setIsRecordingPronunciation(true);
-    } catch (error) {
-      setRunnerError(error instanceof Error ? error.message : "Microphone access failed");
-    }
-  }
-
-  async function stopPronunciationRecordingAndAssess() {
-    const mediaRecorder = mediaRecorderRef.current;
-    if (!mediaRecorder || !pronunciationTarget) {
-      return;
-    }
-
-    setIsAssessingPronunciation(true);
-    const recordedBlob = await new Promise<Blob>((resolve) => {
-      mediaRecorder.onstop = () => {
-        resolve(new Blob(recordedChunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" }));
-      };
-      mediaRecorder.stop();
-    });
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    mediaStreamRef.current = null;
-    mediaRecorderRef.current = null;
-    setIsRecordingPronunciation(false);
-
-    try {
-      const assessment = await apiClient.assessPronunciation({
-        targetText: pronunciationTarget,
-        audio: recordedBlob,
-      });
-      setBlockResponse(activeBlockCurrent.id, assessment.transcript);
-      setBlockScore(activeBlockCurrent.id, assessment.score);
-    } catch (error) {
-      setRunnerError(error instanceof Error ? error.message : "Pronunciation scoring failed");
-    } finally {
-      setIsAssessingPronunciation(false);
-    }
-  }
+  const { listeningVariants, selectedListeningVariant, listeningTranscript, listeningQuestions } =
+    getListeningBlockState(activeBlockCurrent, selectedListeningVariantIndex);
+  const pronunciationTargets = getPronunciationTargets(activeBlockCurrent);
+  const { isPlayingListening, playListeningAudio, playText } = useLessonAudio(setRunnerError);
+  const {
+    isAssessingPronunciation,
+    isRecordingPronunciation,
+    pronunciationTarget,
+    startPronunciationRecording,
+    stopPronunciationRecordingAndAssess,
+  } = usePronunciationAssessment({
+    onTranscript: (value) => setBlockResponse(activeBlockCurrent.id, value),
+    onScore: (value) => setBlockScore(activeBlockCurrent.id, value),
+    onError: setRunnerError,
+  });
 
   return (
     <div className="space-y-4">
@@ -273,102 +124,42 @@ export function LessonRunnerScreen() {
           {tr(activeBlockCurrent.instructions)}
         </div>
 
-        <div className="grid gap-3">{renderPayload(activeBlockCurrent)}</div>
+        <LessonBlockPayload block={activeBlockCurrent} />
 
-      {activeBlockCurrent.blockType === "listening_block" && listeningTranscript ? (
-          <div className="space-y-3 rounded-2xl bg-white/70 p-4">
-            <div className="text-sm font-semibold text-ink">{tr("Listening audio")}</div>
-            {listeningVariants.length > 1 ? (
-              <div className="rounded-2xl bg-sand/80 p-3 text-sm text-slate-700">
-                {tr("Active variant")}:{" "}
-                <span className="font-semibold text-ink">
-                  {selectedListeningVariant?.label ?? `${tr("Variant")} ${selectedListeningVariantIndex + 1}`}
-                </span>{" "}
-                ({selectedListeningVariantIndex + 1}/{listeningVariants.length})
-              </div>
-            ) : null}
-            {listeningQuestions.length > 0 ? (
-              <div className="rounded-2xl bg-sand/80 p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-coral">{tr("Questions")}</div>
-                <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                  {listeningQuestions.map((question) => (
-                    <li key={question}>• {question}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <div className="flex flex-wrap gap-3">
-                  <Button variant="secondary" onClick={() => void playListeningAudio()}>
-                    {isPlayingListening ? tr("Playing...") : tr("Play audio prompt")}
-              </Button>
-              {listeningVariants.length > 1 ? (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    setSelectedListeningVariantIndex((currentIndex) => (currentIndex + 1) % listeningVariants.length)
-                  }
-                >
-                  {tr("Switch audio variant")}
-                </Button>
-              ) : null}
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  setShowListeningTranscript((value) => {
-                    const nextValue = !value;
-                    if (nextValue) {
-                      markListeningTranscriptRevealed(activeBlockCurrent.id);
-                    }
-                    return nextValue;
-                  })
-                }
-              >
-                {showListeningTranscript ? tr("Hide transcript") : tr("Reveal transcript")}
-              </Button>
-            </div>
-            {showListeningTranscript ? (
-              <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">{listeningTranscript}</div>
-            ) : (
-              <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
-                {tr("Try answering from audio first, then reveal transcript only if needed.")}
-              </div>
-            )}
-            {transcriptWasRevealed ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {tr("Transcript support was used for this checkpoint. Listening score will stay slightly more conservative.")}
-              </div>
-            ) : null}
-          </div>
+        {activeBlockCurrent.blockType === "listening_block" && listeningTranscript ? (
+          <ListeningBlockPanel
+            isPlayingListening={isPlayingListening}
+            listeningQuestions={listeningQuestions}
+            listeningTranscript={listeningTranscript}
+            listeningVariants={listeningVariants}
+            markTranscriptUsed={() => markListeningTranscriptRevealed(activeBlockCurrent.id)}
+            onPlay={() => void playListeningAudio(listeningTranscript)}
+            onSwitchVariant={() =>
+              setSelectedListeningVariantIndex((currentIndex) => (currentIndex + 1) % listeningVariants.length)
+            }
+            selectedListeningVariantIndex={selectedListeningVariantIndex}
+            selectedListeningVariantLabel={selectedListeningVariant?.label}
+            showListeningTranscript={showListeningTranscript}
+            toggleTranscript={() => setShowListeningTranscript((value) => !value)}
+            transcriptWasRevealed={transcriptWasRevealed}
+            tr={tr}
+          />
         ) : null}
 
         {activeBlockCurrent.blockType === "pronunciation_block" && pronunciationTargets.length > 0 ? (
-          <div className="space-y-3 rounded-2xl bg-white/70 p-4">
-            <div className="text-sm font-semibold text-ink">{tr("Pronunciation checkpoint")}</div>
-            {pronunciationTargets.map((target) => (
-              <div key={target} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sand/80 p-3">
-                <span className="text-sm text-slate-700">{target}</span>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={() => void playText(target, "coach")}>
-                    {tr("Play model")}
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      void (isRecordingPronunciation && pronunciationTarget === target
-                        ? stopPronunciationRecordingAndAssess()
-                        : startPronunciationRecording(target))
-                    }
-                    disabled={isAssessingPronunciation}
-                  >
-                    {isRecordingPronunciation && pronunciationTarget === target
-                      ? tr("Stop & score")
-                      : isAssessingPronunciation && pronunciationTarget === target
-                        ? tr("Scoring...")
-                        : tr("Record response")}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <PronunciationBlockPanel
+            isAssessingPronunciation={isAssessingPronunciation}
+            isRecordingPronunciation={isRecordingPronunciation}
+            onPlayModel={(target) => void playText(target, "coach")}
+            onToggleRecording={(target) =>
+              void (isRecordingPronunciation && pronunciationTarget === target
+                ? stopPronunciationRecordingAndAssess()
+                : startPronunciationRecording(target))
+            }
+            pronunciationTarget={pronunciationTarget}
+            pronunciationTargets={pronunciationTargets}
+            tr={tr}
+          />
         ) : null}
 
         <div className="space-y-2">

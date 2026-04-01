@@ -4,8 +4,9 @@ import os
 import tempfile
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 
+from app.core.errors import AppError, BadGatewayError, ServiceUnavailableError
 from app.providers.stt.base import BaseSTTProvider
 
 
@@ -15,7 +16,7 @@ class STTService:
 
     async def transcribe_upload(self, upload: UploadFile) -> str:
         if self._provider is None:
-            raise HTTPException(status_code=503, detail="STT provider is not configured.")
+            raise ServiceUnavailableError("STT provider is not configured.")
 
         suffix = Path(upload.filename or "audio.webm").suffix or ".webm"
         temp_path: str | None = None
@@ -29,12 +30,11 @@ class STTService:
                     temporary_file.write(chunk)
 
             return self._provider.transcribe(temp_path)
-        except HTTPException:
+        except AppError:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Speech transcription failed: {exc}") from exc
+            raise BadGatewayError(f"Speech transcription failed: {exc}") from exc
         finally:
             await upload.close()
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
-

@@ -9,9 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.vocabulary_item import VocabularyItem as VocabularyItemModel
-from app.schemas.blueprint import VocabularyStatus
 from app.schemas.adaptive import MistakeVocabularyBacklink, VocabularyLoopSummary, VocabularyReviewItem
-from app.services.mistake_extraction_service.service import ExtractedMistake
+from app.schemas.blueprint import VocabularyStatus
+from app.schemas.mistake_extraction import ExtractedMistake
 
 
 class VocabularyRepository:

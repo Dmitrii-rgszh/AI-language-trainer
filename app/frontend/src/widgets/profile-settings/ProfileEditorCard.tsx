@@ -1,24 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { OnboardingAnswers, UserProfile } from "../../entities/user/model";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { ageGroupOptions, buildProfileDraft, cloneAnswers, fallbackProfessionTracks, goalOptions, interestTopicOptions, learnerPersonaOptions, learningContextOptions, skillFocusOptions, studyPreferenceOptions, supportNeedOptions, toggleValue, type OnboardingOption } from "../../shared/profile/profile-form-config";
 import type { ProfessionTrackCard } from "../../shared/types/app-data";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
-import {
-  ageGroupOptions,
-  buildProfileDraft,
-  cloneAnswers,
-  fallbackProfessionTracks,
-  goalOptions,
-  interestTopicOptions,
-  learnerPersonaOptions,
-  learningContextOptions,
-  skillFocusOptions,
-  studyPreferenceOptions,
-  supportNeedOptions,
-  toggleValue,
-  type OnboardingOption,
-} from "./profile-form-config";
 
 function OptionButton({
   active,

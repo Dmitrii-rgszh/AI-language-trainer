@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
-
+from app.core.errors import NotFoundError, ServiceUnavailableError
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.mistake_repository import MistakeRepository
 from app.repositories.progress_repository import ProgressRepository
@@ -36,7 +35,7 @@ class LessonRuntimeService:
             template_id=payload.template_id,
         )
         if not lesson_run:
-            raise HTTPException(status_code=503, detail="Lesson content is not initialized.")
+            raise ServiceUnavailableError("Lesson content is not initialized.")
 
         return lesson_run
 
@@ -46,7 +45,7 @@ class LessonRuntimeService:
     def discard_run(self, profile: UserProfile, run_id: str) -> None:
         discarded = self._repository.discard_lesson_run(profile.id, run_id)
         if not discarded:
-            raise HTTPException(status_code=404, detail="Active lesson run was not found.")
+            raise NotFoundError("Active lesson run was not found.")
 
     def submit_block_result(
         self,
@@ -56,7 +55,7 @@ class LessonRuntimeService:
     ) -> LessonRunState:
         lesson_run = self._repository.submit_block_result(profile.id, run_id, payload)
         if not lesson_run:
-            raise HTTPException(status_code=404, detail="Lesson run or block was not found.")
+            raise NotFoundError("Lesson run or block was not found.")
 
         return lesson_run
 
@@ -72,7 +71,7 @@ class LessonRuntimeService:
     ) -> CompleteLessonRunResponse:
         lesson_run = self._repository.complete_lesson_run(profile.id, run_id, payload.score, payload.block_results)
         if not lesson_run:
-            raise HTTPException(status_code=404, detail="Lesson run was not found.")
+            raise NotFoundError("Lesson run was not found.")
 
         block_type_by_id = {block.id: block.block_type.replace("_block", "") for block in lesson_run.lesson.blocks}
         block_run_module_map = {

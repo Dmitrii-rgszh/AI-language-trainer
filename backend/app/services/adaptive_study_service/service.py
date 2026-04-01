@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import HTTPException
-
+from app.core.errors import ServiceUnavailableError
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.mistake_repository import MistakeRepository, WEAK_SPOT_TITLE_MAP
@@ -118,7 +117,7 @@ class AdaptiveStudyService:
     def start_recovery_run(self, profile: UserProfile) -> LessonRunState:
         loop = self.get_loop(profile)
         if loop is None:
-            raise HTTPException(status_code=503, detail="Adaptive study loop is not available.")
+            raise ServiceUnavailableError("Adaptive study loop is not available.")
 
         template = self._lesson_repository.create_recovery_template(
             profession_track=profile.profession_track,
@@ -132,7 +131,7 @@ class AdaptiveStudyService:
             template_id=template.id,
         )
         if lesson_run is None:
-            raise HTTPException(status_code=503, detail="Recovery lesson could not be generated.")
+            raise ServiceUnavailableError("Recovery lesson could not be generated.")
 
         return lesson_run
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
-
+from app.core.errors import BadRequestError
 from app.providers.registry import ProviderRegistry
 from app.repositories.provider_preference_repository import ProviderPreferenceRepository
 from app.schemas.provider import ProviderPreference, ProviderPreferenceUpdateRequest, ProviderStatus, ProviderType
@@ -48,9 +47,8 @@ class ProviderService:
     ) -> ProviderPreference:
         allowed_provider_keys = {status.key for status in self._registry.get_statuses() if status.type == provider_type}
         if payload.selected_provider not in allowed_provider_keys:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown provider '{payload.selected_provider}' for type '{provider_type.value}'.",
+            raise BadRequestError(
+                f"Unknown provider '{payload.selected_provider}' for type '{provider_type.value}'.",
             )
 
         return self._repository.upsert_preference(user_id, provider_type, payload)
