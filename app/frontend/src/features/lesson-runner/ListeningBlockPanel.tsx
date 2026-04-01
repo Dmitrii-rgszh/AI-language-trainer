@@ -5,7 +5,6 @@ type ListeningBlockPanelProps = {
   listeningQuestions: string[];
   listeningTranscript: string;
   listeningVariants: Array<{ label?: string }>;
-  markTranscriptUsed: () => void;
   onPlay: () => void;
   onSwitchVariant: () => void;
   selectedListeningVariantIndex: number;
@@ -21,7 +20,6 @@ export function ListeningBlockPanel({
   listeningQuestions,
   listeningTranscript,
   listeningVariants,
-  markTranscriptUsed,
   onPlay,
   onSwitchVariant,
   selectedListeningVariantIndex,
@@ -62,15 +60,7 @@ export function ListeningBlockPanel({
             {tr("Switch audio variant")}
           </Button>
         ) : null}
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (!showListeningTranscript) {
-              markTranscriptUsed();
-            }
-            toggleTranscript();
-          }}
-        >
+        <Button variant="ghost" onClick={toggleTranscript}>
           {showListeningTranscript ? tr("Hide transcript") : tr("Reveal transcript")}
         </Button>
       </div>

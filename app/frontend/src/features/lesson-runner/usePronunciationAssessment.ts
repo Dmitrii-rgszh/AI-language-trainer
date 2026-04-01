@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../shared/api/client";
 
 type UsePronunciationAssessmentOptions = {
-  onTranscript: (value: string) => void;
-  onScore: (value: number) => void;
+  onTranscript: (blockId: string, value: string) => void;
+  onScore: (blockId: string, value: number) => void;
   onError: (message: string | null) => void;
 };
 
@@ -12,6 +12,7 @@ export function usePronunciationAssessment(options: UsePronunciationAssessmentOp
   const [isRecordingPronunciation, setIsRecordingPronunciation] = useState(false);
   const [isAssessingPronunciation, setIsAssessingPronunciation] = useState(false);
   const [pronunciationTarget, setPronunciationTarget] = useState<string | null>(null);
+  const activeBlockIdRef = useRef<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -22,8 +23,9 @@ export function usePronunciationAssessment(options: UsePronunciationAssessmentOp
     };
   }, []);
 
-  async function startPronunciationRecording(target: string) {
+  async function startPronunciationRecording(target: string, blockId: string) {
     onError(null);
+    activeBlockIdRef.current = blockId;
     setPronunciationTarget(target);
     recordedChunksRef.current = [];
     try {
@@ -45,7 +47,8 @@ export function usePronunciationAssessment(options: UsePronunciationAssessmentOp
 
   async function stopPronunciationRecordingAndAssess() {
     const mediaRecorder = mediaRecorderRef.current;
-    if (!mediaRecorder || !pronunciationTarget) {
+    const blockId = activeBlockIdRef.current;
+    if (!mediaRecorder || !pronunciationTarget || !blockId) {
       return;
     }
 
@@ -66,11 +69,12 @@ export function usePronunciationAssessment(options: UsePronunciationAssessmentOp
         targetText: pronunciationTarget,
         audio: recordedBlob,
       });
-      onTranscript(assessment.transcript);
-      onScore(assessment.score);
+      onTranscript(blockId, assessment.transcript);
+      onScore(blockId, assessment.score);
     } catch (error) {
       onError(error instanceof Error ? error.message : "Pronunciation scoring failed");
     } finally {
+      activeBlockIdRef.current = null;
       setIsAssessingPronunciation(false);
       setPronunciationTarget(null);
     }
