@@ -20,6 +20,13 @@ export const ageGroupOptions: OnboardingOption[] = [
   { value: "family_plan", label: "Family plan" },
 ];
 
+export const learnerAgeQuestionOptions = ageGroupOptions.filter((option) => option.value !== "family_plan");
+
+export const adultSupportOptions: Array<{ value: "yes" | "no"; label: string }> = [
+  { value: "yes", label: "Yes, adult support helps" },
+  { value: "no", label: "No, independent enough" },
+];
+
 export const learningContextOptions: OnboardingOption[] = [
   { value: "general_english", label: "For life and communication" },
   { value: "career_growth", label: "For work" },
@@ -80,6 +87,9 @@ export const interestTopicOptions: OnboardingOption[] = [
   { value: "work_and_business", label: "Work and business" },
   { value: "culture", label: "Culture" },
 ];
+
+export const currentLevelOptions = ["A1", "A2", "B1", "B2", "C1"] as const;
+export const targetLevelOptions = ["A2", "B1", "B2", "C1", "C2"] as const;
 
 export const fallbackProfessionTracks: ProfessionTrackCard[] = [
   {
@@ -156,6 +166,50 @@ export function buildProfileDraft(profile: UserProfile | null) {
     : { ...defaultProfile, onboardingAnswers: cloneAnswers() };
 }
 
+export function inferLearnerPersona(ageGroup: string, learningContext: string) {
+  if (ageGroup === "family_plan") {
+    return "parent_or_guardian";
+  }
+
+  if (learningContext === "career_growth") {
+    return "professional_learner";
+  }
+
+  if (ageGroup === "child" || ageGroup === "teen" || learningContext === "school_support") {
+    return "school_learner";
+  }
+
+  return "self_learner";
+}
+
+export function applyAdultSupportPreference(studyPreferences: string[], enabled: boolean) {
+  if (enabled) {
+    return studyPreferences.includes("parent_guided") ? studyPreferences : [...studyPreferences, "parent_guided"];
+  }
+
+  return studyPreferences.filter((item) => item !== "parent_guided");
+}
+
 export function toggleValue(values: string[], nextValue: string) {
   return values.includes(nextValue) ? values.filter((value) => value !== nextValue) : [...values, nextValue];
+}
+
+export function resolveOptionLabel(
+  value: string,
+  options: OnboardingOption[],
+  translate: (value: string) => string,
+) {
+  return translate(options.find((option) => option.value === value)?.label ?? value);
+}
+
+export function resolveOptionList(
+  values: string[],
+  options: OnboardingOption[],
+  translate: (value: string) => string,
+) {
+  if (values.length === 0) {
+    return translate("Not set yet");
+  }
+
+  return values.map((value) => resolveOptionLabel(value, options, translate)).join(", ");
 }
