@@ -1116,6 +1116,19 @@ const translationEntries: TranslationEntry[] = [
   { en: "One system", ru: "Одна система" },
   { en: "Motivation", ru: "Мотивация" },
   { en: "AI first", ru: "Сначала AI" },
+  { en: "Value first", ru: "Сначала польза" },
+  {
+    en: "Everything for language learning in one calm system.",
+    ru: "Всё для изучения языка в одной спокойной системе.",
+  },
+  {
+    en: "Motivation should go into learning, not platform search.",
+    ru: "Мотивацию нужно направлять в обучение, а не в поиск платформ.",
+  },
+  {
+    en: "The platform shows value first, and only then asks for details.",
+    ru: "Платформа сначала показывает пользу, а уже потом просит данные.",
+  },
   {
     en: "Starting is hard when every platform only solves one part of the language.",
     ru: "Трудно начать, когда каждая платформа закрывает только одну часть изучения языка.",

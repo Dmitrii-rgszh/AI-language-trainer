@@ -22,7 +22,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "rounded-2xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50",
+        "rounded-2xl px-4 py-2.5 text-sm font-[700] tracking-[-0.01em] transition-colors disabled:opacity-50",
         styles[variant],
         className,
       )}
@@ -32,4 +32,3 @@ export function Button({
     </button>
   );
 }
-

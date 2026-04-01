@@ -1,0 +1,132 @@
+.converging-scroll-indicator {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.12rem;
+  padding: 0.3rem 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--converging-scroll-color, rgba(29, 42, 56, 0.58));
+  opacity: var(--converging-scroll-opacity, 0.9);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.converging-scroll-indicator:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.converging-scroll-indicator:focus-visible {
+  outline: none;
+}
+
+.converging-scroll-indicator:focus-visible .converging-scroll-indicator__label {
+  color: rgba(29, 42, 56, 0.88);
+}
+
+.converging-scroll-indicator__label {
+  max-width: 30rem;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.34;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(74, 89, 103, 0.95);
+}
+
+.converging-scroll-indicator__stage {
+  position: relative;
+  display: block;
+  width: calc(var(--converging-scroll-width, 68) * 1px);
+  height: calc(var(--converging-scroll-height, 36) * 1px);
+}
+
+.converging-scroll-indicator__aura {
+  position: absolute;
+  inset: 26% 12% -6%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.4), transparent 58%),
+    radial-gradient(circle at 50% 14%, rgba(191, 235, 228, 0.2), transparent 42%);
+  filter: blur(14px);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.converging-scroll-indicator__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 14px 32px rgba(255, 255, 255, 0.26));
+}
+
+.converging-scroll-indicator__path-group {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.converging-scroll-indicator__path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transform-origin: center;
+}
+
+.converging-scroll-indicator__path--core {
+  stroke-width: 1.85;
+}
+
+.converging-scroll-indicator__path--echo {
+  stroke-width: 3.45;
+  opacity: 0.22;
+  filter: blur(1.05px);
+}
+
+@media (max-width: 767px) {
+  .converging-scroll-indicator {
+    gap: 0.96rem;
+  }
+
+  .converging-scroll-indicator__label {
+    max-width: 19rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .converging-scroll-indicator,
+  .converging-scroll-indicator:hover {
+    transform: none;
+  }
+
+  .converging-scroll-indicator__path-group,
+  .converging-scroll-indicator__path,
+  .converging-scroll-indicator__aura {
+    animation: none !important;
+  }
+
+  .converging-scroll-indicator__aura {
+    opacity: 0.14;
+    transform: scale3d(0.9, 0.92, 1);
+  }
+
+  .converging-scroll-indicator__path-group:first-of-type {
+    transform: translate3d(-3px, 2px, 0);
+    opacity: 0.64;
+  }
+
+  .converging-scroll-indicator__path-group:last-of-type {
+    transform: translate3d(3px, 2px, 0);
+    opacity: 0.64;
+  }
+}

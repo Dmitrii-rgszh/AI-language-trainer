@@ -1,6 +1,15 @@
 from app.core.errors import ConflictError, NotFoundError
-from app.repositories.user_account_repository import UserAccountRepository, UserIdentityConflictError
-from app.schemas.user_account import LoginAvailabilityResponse, UserAccount, UserAccountUpdateRequest
+from app.repositories.user_account_repository import (
+    UserAccountRepository,
+    UserAuthenticationError,
+    UserIdentityConflictError,
+)
+from app.schemas.user_account import (
+    LoginAvailabilityResponse,
+    UserAccount,
+    UserAccountSignInRequest,
+    UserAccountUpdateRequest,
+)
 
 
 class UserService:
@@ -16,6 +25,12 @@ class UserService:
 
     def check_login_availability(self, login: str, email: str | None = None) -> LoginAvailabilityResponse:
         return self._repository.check_login_availability(login, email)
+
+    def sign_in(self, payload: UserAccountSignInRequest) -> UserAccount:
+        try:
+            return self._repository.sign_in(payload.login, payload.email)
+        except UserAuthenticationError as error:
+            raise NotFoundError("Account not found for this login and email.") from error
 
     def update_user(self, user_id: str, payload: UserAccountUpdateRequest) -> UserAccount:
         try:

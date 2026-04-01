@@ -6,6 +6,8 @@ import { ProgressOverviewSection } from "./ProgressOverviewSection";
 import { ProgressPronunciationSection } from "./ProgressPronunciationSection";
 import { ProgressSignalsSection } from "./ProgressSignalsSection";
 import { useProgressScreen } from "./useProgressScreen";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function ProgressScreen() {
   const progressView = useProgressScreen();
@@ -22,50 +24,60 @@ export function ProgressScreen() {
         description={progressView.tr("Follow your scores, recent practice, and roadmap shifts in one view.")}
       />
 
-      <ProgressDiagnosticSection
-        diagnosticRoadmap={progressView.diagnosticRoadmap}
-        onStartCheckpoint={progressView.handleStartCheckpoint}
-        roadmapSummary={progressView.roadmapSummary}
-        tl={progressView.tl}
-        tr={progressView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.progressDiagnostic}>
+        <ProgressDiagnosticSection
+          diagnosticRoadmap={progressView.diagnosticRoadmap}
+          onStartCheckpoint={progressView.handleStartCheckpoint}
+          roadmapSummary={progressView.roadmapSummary}
+          tl={progressView.tl}
+          tr={progressView.tr}
+        />
+      </LivingDepthSection>
 
-      <ProgressOverviewSection
-        averageLessonScore={progressView.averageLessonScore}
-        dailyGoalProgress={progressView.dailyGoalProgress}
-        formatDate={progressView.formatDate}
-        formatDays={progressView.formatDays}
-        mostRecentLesson={progressView.mostRecentLesson}
-        progress={progressView.progress}
-        tr={progressView.tr}
-        tt={progressView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.progressOverview}>
+        <ProgressOverviewSection
+          averageLessonScore={progressView.averageLessonScore}
+          dailyGoalProgress={progressView.dailyGoalProgress}
+          formatDate={progressView.formatDate}
+          formatDays={progressView.formatDays}
+          mostRecentLesson={progressView.mostRecentLesson}
+          progress={progressView.progress}
+          tr={progressView.tr}
+          tt={progressView.tt}
+        />
+      </LivingDepthSection>
 
-      <ProgressPronunciationSection
-        progress={progressView.progress}
-        pronunciationTrend={progressView.pronunciationTrend}
-        tr={progressView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.progressPronunciation}>
+        <ProgressPronunciationSection
+          progress={progressView.progress}
+          pronunciationTrend={progressView.pronunciationTrend}
+          tr={progressView.tr}
+        />
+      </LivingDepthSection>
 
-      <ProgressHistorySection
-        activityError={progressView.activityError}
-        feedbackSourceLabel={progressView.feedbackSourceLabel}
-        formatDate={progressView.formatDate}
-        formatDateTime={progressView.formatDateTime}
-        progress={progressView.progress}
-        recentSpeakingAttempts={progressView.recentSpeakingAttempts}
-        tr={progressView.tr}
-        tt={progressView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.progressHistory}>
+        <ProgressHistorySection
+          activityError={progressView.activityError}
+          feedbackSourceLabel={progressView.feedbackSourceLabel}
+          formatDate={progressView.formatDate}
+          formatDateTime={progressView.formatDateTime}
+          progress={progressView.progress}
+          recentSpeakingAttempts={progressView.recentSpeakingAttempts}
+          tr={progressView.tr}
+          tt={progressView.tt}
+        />
+      </LivingDepthSection>
 
-      <ProgressSignalsSection
-        formatDays={progressView.formatDays}
-        listeningAttempts={progressView.listeningAttempts}
-        listeningTrend={progressView.listeningTrend}
-        studyLoop={progressView.studyLoop}
-        tr={progressView.tr}
-        tt={progressView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.progressSignals}>
+        <ProgressSignalsSection
+          formatDays={progressView.formatDays}
+          listeningAttempts={progressView.listeningAttempts}
+          listeningTrend={progressView.listeningTrend}
+          studyLoop={progressView.studyLoop}
+          tr={progressView.tr}
+          tt={progressView.tt}
+        />
+      </LivingDepthSection>
     </div>
   );
 }

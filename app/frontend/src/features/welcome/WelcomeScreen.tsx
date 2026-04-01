@@ -2,9 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { ConvergingPathsScrollIndicator } from "../../shared/ui/ConvergingPathsScrollIndicator";
 import { Button } from "../../shared/ui/Button";
 import { cn } from "../../shared/utils/cn";
 import { type GuestDirectionId, writeGuestIntent } from "./guest-intent";
+import { WelcomePremiumHeader } from "./WelcomePremiumHeader";
+import { WelcomeSignInModal } from "./WelcomeSignInModal";
+import { useWelcomeSignIn } from "./useWelcomeSignIn";
+import {
+  welcomeScrollIndicatorConfig,
+  welcomeScrollIndicatorMessages,
+} from "./welcomeScrollIndicator";
 
 type WelcomeDirection = {
   id: GuestDirectionId;
@@ -69,6 +77,26 @@ const lessonToneOptions: MiniOnboardingOption[] = [
   },
 ];
 
+const HERO_PRIMARY_SCROLL_TARGET_ID = "welcome-mini-onboarding";
+const HERO_WHEEL_TRIGGER_THRESHOLD = 72;
+const HERO_TRACKPAD_TRIGGER_THRESHOLD = 148;
+const HERO_WHEEL_DEBOUNCE_MS = 180;
+const HERO_TRACKPAD_DEBOUNCE_MS = 260;
+const HERO_WHEEL_COOLDOWN_MS = 1100;
+const HERO_WHEEL_MAX_SCROLL_Y = 56;
+const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
+const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
+
+const heroPrimaryCtaLabel = {
+  ru: "Собрать первый урок",
+  en: "Build the first lesson",
+} as const;
+
+const heroScrollCueAriaLabel = {
+  ru: "Прокрутите, чтобы увидеть, как Verba собирает обучение в одну систему",
+  en: "Scroll to see how Verba brings learning into one system",
+} as const;
+
 export function WelcomeScreen() {
   const [selectedDirections, setSelectedDirections] = useState<GuestDirectionId[]>([]);
   const [painPoint, setPainPoint] = useState("");
@@ -79,11 +107,16 @@ export function WelcomeScreen() {
   const [wizardVisible, setWizardVisible] = useState(false);
   const navigate = useNavigate();
   const { locale, setLocale, tr } = useLocale();
+  const signInView = useWelcomeSignIn(locale);
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
     { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
   ];
+  const heroSectionRef = useRef<HTMLElement | null>(null);
   const onboardingSectionRef = useRef<HTMLElement | null>(null);
+  const heroWheelAccumulatedDeltaRef = useRef(0);
+  const heroWheelDebounceRef = useRef<number | null>(null);
+  const heroWheelCooldownUntilRef = useRef(0);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => setHeroVisible(true));
@@ -117,6 +150,107 @@ export function WelcomeScreen() {
 
     observer.observe(sectionNode);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const heroNode = heroSectionRef.current;
+    if (!heroNode) {
+      return;
+    }
+
+    const resetWheelIntent = () => {
+      heroWheelAccumulatedDeltaRef.current = 0;
+
+      if (heroWheelDebounceRef.current !== null) {
+        window.clearTimeout(heroWheelDebounceRef.current);
+        heroWheelDebounceRef.current = null;
+      }
+    };
+
+    const getHeroPrimaryScrollTarget = () =>
+      document.getElementById(HERO_PRIMARY_SCROLL_TARGET_ID) ?? onboardingSectionRef.current;
+
+    const triggerHeroSectionAdvance = () => {
+      const targetSection = getHeroPrimaryScrollTarget();
+      if (!targetSection) {
+        return;
+      }
+
+      targetSection.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX) || event.deltaY <= 0) {
+        resetWheelIntent();
+        return;
+      }
+
+      const isLikelyTrackpad =
+        event.deltaMode === WheelEvent.DOM_DELTA_PIXEL &&
+        Math.abs(event.deltaY) <= HERO_TRACKPAD_EVENT_DELTA_MAX;
+
+      if (isLikelyTrackpad && Math.abs(event.deltaY) < HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD) {
+        resetWheelIntent();
+        return;
+      }
+
+      const heroRect = heroNode.getBoundingClientRect();
+      const heroIsPrimaryViewport =
+        window.scrollY <= HERO_WHEEL_MAX_SCROLL_Y &&
+        heroRect.top <= 8 &&
+        heroRect.bottom >= window.innerHeight * 0.55;
+
+      if (!heroIsPrimaryViewport) {
+        resetWheelIntent();
+        return;
+      }
+
+      const now = performance.now();
+      if (now < heroWheelCooldownUntilRef.current) {
+        event.preventDefault();
+        return;
+      }
+
+      const threshold = isLikelyTrackpad
+        ? HERO_TRACKPAD_TRIGGER_THRESHOLD
+        : HERO_WHEEL_TRIGGER_THRESHOLD;
+      const debounceMs = isLikelyTrackpad
+        ? HERO_TRACKPAD_DEBOUNCE_MS
+        : HERO_WHEEL_DEBOUNCE_MS;
+      const normalizedDelta = isLikelyTrackpad
+        ? Math.max(0, event.deltaY - HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD) * 0.9
+        : event.deltaY;
+
+      heroWheelAccumulatedDeltaRef.current += normalizedDelta;
+
+      if (heroWheelDebounceRef.current !== null) {
+        window.clearTimeout(heroWheelDebounceRef.current);
+      }
+
+      heroWheelDebounceRef.current = window.setTimeout(() => {
+        heroWheelAccumulatedDeltaRef.current = 0;
+        heroWheelDebounceRef.current = null;
+      }, debounceMs);
+
+      if (heroWheelAccumulatedDeltaRef.current < threshold) {
+        return;
+      }
+
+      event.preventDefault();
+      heroWheelCooldownUntilRef.current = now + HERO_WHEEL_COOLDOWN_MS;
+      resetWheelIntent();
+      triggerHeroSectionAdvance();
+    };
+
+    heroNode.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      heroNode.removeEventListener("wheel", handleWheel);
+      resetWheelIntent();
+    };
   }, []);
 
   const selectionLimitReached = selectedDirections.length >= 3;
@@ -168,29 +302,28 @@ export function WelcomeScreen() {
   const heroTheses = [
     {
       eyebrow: tr("One system"),
-      title: tr("Starting is hard when every platform only solves one part of the language."),
-      body: tr(
-        "One app pushes vocabulary, another focuses on grammar, a third on speaking. That split makes it harder to start with confidence.",
-      ),
+      title: tr("Everything for language learning in one calm system."),
     },
     {
       eyebrow: tr("Motivation"),
-      title: tr("The search for the right stack kills the first wave of motivation."),
-      body: tr(
-        "People want to start learning in the moment of motivation, but platform-hopping, comparison, and early forms drain that energy fast.",
-      ),
+      title: tr("Motivation should go into learning, not platform search."),
     },
     {
-      eyebrow: tr("AI first"),
-      title: tr("AI should show value first: a mini-lesson, a skill snapshot, and a smart next step."),
-      body: tr(
-        "Instead of asking for registration up front, the platform can use AI to build a 1-2 minute lesson, surface early strengths, and show what to do next.",
-      ),
+      eyebrow: tr("Value first"),
+      title: tr("The platform shows value first, and only then asks for details."),
     },
   ];
 
-  const scrollToOnboarding = () => {
-    onboardingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const getHeroPrimaryScrollTarget = () =>
+    document.getElementById(HERO_PRIMARY_SCROLL_TARGET_ID) ?? onboardingSectionRef.current;
+
+  const handleHeroPrimaryAction = () => {
+    const targetSection = getHeroPrimaryScrollTarget();
+
+    targetSection?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
   };
 
   return (
@@ -204,123 +337,131 @@ export function WelcomeScreen() {
         style={{ transform: `translate3d(0, ${scrollY * -0.08}px, 0)` }}
       />
 
-      <section className="welcome-shell welcome-screen relative px-6 py-6 lg:px-8 lg:py-8">
+      <section
+        ref={heroSectionRef}
+        className="welcome-shell welcome-screen welcome-screen--hero relative px-6 py-6 lg:px-8 lg:py-8"
+      >
         <div className="welcome-shell__noise" />
 
         <div className="relative z-10 flex min-h-[calc(100vh-3rem)] flex-col">
-          <header
-            className={cn(
-            "welcome-reveal flex flex-col gap-4 border-b border-black/6 pb-4 md:flex-row md:items-center md:justify-between",
-              heroVisible && "is-visible",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className="welcome-brandmark flex h-10 w-10 items-center justify-center rounded-[18px] text-[0.8rem] font-semibold tracking-[0.22em] text-white">
-                AI
-              </div>
-              <div>
-                <div className="text-[0.68rem] uppercase tracking-[0.34em] text-slate-500">{tr("AI English Trainer Pro")}</div>
-                <div className="mt-1 text-[0.92rem] text-slate-500">{tr("One platform instead of a stack of disconnected language tools.")}</div>
-              </div>
-            </div>
+          <WelcomePremiumHeader
+            accountPrompt={signInView.copy.accountPrompt}
+            accountPromptCompact={signInView.copy.accountPromptCompact}
+            continueWithAccount={signInView.copy.continueWithAccount}
+            heroVisible={heroVisible}
+            locale={locale}
+            localeOptions={localeOptions}
+            onOpenSignIn={signInView.open}
+            setLocale={setLocale}
+            tr={tr}
+          />
 
-            <div className="welcome-locale-switch flex rounded-full border border-black/8 bg-white/62 p-1 backdrop-blur">
-              {localeOptions.map((targetLocale) => (
-                <button
-                  key={targetLocale.value}
-                  type="button"
-                  onClick={() => setLocale(targetLocale.value)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] transition-colors",
-                    locale === targetLocale.value ? "bg-white text-ink shadow-[0_1px_6px_rgba(29,42,56,0.08)]" : "text-slate-500 hover:text-ink",
-                  )}
-                >
-                  <span className={cn("locale-flag", targetLocale.flagClass)} aria-hidden="true">
-                    {targetLocale.value === "en" ? <span className="locale-flag__canton" /> : null}
-                  </span>
-                  <span>{tr(targetLocale.label)}</span>
-                </button>
-              ))}
-            </div>
-          </header>
-
-          <div className="flex flex-1 items-center py-10 md:py-14 lg:py-20">
-            <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.82fr)] xl:items-start">
+          <div className="flex flex-1 items-center py-12 md:py-16 lg:py-24">
+            <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.82fr)] xl:items-center">
               <div className="max-w-[48rem]">
-                <div className={cn("welcome-reveal text-xs uppercase tracking-[0.34em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
+                <div className={cn("welcome-reveal text-xs uppercase tracking-[0.28em] text-coral", heroVisible && "is-visible")} style={{ transitionDelay: "90ms" }}>
                   {tr("Stop searching")}
                 </div>
                 <h1
                   className={cn(
-                    "welcome-reveal mt-5 max-w-[42rem] text-4xl font-semibold leading-[1.03] text-ink lg:text-[4.5rem]",
+                    "welcome-reveal mt-5 max-w-[42rem] text-4xl font-[700] leading-[0.99] tracking-[-0.05em] text-ink lg:text-[4.5rem]",
                     heroVisible && "is-visible",
                   )}
                   style={{ transitionDelay: "170ms" }}
                 >
-                  {tr("You can stop searching for separate language apps.")}
+                  {tr("You no longer need to search for language-learning tools.")}
                 </h1>
                 <p
                   className={cn("welcome-reveal mt-5 max-w-[36rem] text-lg leading-8 text-slate-600", heroVisible && "is-visible")}
                   style={{ transitionDelay: "250ms" }}
                 >
-                  {tr(
-                    "Grammar, vocabulary, speaking, reading, and progress can finally live in one calm system instead of a scattered stack of tools.",
-                  )}
+                  {tr("Language learning no longer has to be stitched together from separate tools.")}
                 </p>
+                <div
+                  className={cn("welcome-reveal mt-7", heroVisible && "is-visible")}
+                  style={{ transitionDelay: "330ms" }}
+                >
+                  <Button
+                    type="button"
+                    onClick={handleHeroPrimaryAction}
+                    className="rounded-[22px] bg-ink/92 px-5 py-3 text-sm font-[700] shadow-[0_16px_34px_rgba(29,42,56,0.12)] hover:bg-ink"
+                  >
+                    {heroPrimaryCtaLabel[locale]}
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-4 xl:pt-4">
+              <div className="space-y-4 xl:max-w-[38rem] xl:justify-self-end">
                 {heroTheses.map((item, index) => (
                   <div
                     key={item.title}
                     className={cn(
-                      "welcome-reveal rounded-[28px] border bg-white/82 p-6 shadow-soft",
+                      "welcome-reveal flex min-h-[128px] flex-col justify-center rounded-[28px] border bg-white/82 p-6 shadow-soft",
                       index === 2 ? "border-accent/20 bg-accent/[0.06]" : "border-white/60",
                       heroVisible && "is-visible",
                     )}
-                    style={{ transitionDelay: `${330 + index * 90}ms` }}
+                    style={{ transitionDelay: `${410 + index * 90}ms` }}
                   >
-                    <div className="text-[0.68rem] uppercase tracking-[0.3em] text-coral">{item.eyebrow}</div>
-                    <div className="mt-3 text-lg font-semibold leading-8 text-ink">{item.title}</div>
-                    <div className="mt-3 text-sm leading-7 text-slate-600">{item.body}</div>
+                    <div className="text-[0.68rem] uppercase tracking-[0.24em] text-coral">{item.eyebrow}</div>
+                    <div className="mt-3 text-lg font-[700] leading-7 tracking-[-0.025em] text-ink">{item.title}</div>
                   </div>
                 ))}
-
-                <div
-                  className={cn("welcome-reveal flex flex-wrap gap-3 pt-1", heroVisible && "is-visible")}
-                  style={{ transitionDelay: "620ms" }}
-                >
-                  <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                    {tr("Do not pay until you try it yourself.")}
-                  </div>
-                  <div className="rounded-full border border-white/60 bg-white/78 px-4 py-2 text-sm font-medium text-slate-700">
-                    {tr("Do not register until you see the value.")}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={scrollToOnboarding}
-          className={cn("welcome-scroll-cue", heroVisible && "is-visible")}
-          aria-label={tr("Scroll to build the first lesson")}
+        <div
+          className="absolute bottom-32 left-1/2 z-20 md:bottom-36 lg:bottom-40"
+          style={{ transform: "translateX(-50%)" }}
         >
-          <span className="welcome-scroll-cue__line" />
-          <span className="welcome-scroll-cue__arrow" />
-          <span className="welcome-scroll-cue__label">{tr("Try the first lesson")}</span>
-        </button>
+          <div
+            className={cn(
+              "welcome-reveal rounded-[42px] bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.26),rgba(255,255,255,0.09)_52%,transparent_80%)] px-6 py-4 shadow-[0_18px_42px_rgba(255,255,255,0.08)] backdrop-blur-[2px] md:px-7 md:py-5",
+              heroVisible && "is-visible",
+            )}
+            style={{ transitionDelay: "610ms" }}
+          >
+            <ConvergingPathsScrollIndicator
+              activeMessageIndex={welcomeScrollIndicatorConfig.activeMessageIndex}
+              ariaLabel={heroScrollCueAriaLabel[locale]}
+              color={welcomeScrollIndicatorConfig.color}
+              height={welcomeScrollIndicatorConfig.height}
+              intensity={welcomeScrollIndicatorConfig.intensity}
+              messages={welcomeScrollIndicatorMessages[locale]}
+              opacity={welcomeScrollIndicatorConfig.opacity}
+              targetId={HERO_PRIMARY_SCROLL_TARGET_ID}
+              targetRef={onboardingSectionRef}
+              timings={welcomeScrollIndicatorConfig.timings}
+              width={welcomeScrollIndicatorConfig.width}
+            />
+          </div>
+        </div>
+
+        <WelcomeSignInModal
+          account={signInView.account}
+          canSubmit={signInView.canSubmit}
+          copy={signInView.copy}
+          error={signInView.error}
+          isOpen={signInView.isOpen}
+          isSubmitting={signInView.isSubmitting}
+          onClose={signInView.close}
+          onSubmit={signInView.submit}
+          setAccount={signInView.setAccount}
+        />
       </section>
 
-      <section ref={onboardingSectionRef} className="welcome-shell welcome-screen welcome-screen--secondary relative px-6 py-10 lg:px-8 lg:py-12">
+      <section
+        id={HERO_PRIMARY_SCROLL_TARGET_ID}
+        ref={onboardingSectionRef}
+        className="welcome-shell welcome-screen welcome-screen--secondary relative px-6 py-10 lg:px-8 lg:py-12"
+      >
         <div className="welcome-shell__noise" />
 
         <div className="relative z-10 mx-auto max-w-[980px]">
           <div className={cn("welcome-reveal text-center", wizardVisible && "is-visible")}>
-            <div className="text-xs uppercase tracking-[0.34em] text-coral">{tr("Mini-onboarding")}</div>
-            <h2 className="mt-4 text-3xl font-semibold text-ink lg:text-[3rem]">{tr("Answer 3 short questions and build the first lesson.")}</h2>
+            <div className="text-xs uppercase tracking-[0.28em] text-coral">{tr("Mini-onboarding")}</div>
+            <h2 className="mt-4 text-3xl font-[700] tracking-[-0.035em] text-ink lg:text-[3rem]">{tr("Answer 3 short questions and build the first lesson.")}</h2>
             <p className="mx-auto mt-4 max-w-[40rem] text-base leading-7 text-slate-600">
               {tr("A short lesson comes first. Registration and payment can wait until the value feels obvious.")}
             </p>
@@ -329,12 +470,12 @@ export function WelcomeScreen() {
           <div className={cn("welcome-reveal mt-8 rounded-[34px] border border-white/65 bg-white/82 p-5 shadow-soft backdrop-blur md:p-6", wizardVisible && "is-visible")} style={{ transitionDelay: "120ms" }}>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-coral">{tr("Mini-onboarding")}</div>
-                <div className="mt-2 text-2xl font-semibold text-ink">{activeStepTitle}</div>
+                <div className="text-xs uppercase tracking-[0.24em] text-coral">{tr("Mini-onboarding")}</div>
+                <div className="mt-2 text-2xl font-[700] tracking-[-0.03em] text-ink">{activeStepTitle}</div>
               </div>
               <div className="rounded-2xl bg-sand/80 px-4 py-3 text-right">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{tr("Step")}</div>
-                <div className="mt-1 text-lg font-semibold text-ink">{step + 1}/3</div>
+                <div className="text-xs uppercase tracking-[0.14em] text-slate-500">{tr("Step")}</div>
+                <div className="mt-1 text-lg font-[700] tracking-[-0.02em] text-ink">{step + 1}/3</div>
               </div>
             </div>
 

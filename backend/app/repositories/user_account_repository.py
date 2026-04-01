@@ -16,6 +16,10 @@ class UserIdentityConflictError(ValueError):
     pass
 
 
+class UserAuthenticationError(ValueError):
+    pass
+
+
 def _normalized_identity(value: str) -> str:
     return value.strip().lower()
 
@@ -47,6 +51,16 @@ class UserAccountRepository:
             session.commit()
             session.refresh(model)
             return to_user_account(model)
+
+    def sign_in(self, login: str, email: str) -> UserAccount:
+        with self._session_factory() as session:
+            login_model = self._find_by_login(session, login)
+            email_model = self._find_by_email(session, email)
+
+            if login_model and email_model and login_model.id == email_model.id:
+                return to_user_account(login_model)
+
+            raise UserAuthenticationError("Account not found for this login and email.")
 
     def check_login_availability(self, login: str, email: str | None = None) -> LoginAvailabilityResponse:
         normalized_login = login.strip()

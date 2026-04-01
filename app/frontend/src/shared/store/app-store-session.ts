@@ -14,6 +14,7 @@ import type { AppState, AppStoreGet, AppStoreSet } from "./app-store.types";
 type SessionActionKeys =
   | "setLocale"
   | "bootstrap"
+  | "signIn"
   | "completeOnboarding"
   | "saveCurrentUser"
   | "saveProfile"
@@ -185,6 +186,19 @@ export function createSessionActions(
         const message = error instanceof Error ? error.message : "Failed to bootstrap app data";
         set({ isBootstrapping: false, bootstrapError: message });
       }
+    },
+    signIn: async (payload) => {
+      const restoredUser = await apiClient.signIn({
+        login: payload.login.trim(),
+        email: payload.email.trim(),
+      });
+
+      writeStoredActiveUserId(restoredUser.id);
+      await get().bootstrap();
+
+      return {
+        needsOnboarding: get().needsOnboarding,
+      };
     },
     completeOnboarding: async (payload) => {
       const response = await apiClient.completeOnboarding(payload);

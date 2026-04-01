@@ -1,4 +1,5 @@
 import { Card } from "../../shared/ui/Card";
+import { BrandLogo } from "../../shared/ui/BrandLogo";
 import { StepRailButton } from "./OnboardingUi";
 import type { OnboardingFlowController } from "./useOnboardingFlow";
 
@@ -11,8 +12,10 @@ export function OnboardingSidebar({ setStep, step, steps, tr }: OnboardingSideba
     <Card className="onboarding-hero relative overflow-hidden p-0">
       <div className="border-b border-white/50 px-5 py-5">
         <div className="max-w-[20rem]">
-          <div className="text-xs uppercase tracking-[0.28em] text-teal-200">{tr("AI English Trainer Pro")}</div>
-          <div className="mt-4 text-3xl font-semibold leading-tight text-white">
+          <div className="inline-flex rounded-[24px] bg-white/96 px-4 py-3 shadow-soft">
+            <BrandLogo className="w-[118px]" />
+          </div>
+          <div className="mt-4 text-3xl font-[700] leading-[1.02] tracking-[-0.04em] text-white">
             {tr("Create a calm, personal start")}
           </div>
           <div className="mt-4 text-sm leading-6 text-slate-200">
@@ -45,7 +48,7 @@ export function OnboardingSidebar({ setStep, step, steps, tr }: OnboardingSideba
         </div>
 
         <div className="rounded-[24px] bg-white/12 p-4 text-sm leading-6 text-white/90">
-          <div className="text-xs uppercase tracking-[0.24em] text-white/60">{tr("What unlocks after setup")}</div>
+          <div className="text-xs uppercase tracking-[0.18em] text-white/60">{tr("What unlocks after setup")}</div>
           <div className="mt-3">{tr("Private learner space")}</div>
           <div>{tr("Skill-balanced lesson track")}</div>
           <div>{tr("Friendly daily dashboard")}</div>

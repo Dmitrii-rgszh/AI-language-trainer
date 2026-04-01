@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.dependencies import require_active_user_id
 from app.core.dependencies import user_service
-from app.schemas.user_account import LoginAvailabilityResponse, UserAccount, UserAccountUpdateRequest
+from app.schemas.user_account import (
+    LoginAvailabilityResponse,
+    UserAccount,
+    UserAccountSignInRequest,
+    UserAccountUpdateRequest,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -15,6 +20,11 @@ def check_login_availability(
     email: str | None = Query(default=None, min_length=5, max_length=255),
 ) -> LoginAvailabilityResponse:
     return user_service.check_login_availability(login, email)
+
+
+@router.post("/sign-in", response_model=UserAccount)
+def sign_in(payload: UserAccountSignInRequest) -> UserAccount:
+    return user_service.sign_in(payload)
 
 
 @router.get("/me", response_model=UserAccount)

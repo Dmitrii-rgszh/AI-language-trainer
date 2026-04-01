@@ -110,6 +110,16 @@ export const apiClient = {
       undefined,
       false,
     ),
+  signIn: (payload: { login: string; email: string }) =>
+    request<UserAccount>(
+      "/api/users/sign-in",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      false,
+    ),
   saveCurrentUser: (payload: { login: string; email: string }) =>
     request<UserAccount>("/api/users/me", {
       method: "PUT",

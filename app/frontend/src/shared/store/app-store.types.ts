@@ -48,6 +48,7 @@ export interface AppStoreData {
 export interface AppStoreActions {
   setLocale: (locale: AppLocale) => void;
   bootstrap: () => Promise<void>;
+  signIn: (payload: UserAccountDraft) => Promise<{ needsOnboarding: boolean }>;
   completeOnboarding: (payload: CompleteOnboardingRequest) => Promise<void>;
   saveCurrentUser: (payload: UserAccountDraft) => Promise<void>;
   saveProfile: (profile: UserProfile) => Promise<void>;

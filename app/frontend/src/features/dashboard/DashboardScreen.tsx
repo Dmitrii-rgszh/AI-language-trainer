@@ -8,6 +8,8 @@ import { DashboardRoadmapSection } from "./DashboardRoadmapSection";
 import { DashboardSignalsSection } from "./DashboardSignalsSection";
 import { DashboardWeakSpotsAndActionsSection } from "./DashboardWeakSpotsAndActionsSection";
 import { useDashboardScreen } from "./useDashboardScreen";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function DashboardScreen() {
   const dashboardView = useDashboardScreen();
@@ -24,69 +26,83 @@ export function DashboardScreen() {
         description={dashboardView.tr("Choose the next lesson, review weak spots, and keep the daily rhythm moving.")}
       />
 
-      <DashboardHeroSection
-        dailyGoalProgress={dashboardView.dailyGoalProgress}
-        dashboard={dashboardView.dashboard}
-        disabledProviders={dashboardView.disabledProviders}
-        fallbackProviders={dashboardView.fallbackProviders}
-        onStartLesson={dashboardView.handleStartLesson}
-        readyProviders={dashboardView.readyProviders}
-        recommendationGoal={dashboardView.recommendationGoal ?? ""}
-        recoveringSignals={dashboardView.recoveringSignals}
-        tl={dashboardView.tl}
-        totalProviders={dashboardView.totalProviders}
-        tr={dashboardView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardHero}>
+        <DashboardHeroSection
+          dailyGoalProgress={dashboardView.dailyGoalProgress}
+          dashboard={dashboardView.dashboard}
+          disabledProviders={dashboardView.disabledProviders}
+          fallbackProviders={dashboardView.fallbackProviders}
+          onStartLesson={dashboardView.handleStartLesson}
+          readyProviders={dashboardView.readyProviders}
+          recommendationGoal={dashboardView.recommendationGoal ?? ""}
+          recoveringSignals={dashboardView.recoveringSignals}
+          tl={dashboardView.tl}
+          totalProviders={dashboardView.totalProviders}
+          tr={dashboardView.tr}
+        />
+      </LivingDepthSection>
 
-      <DashboardRoadmapSection
-        diagnosticRoadmap={dashboardView.diagnosticRoadmap}
-        onStartDiagnosticCheckpoint={dashboardView.handleStartDiagnosticCheckpoint}
-        onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
-        roadmapSummary={dashboardView.roadmapSummary}
-        tr={dashboardView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardRoadmap}>
+        <DashboardRoadmapSection
+          diagnosticRoadmap={dashboardView.diagnosticRoadmap}
+          onStartDiagnosticCheckpoint={dashboardView.handleStartDiagnosticCheckpoint}
+          onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
+          roadmapSummary={dashboardView.roadmapSummary}
+          tr={dashboardView.tr}
+        />
+      </LivingDepthSection>
 
-      <DashboardResumeLessonSection
-        onDiscardLessonRun={dashboardView.handleDiscardLessonRun}
-        onRestartLesson={dashboardView.handleRestartLesson}
-        onResumeLesson={dashboardView.openLessonRunner}
-        resumeLesson={dashboardView.dashboard.resumeLesson}
-        tr={dashboardView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardResume}>
+        <DashboardResumeLessonSection
+          onDiscardLessonRun={dashboardView.handleDiscardLessonRun}
+          onRestartLesson={dashboardView.handleRestartLesson}
+          onResumeLesson={dashboardView.openLessonRunner}
+          resumeLesson={dashboardView.dashboard.resumeLesson}
+          tr={dashboardView.tr}
+        />
+      </LivingDepthSection>
 
-      <DashboardWeakSpotsAndActionsSection
-        quickActions={dashboardView.extendedQuickActions}
-        tr={dashboardView.tr}
-        tt={dashboardView.tt}
-        weakSpots={dashboardView.dashboard.weakSpots}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardActions}>
+        <DashboardWeakSpotsAndActionsSection
+          quickActions={dashboardView.extendedQuickActions}
+          tr={dashboardView.tr}
+          tt={dashboardView.tt}
+          weakSpots={dashboardView.dashboard.weakSpots}
+        />
+      </LivingDepthSection>
 
-      <DashboardAdaptiveLoopSection
-        adaptiveHeadline={dashboardView.adaptiveHeadline}
-        adaptiveSummary={dashboardView.adaptiveSummary}
-        onReviewVocabulary={dashboardView.handleVocabularyReview}
-        onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
-        reviewingVocabularyId={dashboardView.reviewingVocabularyId}
-        studyLoop={dashboardView.dashboard.studyLoop}
-        tr={dashboardView.tr}
-        tt={dashboardView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardLoop}>
+        <DashboardAdaptiveLoopSection
+          adaptiveHeadline={dashboardView.adaptiveHeadline}
+          adaptiveSummary={dashboardView.adaptiveSummary}
+          onReviewVocabulary={dashboardView.handleVocabularyReview}
+          onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
+          reviewingVocabularyId={dashboardView.reviewingVocabularyId}
+          studyLoop={dashboardView.dashboard.studyLoop}
+          tr={dashboardView.tr}
+          tt={dashboardView.tt}
+        />
+      </LivingDepthSection>
 
-      <DashboardSignalsSection
-        progress={dashboardView.dashboard.progress}
-        studyLoop={dashboardView.dashboard.studyLoop}
-        tr={dashboardView.tr}
-        tt={dashboardView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardSignals}>
+        <DashboardSignalsSection
+          progress={dashboardView.dashboard.progress}
+          studyLoop={dashboardView.dashboard.studyLoop}
+          tr={dashboardView.tr}
+          tt={dashboardView.tt}
+        />
+      </LivingDepthSection>
 
-      <DashboardRecentActivitySection
-        activityError={dashboardView.activityError}
-        events={dashboardView.recentActivity}
-        formatDateTime={dashboardView.formatDateTime}
-        providers={dashboardView.providers}
-        tr={dashboardView.tr}
-        tt={dashboardView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.dashboardActivity}>
+        <DashboardRecentActivitySection
+          activityError={dashboardView.activityError}
+          events={dashboardView.recentActivity}
+          formatDateTime={dashboardView.formatDateTime}
+          providers={dashboardView.providers}
+          tr={dashboardView.tr}
+          tt={dashboardView.tt}
+        />
+      </LivingDepthSection>
     </div>
   );
 }

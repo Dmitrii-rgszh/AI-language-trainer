@@ -5,6 +5,8 @@ import { ActivityOverviewSection } from "./ActivityOverviewSection";
 import { ActivitySignalsSection } from "./ActivitySignalsSection";
 import { ActivityStudyLoopSection } from "./ActivityStudyLoopSection";
 import { useActivityScreen } from "./useActivityScreen";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function ActivityScreen() {
   const activityView = useActivityScreen();
@@ -21,40 +23,48 @@ export function ActivityScreen() {
         description={activityView.tr("One timeline for lessons, speaking practice, listening signals, and result history.")}
       />
 
-      <ActivityOverviewSection
-        lastLessonResult={activityView.lastLessonResult}
-        mistakesCount={activityView.mistakes.length}
-        progress={activityView.progress}
-        pronunciationTrend={activityView.pronunciationTrend}
-        speakingAttemptsCount={activityView.speakingAttempts.length}
-        tr={activityView.tr}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.activityOverview}>
+        <ActivityOverviewSection
+          lastLessonResult={activityView.lastLessonResult}
+          mistakesCount={activityView.mistakes.length}
+          progress={activityView.progress}
+          pronunciationTrend={activityView.pronunciationTrend}
+          speakingAttemptsCount={activityView.speakingAttempts.length}
+          tr={activityView.tr}
+        />
+      </LivingDepthSection>
 
-      <ActivityStudyLoopSection
-        onReviewVocabulary={activityView.handleVocabularyReview}
-        onStartRecoveryLesson={activityView.handleStartRecoveryLesson}
-        reviewingVocabularyId={activityView.reviewingVocabularyId}
-        studyLoop={activityView.studyLoop}
-        tr={activityView.tr}
-        tt={activityView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.activityLoop}>
+        <ActivityStudyLoopSection
+          onReviewVocabulary={activityView.handleVocabularyReview}
+          onStartRecoveryLesson={activityView.handleStartRecoveryLesson}
+          reviewingVocabularyId={activityView.reviewingVocabularyId}
+          studyLoop={activityView.studyLoop}
+          tr={activityView.tr}
+          tt={activityView.tt}
+        />
+      </LivingDepthSection>
 
-      <ActivitySignalsSection
-        formatDays={activityView.formatDays}
-        listeningTrend={activityView.listeningTrend}
-        studyLoop={activityView.studyLoop}
-        tr={activityView.tr}
-        tt={activityView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.activitySignals}>
+        <ActivitySignalsSection
+          formatDays={activityView.formatDays}
+          listeningTrend={activityView.listeningTrend}
+          studyLoop={activityView.studyLoop}
+          tr={activityView.tr}
+          tt={activityView.tt}
+        />
+      </LivingDepthSection>
 
-      <ActivityHistorySection
-        activityError={activityView.activityError}
-        events={activityView.recentEvents}
-        formatDateTime={activityView.formatDateTime}
-        topMistakes={activityView.topMistakes}
-        tr={activityView.tr}
-        tt={activityView.tt}
-      />
+      <LivingDepthSection id={livingDepthSectionIds.activityHistory}>
+        <ActivityHistorySection
+          activityError={activityView.activityError}
+          events={activityView.recentEvents}
+          formatDateTime={activityView.formatDateTime}
+          topMistakes={activityView.topMistakes}
+          tr={activityView.tr}
+          tt={activityView.tt}
+        />
+      </LivingDepthSection>
     </div>
   );
 }

@@ -23,10 +23,10 @@ export function OnboardingScreen() {
         <div className="border-b border-white/50 px-6 py-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.34em] text-coral">
+              <div className="text-xs uppercase tracking-[0.28em] text-coral">
                 {`${tr("Step")} ${onboarding.step + 1}/${onboarding.steps.length}`}
               </div>
-              <div className="mt-3 text-3xl font-semibold text-ink">{onboarding.activeStep.title}</div>
+              <div className="mt-3 text-3xl font-[700] tracking-[-0.03em] text-ink">{onboarding.activeStep.title}</div>
               <div className="mt-3 max-w-[46rem] text-sm leading-6 text-slate-600">
                 {onboarding.activeStep.description}
               </div>
