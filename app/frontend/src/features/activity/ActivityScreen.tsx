@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
+import { resolutionTone } from "../../shared/activity/resolution-tone";
+import { useActivityInsights } from "../../shared/activity/useActivityInsights";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
-import type { ListeningTrend, PronunciationTrend, SpeakingAttempt } from "../../shared/types/app-data";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
@@ -19,16 +20,6 @@ type ActivityEvent = {
   route: string;
 };
 
-function resolutionTone(status: string) {
-  if (status === "stabilizing") {
-    return "bg-mint/40 text-ink";
-  }
-  if (status === "recovering") {
-    return "bg-sand text-ink";
-  }
-  return "bg-rose-100 text-rose-700";
-}
-
 export function ActivityScreen() {
   const { tr, tt, formatDateTime, formatDays } = useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
@@ -38,41 +29,10 @@ export function ActivityScreen() {
   const mistakes = useAppStore((state) => state.mistakes);
   const lastLessonResult = useAppStore((state) => state.lastLessonResult);
   const navigate = useNavigate();
-  const [speakingAttempts, setSpeakingAttempts] = useState<SpeakingAttempt[]>([]);
-  const [pronunciationTrend, setPronunciationTrend] = useState<PronunciationTrend | null>(null);
-  const [listeningTrend, setListeningTrend] = useState<ListeningTrend | null>(null);
-  const [activityError, setActivityError] = useState<string | null>(null);
   const [reviewingVocabularyId, setReviewingVocabularyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadActivitySupport() {
-      try {
-        const [attempts, trend, nextListeningTrend] = await Promise.all([
-          apiClient.getSpeakingAttempts(),
-          apiClient.getPronunciationTrends(),
-          apiClient.getListeningTrends(),
-        ]);
-        if (isMounted) {
-          setSpeakingAttempts(attempts);
-          setPronunciationTrend(trend);
-          setListeningTrend(nextListeningTrend);
-          setActivityError(null);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setActivityError(error instanceof Error ? error.message : "Failed to load speaking or pronunciation activity");
-        }
-      }
-    }
-
-    void loadActivitySupport();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { activityError, listeningTrend, pronunciationTrend, speakingAttempts } = useActivityInsights({
+    errorMessage: "Failed to load speaking or pronunciation activity",
+  });
 
   const recentEvents = useMemo<ActivityEvent[]>(() => {
     const lessonEvents =

@@ -1,21 +1,13 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import { ActivityPage } from "../pages/ActivityPage";
-import { DashboardPage } from "../pages/DashboardPage";
-import { GrammarPage } from "../pages/GrammarPage";
-import { LessonRunnerPage } from "../pages/LessonRunnerPage";
-import { LessonResultsPage } from "../pages/LessonResultsPage";
-import { MistakesPage } from "../pages/MistakesPage";
-import { OnboardingPage } from "../pages/OnboardingPage";
-import { ProfessionPage } from "../pages/ProfessionPage";
-import { ProgressPage } from "../pages/ProgressPage";
-import { PronunciationPage } from "../pages/PronunciationPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { SpeakingPage } from "../pages/SpeakingPage";
-import { VocabularyPage } from "../pages/VocabularyPage";
-import { WelcomePage } from "../pages/WelcomePage";
-import { WritingPage } from "../pages/WritingPage";
 import { routes } from "../shared/constants/routes";
 import { AppShell } from "../widgets/AppShell";
+
+function lazyPage<T extends Record<string, unknown>>(load: () => Promise<T>, exportName: keyof T) {
+  return async () => {
+    const module = await load();
+    return { Component: module[exportName] as React.ComponentType };
+  };
+}
 
 export const router = createBrowserRouter([
   {
@@ -23,21 +15,21 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <Navigate to={routes.welcome} replace /> },
-      { path: routes.welcome, element: <WelcomePage /> },
-      { path: routes.onboarding, element: <OnboardingPage /> },
-      { path: routes.dashboard, element: <DashboardPage /> },
-      { path: routes.activity, element: <ActivityPage /> },
-      { path: routes.vocabulary, element: <VocabularyPage /> },
-      { path: routes.lessonRunner, element: <LessonRunnerPage /> },
-      { path: routes.lessonResults, element: <LessonResultsPage /> },
-      { path: routes.grammar, element: <GrammarPage /> },
-      { path: routes.speaking, element: <SpeakingPage /> },
-      { path: routes.pronunciation, element: <PronunciationPage /> },
-      { path: routes.writing, element: <WritingPage /> },
-      { path: routes.profession, element: <ProfessionPage /> },
-      { path: routes.mistakes, element: <MistakesPage /> },
-      { path: routes.progress, element: <ProgressPage /> },
-      { path: routes.settings, element: <SettingsPage /> },
+      { path: routes.welcome, lazy: lazyPage(() => import("../pages/WelcomePage"), "WelcomePage") },
+      { path: routes.onboarding, lazy: lazyPage(() => import("../pages/OnboardingPage"), "OnboardingPage") },
+      { path: routes.dashboard, lazy: lazyPage(() => import("../pages/DashboardPage"), "DashboardPage") },
+      { path: routes.activity, lazy: lazyPage(() => import("../pages/ActivityPage"), "ActivityPage") },
+      { path: routes.vocabulary, lazy: lazyPage(() => import("../pages/VocabularyPage"), "VocabularyPage") },
+      { path: routes.lessonRunner, lazy: lazyPage(() => import("../pages/LessonRunnerPage"), "LessonRunnerPage") },
+      { path: routes.lessonResults, lazy: lazyPage(() => import("../pages/LessonResultsPage"), "LessonResultsPage") },
+      { path: routes.grammar, lazy: lazyPage(() => import("../pages/GrammarPage"), "GrammarPage") },
+      { path: routes.speaking, lazy: lazyPage(() => import("../pages/SpeakingPage"), "SpeakingPage") },
+      { path: routes.pronunciation, lazy: lazyPage(() => import("../pages/PronunciationPage"), "PronunciationPage") },
+      { path: routes.writing, lazy: lazyPage(() => import("../pages/WritingPage"), "WritingPage") },
+      { path: routes.profession, lazy: lazyPage(() => import("../pages/ProfessionPage"), "ProfessionPage") },
+      { path: routes.mistakes, lazy: lazyPage(() => import("../pages/MistakesPage"), "MistakesPage") },
+      { path: routes.progress, lazy: lazyPage(() => import("../pages/ProgressPage"), "ProgressPage") },
+      { path: routes.settings, lazy: lazyPage(() => import("../pages/SettingsPage"), "SettingsPage") },
     ],
   },
 ]);
