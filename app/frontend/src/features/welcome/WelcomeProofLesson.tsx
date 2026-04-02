@@ -17,6 +17,8 @@ type WelcomeProofLessonStepView = {
   description?: string;
   content?: ReactNode;
   contentClassName?: string;
+  cardClassName?: string;
+  stepClassName?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
   helperText?: ReactNode;
@@ -336,6 +338,7 @@ export function WelcomeProofLesson({
         eyebrow: copy.introEyebrow,
         title: lesson.scenario.intro.title,
         description: lesson.scenario.intro.description,
+        cardClassName: "proof-lesson-card--intro",
         content: (
           <ProofLessonTrustBadge>
             {lesson.scenario.intro.microCopy}
@@ -357,6 +360,8 @@ export function WelcomeProofLesson({
         eyebrow: lesson.scenario.situation.label,
         title: lesson.scenario.situation.title,
         description: lesson.scenario.situation.description,
+        cardClassName: "proof-lesson-card--scene",
+        stepClassName: "proof-lesson-step--scene",
         contentClassName: "proof-lesson-step__content--scene",
         content: (
           <WelcomeAiTutorCue
@@ -646,16 +651,18 @@ export function WelcomeProofLesson({
 
   return (
     <WelcomeProofLessonStepLayout
-      key={`${lesson.scenario.id}-${lesson.currentStep}`}
       isVisible={isVisible}
       currentStep={lesson.stepIndex + 1}
       totalSteps={lesson.totalSteps}
       progressLabel={progressLabel}
+      stepKey={`${lesson.scenario.id}-${lesson.currentStep}`}
       eyebrow={stepView.eyebrow}
       title={stepView.title}
       description={stepView.description}
       content={stepView.content}
       contentClassName={stepView.contentClassName}
+      cardClassName={stepView.cardClassName}
+      stepClassName={stepView.stepClassName}
       primaryAction={stepView.primaryAction}
       secondaryAction={stepView.secondaryAction}
       helperText={stepView.helperText}

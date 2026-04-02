@@ -556,12 +556,29 @@ a {
 }
 
 .onboarding-step-panel {
-  animation: onboarding-fade-up 420ms ease both;
+  animation: proof-lesson-step-drift 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes proof-lesson-step-drift {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.985);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
 }
 
 .proof-lesson-card {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 39rem;
+  margin-inline: auto;
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: 34px;
   min-height: clamp(26.75rem, 47vh, 30.5rem);
@@ -573,6 +590,24 @@ a {
     0 22px 54px rgba(151, 168, 181, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.84);
   backdrop-filter: blur(16px);
+  transition:
+    max-width 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    min-height 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 420ms ease;
+}
+
+.proof-lesson-card--intro {
+  max-width: 39rem;
+}
+
+.proof-lesson-card--scene {
+  max-width: 47rem;
+  min-height: clamp(29.5rem, 54vh, 34rem);
+  padding-right: 2.15rem;
+  box-shadow:
+    0 30px 68px rgba(151, 168, 181, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 .proof-lesson-progress {
@@ -670,7 +705,20 @@ a {
 
 .proof-lesson-step__content--scene {
   max-width: 100%;
-  margin-top: 0.3rem;
+  margin-top: 0.55rem;
+  min-height: clamp(14rem, 31vh, 17rem);
+}
+
+.proof-lesson-step--scene {
+  gap: clamp(1.4rem, 3vh, 2rem);
+}
+
+.proof-lesson-step--scene .proof-lesson-step__header {
+  max-width: 34rem;
+}
+
+.proof-lesson-step--scene .proof-lesson-step__footer {
+  max-width: 22.5rem;
 }
 
 .proof-lesson-step__actions {
@@ -895,17 +943,15 @@ a {
 
 .proof-lesson-ai-cue__stage {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(10rem, auto);
-  align-items: end;
-  gap: 1.55rem;
+  display: block;
   width: 100%;
-  overflow: hidden;
-  padding: 1.45rem 1.55rem 1.38rem;
-  border-color: rgba(255, 255, 255, 0.8);
-  border-radius: 28px;
+  min-height: clamp(13.75rem, 30vh, 16.4rem);
+  overflow: visible;
+  padding: 1.55rem clamp(11.6rem, 24vw, 14.8rem) 1.48rem 1.5rem;
+  border-color: rgba(255, 255, 255, 0.84);
+  border-radius: 30px;
   background:
-    radial-gradient(circle at 86% 20%, rgba(174, 234, 226, 0.34), transparent 24%),
+    radial-gradient(circle at 88% 22%, rgba(174, 234, 226, 0.34), transparent 26%),
     radial-gradient(circle at 16% 112%, rgba(255, 230, 204, 0.48), transparent 34%),
     linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(251, 246, 238, 0.94));
   box-shadow:
@@ -942,61 +988,67 @@ a {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.88rem;
-  max-width: 31rem;
+  justify-content: center;
+  gap: 0.92rem;
+  min-height: 100%;
+  max-width: 28rem;
+  animation: proof-lesson-scene-copy-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .proof-lesson-ai-cue__visual {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: stretch;
-  min-height: 11.25rem;
+  align-items: stretch;
+  justify-content: flex-end;
+  position: absolute;
+  top: -1.35rem;
+  right: -1.18rem;
+  bottom: -1.35rem;
+  width: clamp(11.25rem, 25vw, 14.7rem);
+  min-height: 0;
+  animation: proof-lesson-avatar-dock-in 760ms cubic-bezier(0.2, 0.95, 0.22, 1) both;
 }
 
 .proof-lesson-ai-cue__visual::before {
   content: "";
   position: absolute;
-  width: 11.5rem;
-  height: 11.5rem;
-  border-radius: 999px;
+  inset: 0.8rem 0.5rem 0.8rem -0.2rem;
+  border-radius: 38px;
   background:
-    radial-gradient(circle at 44% 38%, rgba(255, 255, 255, 0.92), rgba(228, 243, 240, 0.56) 42%, rgba(228, 243, 240, 0.12) 66%, transparent 76%);
-  filter: blur(10px);
-  transform: translateY(-0.55rem);
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.92), rgba(228, 243, 240, 0.46) 42%, rgba(228, 243, 240, 0.08) 72%, transparent 84%);
+  filter: blur(14px);
   opacity: 0.86;
 }
 
 .proof-lesson-ai-cue__visual::after {
   content: "";
   position: absolute;
-  bottom: 0.25rem;
-  width: 8.4rem;
-  height: 1.3rem;
+  left: 8%;
+  right: 6%;
+  bottom: 0.65rem;
   border-radius: 999px;
   background: radial-gradient(circle at center, rgba(44, 95, 92, 0.22), rgba(44, 95, 92, 0.03) 68%, transparent 82%);
-  filter: blur(10px);
+  filter: blur(14px);
   opacity: 0.85;
 }
 
 .proof-lesson-ai-avatar {
   position: relative;
-  width: clamp(9.8rem, 20vw, 12rem);
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 36px;
+  border-radius: 34px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 238, 228, 0.88)),
     radial-gradient(circle at top, rgba(255, 255, 255, 0.44), transparent 52%);
   box-shadow:
-    0 28px 58px rgba(151, 168, 181, 0.22),
+    0 28px 58px rgba(151, 168, 181, 0.2),
     0 10px 22px rgba(255, 255, 255, 0.36) inset,
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   isolation: isolate;
-  transform: translateY(0.15rem);
+  transform: translateX(0);
 }
 
 .proof-lesson-ai-avatar::before {
@@ -1029,7 +1081,7 @@ a {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 42%;
+  object-position: 50% 36%;
 }
 
 .proof-lesson-ai-avatar__video {
@@ -1039,7 +1091,7 @@ a {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 42%;
+  object-position: 50% 36%;
   background: #f7f2e8;
   opacity: 0;
   pointer-events: none;
@@ -1095,7 +1147,7 @@ a {
 .proof-lesson-ai-cue__message {
   margin: 0;
   font-size: 1.04rem;
-  line-height: 1.86;
+  line-height: 1.92;
   letter-spacing: -0.012em;
   color: #2b3e4f;
 }
@@ -1171,6 +1223,32 @@ a {
 
   50% {
     transform: scale(1.035);
+  }
+}
+
+@keyframes proof-lesson-avatar-dock-in {
+  from {
+    opacity: 0;
+    transform: translate3d(42px, 0, 0) scale(0.96);
+    clip-path: inset(0 0 0 24% round 34px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: inset(0 0 0 0 round 34px);
+  }
+}
+
+@keyframes proof-lesson-scene-copy-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -1521,9 +1599,16 @@ a {
   }
 
   .proof-lesson-card {
+    max-width: 100%;
     min-height: auto;
     padding: 1.4rem 1.25rem 1.45rem;
     border-radius: 28px;
+  }
+
+  .proof-lesson-card--scene {
+    max-width: 100%;
+    min-height: auto;
+    padding-right: 1.25rem;
   }
 
   .proof-lesson-progress {
@@ -1557,14 +1642,14 @@ a {
   }
 
   .proof-lesson-ai-cue__stage {
-    grid-template-columns: 1fr;
-    justify-items: stretch;
-    gap: 1rem;
+    min-height: auto;
     padding: 1.1rem;
+    overflow: hidden;
   }
 
   .proof-lesson-ai-cue__copy {
     max-width: none;
+    animation: none;
   }
 
   .proof-lesson-ai-cue__footer {
@@ -1572,19 +1657,33 @@ a {
   }
 
   .proof-lesson-ai-cue__visual {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
     justify-content: center;
     align-self: auto;
+    min-height: 11rem;
+    animation: none;
   }
 
   .proof-lesson-ai-avatar {
-    width: min(8.8rem, 44vw);
+    width: min(10rem, 48vw);
+    height: auto;
+    aspect-ratio: 0.86;
     border-radius: 28px;
     transform: none;
   }
 
   .proof-lesson-ai-cue__visual::before {
-    width: 9.4rem;
-    height: 9.4rem;
-    transform: translateY(-0.2rem);
+    top: 0.7rem;
+    bottom: 0.7rem;
+    left: 50%;
+    right: auto;
+    width: min(10.5rem, 52vw);
+    height: auto;
+    aspect-ratio: 0.86;
+    transform: translateX(-50%);
   }
 }

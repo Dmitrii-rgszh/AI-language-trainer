@@ -12,11 +12,14 @@ type WelcomeProofLessonStepLayoutProps = {
   currentStep: number;
   totalSteps: number;
   progressLabel: string;
+  stepKey?: string;
   eyebrow?: string;
   title: string;
   description?: string;
   content?: ReactNode;
   contentClassName?: string;
+  cardClassName?: string;
+  stepClassName?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
   helperText?: ReactNode;
@@ -47,11 +50,14 @@ export function WelcomeProofLessonStepLayout({
   currentStep,
   totalSteps,
   progressLabel,
+  stepKey,
   eyebrow,
   title,
   description,
   content,
   contentClassName,
+  cardClassName,
+  stepClassName,
   primaryAction,
   secondaryAction,
   helperText,
@@ -61,7 +67,11 @@ export function WelcomeProofLessonStepLayout({
   return (
     <div className="relative z-10 mx-auto max-w-[980px]">
       <div
-        className={cn("welcome-reveal proof-lesson-card", isVisible && "is-visible")}
+        className={cn(
+          "welcome-reveal proof-lesson-card",
+          isVisible && "is-visible",
+          cardClassName,
+        )}
         style={{ transitionDelay: "120ms" }}
       >
         <WelcomeProofLessonProgress
@@ -70,7 +80,10 @@ export function WelcomeProofLessonStepLayout({
           progressLabel={progressLabel}
         />
 
-        <div className="onboarding-step-panel proof-lesson-step">
+        <div
+          key={stepKey}
+          className={cn("onboarding-step-panel proof-lesson-step", stepClassName)}
+        >
           <div className="proof-lesson-step__body">
             <div className="proof-lesson-step__header">
               {eyebrow ? (
