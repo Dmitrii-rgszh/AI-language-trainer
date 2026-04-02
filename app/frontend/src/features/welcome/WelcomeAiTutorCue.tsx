@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { ApiError, apiClient } from "../../shared/api/client";
 import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
@@ -43,14 +44,16 @@ export function WelcomeAiTutorCue({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackHint, setPlaybackHint] = useState<string | null>(null);
   const [renderMode, setRenderMode] = useState<"video" | "audio">("audio");
+  const [videoPlaybackKey, setVideoPlaybackKey] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const currentAudioUrlRef = useRef<string | null>(null);
   const currentVideoUrlRef = useRef<string | null>(null);
   const preparedAudioKeyRef = useRef<string | null>(null);
   const preparedAudioPromiseRef = useRef<Promise<string> | null>(null);
+  const preparedVideoBlobRef = useRef<Blob | null>(null);
   const preparedVideoKeyRef = useRef<string | null>(null);
-  const preparedVideoPromiseRef = useRef<Promise<string> | null>(null);
+  const preparedVideoPromiseRef = useRef<Promise<Blob> | null>(null);
   const autoPlayKeyRef = useRef<string | null>(null);
   const playbackRequestRef = useRef(0);
   const labels = getPlaybackLabels(locale);
@@ -100,7 +103,7 @@ export function WelcomeAiTutorCue({
     }
 
     autoPlayKeyRef.current = autoPlayKey;
-    void playTutorCue();
+    void playTutorCue("auto");
   }, [isVisible, locale, message]);
 
   function ensureAudioElement() {
@@ -157,18 +160,15 @@ export function WelcomeAiTutorCue({
 
   async function ensureVideoSource() {
     const sourceKey = buildVideoSourceKey();
-    if (preparedVideoKeyRef.current === sourceKey && currentVideoUrlRef.current) {
-      return currentVideoUrlRef.current;
+    if (preparedVideoKeyRef.current === sourceKey && preparedVideoBlobRef.current) {
+      return preparedVideoBlobRef.current;
     }
 
     if (preparedVideoKeyRef.current === sourceKey && preparedVideoPromiseRef.current) {
       return preparedVideoPromiseRef.current;
     }
 
-    if (currentVideoUrlRef.current) {
-      URL.revokeObjectURL(currentVideoUrlRef.current);
-      currentVideoUrlRef.current = null;
-    }
+    preparedVideoBlobRef.current = null;
 
     preparedVideoKeyRef.current = sourceKey;
     preparedVideoPromiseRef.current = apiClient
@@ -178,9 +178,8 @@ export function WelcomeAiTutorCue({
         avatarKey: "verba_tutor",
       })
       .then((videoBlob) => {
-        const videoUrl = URL.createObjectURL(videoBlob);
-        currentVideoUrlRef.current = videoUrl;
-        return videoUrl;
+        preparedVideoBlobRef.current = videoBlob;
+        return videoBlob;
       })
       .finally(() => {
         preparedVideoPromiseRef.current = null;
@@ -196,7 +195,7 @@ export function WelcomeAiTutorCue({
   function hasPreparedVideoSource() {
     return (
       preparedVideoKeyRef.current === buildVideoSourceKey() &&
-      Boolean(currentVideoUrlRef.current)
+      Boolean(preparedVideoBlobRef.current)
     );
   }
 
@@ -226,6 +225,22 @@ export function WelcomeAiTutorCue({
     });
   }
 
+  async function resolveVideoElement(forceRemount: boolean) {
+    if (forceRemount) {
+      flushSync(() => {
+        setVideoPlaybackKey((current) => current + 1);
+      });
+      await Promise.resolve();
+    }
+
+    const video = videoRef.current;
+    if (!video) {
+      throw new Error("Tutor video element is not ready");
+    }
+
+    return video;
+  }
+
   async function playNarration(requestId: number) {
     const audio = ensureAudioElement();
     const audioUrl = await ensureAudioSource();
@@ -253,8 +268,13 @@ export function WelcomeAiTutorCue({
     }
   }
 
-  async function loadVideoSource(video: HTMLVideoElement, videoUrl: string) {
+  async function loadVideoSource(
+    video: HTMLVideoElement,
+    videoUrl: string,
+    forceReload = false,
+  ) {
     const shouldReloadSource =
+      forceReload ||
       video.src !== videoUrl ||
       video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA;
 
@@ -275,32 +295,30 @@ export function WelcomeAiTutorCue({
     }
   }
 
-  async function playMuseTalkVideo(requestId: number) {
-    const video = videoRef.current;
-    if (!video) {
-      throw new Error("Tutor video element is not ready");
-    }
+  async function playMuseTalkVideo(requestId: number, forceReload = false) {
+    const video = await resolveVideoElement(forceReload);
 
-    const videoUrl = await ensureVideoSource();
+    const videoBlob = await ensureVideoSource();
     if (!isCurrentPlaybackRequest(requestId)) {
       return;
     }
 
+    if (currentVideoUrlRef.current) {
+      URL.revokeObjectURL(currentVideoUrlRef.current);
+      currentVideoUrlRef.current = null;
+    }
+
+    const videoUrl = URL.createObjectURL(videoBlob);
+    currentVideoUrlRef.current = videoUrl;
     audioRef.current?.pause();
-    await loadVideoSource(video, videoUrl);
+    await loadVideoSource(video, videoUrl, forceReload);
     if (!isCurrentPlaybackRequest(requestId)) {
       return;
     }
     video.onplaying = () => setIsPlaying(true);
-    video.onended = () => {
-      setIsPlaying(false);
-      try {
-        video.currentTime = 0;
-      } catch {
-        // Ignore harmless seek errors after playback ends.
-      }
-    };
+    video.onended = () => setIsPlaying(false);
     video.onpause = () => setIsPlaying(false);
+    video.muted = false;
     setRenderMode("video");
     await video.play();
     if (isCurrentPlaybackRequest(requestId)) {
@@ -311,9 +329,10 @@ export function WelcomeAiTutorCue({
   async function playMuseTalkVideoWithTimeout(
     requestId: number,
     timeoutMs: number,
+    forceReload = false,
   ) {
     await Promise.race([
-      playMuseTalkVideo(requestId),
+      playMuseTalkVideo(requestId, forceReload),
       new Promise<never>((_, reject) => {
         window.setTimeout(() => {
           if (isCurrentPlaybackRequest(requestId)) {
@@ -335,7 +354,7 @@ export function WelcomeAiTutorCue({
 
     try {
       if (trigger === "manual" && hasPreparedVideoSource()) {
-        await playMuseTalkVideo(initialRequestId);
+        await playMuseTalkVideo(initialRequestId, true);
         return;
       }
 
@@ -344,6 +363,7 @@ export function WelcomeAiTutorCue({
         trigger === "manual"
           ? WELCOME_TUTOR_REPLAY_VIDEO_WAIT_MS
           : WELCOME_TUTOR_VIDEO_WAIT_MS,
+        trigger === "manual",
       );
       return;
     } catch (error) {
@@ -477,6 +497,7 @@ export function WelcomeAiTutorCue({
               decoding="async"
             />
             <video
+              key={videoPlaybackKey}
               ref={videoRef}
               playsInline
               preload="auto"
