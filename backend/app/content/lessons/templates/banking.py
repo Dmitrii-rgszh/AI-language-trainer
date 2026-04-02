@@ -1,0 +1,111 @@
+from app.schemas.blueprint import FeedbackMode, ProfessionDomain
+
+
+BANKING_CLIENT_FLOW_TEMPLATE = {
+    "id": "template-banking-client-flow",
+    "lesson_type": "mixed",
+    "title": "Banking Client Flow",
+    "goal": "Потренировать product explanations, short updates по операциям и спокойный client-facing tone.",
+    "difficulty": "A2-B1",
+    "estimated_duration": 25,
+    "enabled_tracks": [ProfessionDomain.BANKING.value],
+    "generation_rules": [
+        "Start with review or intro",
+        "Finish with summary block",
+        "Mix grammar, speaking and profession for daily lesson",
+    ],
+    "profession_topic_ids": ["topic-banking-product-explainer"],
+    "blocks": [
+        {
+            "id": "block-banking-review-1",
+            "position": 0,
+            "block_type": "review_block",
+            "title": "Review account update language",
+            "instructions": "Повтори короткие исправления перед новым banking explanation.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": [],
+            "payload": {
+                "sourceMistakeIds": ["mistake-seed-grammar", "mistake-seed-profession"],
+                "reviewItems": [
+                    "I have checked the payment status this morning.",
+                    "Let me explain the transfer steps in a simpler way.",
+                ],
+                "targetErrorTypes": ["tense-choice", "banking-clarity-language"],
+            },
+        },
+        {
+            "id": "block-banking-grammar-1",
+            "position": 1,
+            "block_type": "grammar_block",
+            "title": "Present Perfect in account updates",
+            "instructions": "Собери 3 коротких banking update о статусе операции и recent changes.",
+            "estimated_minutes": 6,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-banking-review-1"],
+            "payload": {
+                "topicId": "grammar-past-simple-vs-present-perfect",
+                "focusPoints": ["recent updates", "client communication", "status checks"],
+                "prompts": [
+                    "Explain what has changed in the account status today.",
+                    "Describe what you have already checked before the next call.",
+                ],
+                "targetErrorTypes": ["tense-choice"],
+            },
+        },
+        {
+            "id": "block-banking-speaking-1",
+            "position": 2,
+            "block_type": "speaking_block",
+            "title": "Guided banking explanation",
+            "instructions": "Дай короткий spoken explanation о платеже, комиссии или следующем шаге.",
+            "estimated_minutes": 7,
+            "feedback_mode": FeedbackMode.CRITICAL_ONLY,
+            "depends_on_block_ids": ["block-banking-grammar-1"],
+            "payload": {
+                "scenarioId": "banking-product-clarifier",
+                "mode": "guided",
+                "prompts": [
+                    "Explain one payment option in a calm and simple way.",
+                    "Tell the client what will happen next after this check.",
+                ],
+                "expectsVoice": False,
+                "feedbackFocus": ["clarity", "structure", "client tone"],
+            },
+        },
+        {
+            "id": "block-banking-profession-1",
+            "position": 3,
+            "block_type": "profession_block",
+            "title": "Banking product explainer",
+            "instructions": "Упростить language around fees, transfers и account options.",
+            "estimated_minutes": 5,
+            "feedback_mode": FeedbackMode.IMMEDIATE,
+            "depends_on_block_ids": ["block-banking-speaking-1"],
+            "payload": {
+                "domain": ProfessionDomain.BANKING.value,
+                "topicId": "topic-banking-product-explainer",
+                "scenario": "Card and payment consultation",
+                "targetTerms": ["transfer", "fee", "statement"],
+            },
+        },
+        {
+            "id": "block-banking-summary-1",
+            "position": 4,
+            "block_type": "summary_block",
+            "title": "Summary and next banking step",
+            "instructions": "Зафиксируй одну ясную client phrase, одно grammar правило и один next step.",
+            "estimated_minutes": 3,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-banking-profession-1"],
+            "payload": {
+                "recapPrompts": [
+                    "Which explanation sounded clearer this time?",
+                    "What sentence will you reuse in the next client update?",
+                ],
+                "nextStep": "Reuse one short account-status update and one fee explanation in the next practice round.",
+                "saveToProgress": True,
+            },
+        },
+    ],
+}

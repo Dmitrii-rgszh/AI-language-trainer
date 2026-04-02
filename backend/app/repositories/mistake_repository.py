@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.mistake_record import MistakeRecord
-from app.repositories.mappers import to_mistake
+from app.repositories.mistake_mappers import to_mistake
 from app.schemas.mistake import Mistake, WeakSpot
 from app.schemas.mistake_extraction import ExtractedMistake
 

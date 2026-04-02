@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.user_onboarding import UserOnboarding as UserOnboardingModel
-from app.repositories.mappers import to_user_onboarding
+from app.repositories.account_mappers import to_user_onboarding
 from app.schemas.onboarding import UserOnboarding
 from app.schemas.profile import OnboardingAnswers
 

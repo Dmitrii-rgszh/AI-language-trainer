@@ -1,0 +1,111 @@
+from app.schemas.blueprint import FeedbackMode, ProfessionDomain
+
+
+TRAINER_DAILY_FLOW_TEMPLATE = {
+    "id": "template-trainer-daily-flow",
+    "lesson_type": "mixed",
+    "title": "Trainer Daily Flow",
+    "goal": "Повторить проблемную грамматику и встроить её в professional speaking.",
+    "difficulty": "A2-B1",
+    "estimated_duration": 25,
+    "enabled_tracks": [ProfessionDomain.TRAINER_SKILLS.value],
+    "generation_rules": [
+        "Start with review or intro",
+        "Finish with summary block",
+        "Mix grammar, speaking and profession for daily lesson",
+    ],
+    "profession_topic_ids": ["topic-trainer-feedback"],
+    "blocks": [
+        {
+            "id": "block-review-1",
+            "position": 0,
+            "block_type": "review_block",
+            "title": "Review weak spots",
+            "instructions": "Повтори ключевые исправления из прошлого урока.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": [],
+            "payload": {
+                "sourceMistakeIds": ["mistake-1"],
+                "reviewItems": [
+                    "I have worked with this team since 2022.",
+                    "This part could be clearer for the audience.",
+                ],
+                "targetErrorTypes": ["tense-choice", "feedback-language"],
+            },
+        },
+        {
+            "id": "block-grammar-1",
+            "position": 1,
+            "block_type": "grammar_block",
+            "title": "Present Perfect in updates",
+            "instructions": "Собери 3 коротких ответа о профессиональном опыте и недавних результатах.",
+            "estimated_minutes": 6,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-review-1"],
+            "payload": {
+                "topicId": "grammar-present-perfect-basics",
+                "focusPoints": ["experience", "recent results"],
+                "prompts": [
+                    "Tell me what you have improved in your training process.",
+                    "Describe what you have completed this month.",
+                ],
+                "targetErrorTypes": ["tense-choice"],
+            },
+        },
+        {
+            "id": "block-speaking-1",
+            "position": 2,
+            "block_type": "speaking_block",
+            "title": "Guided speaking",
+            "instructions": "Ответь на guided prompts и держи фокус на ясности.",
+            "estimated_minutes": 7,
+            "feedback_mode": FeedbackMode.CRITICAL_ONLY,
+            "depends_on_block_ids": ["block-grammar-1"],
+            "payload": {
+                "scenarioId": "training-debrief",
+                "mode": "guided",
+                "prompts": [
+                    "How have you supported your learners recently?",
+                    "What have your stakeholders asked for lately?",
+                ],
+                "expectsVoice": False,
+                "feedbackFocus": ["clarity", "tense consistency"],
+            },
+        },
+        {
+            "id": "block-profession-1",
+            "position": 3,
+            "block_type": "profession_block",
+            "title": "Trainer feedback language",
+            "instructions": "Смягчи жёсткие формулировки и сделай feedback естественнее.",
+            "estimated_minutes": 5,
+            "feedback_mode": FeedbackMode.IMMEDIATE,
+            "depends_on_block_ids": ["block-speaking-1"],
+            "payload": {
+                "domain": ProfessionDomain.TRAINER_SKILLS.value,
+                "topicId": "topic-trainer-feedback",
+                "scenario": "Post-workshop debrief",
+                "targetTerms": ["could", "clearer", "next step"],
+            },
+        },
+        {
+            "id": "block-summary-1",
+            "position": 4,
+            "block_type": "summary_block",
+            "title": "Summary and next step",
+            "instructions": "Зафиксируй правило, фразу и следующий шаг.",
+            "estimated_minutes": 3,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-profession-1"],
+            "payload": {
+                "recapPrompts": [
+                    "What grammar point do you want to remember?",
+                    "What phrase will you use tomorrow?",
+                ],
+                "nextStep": "Do a 5-minute /th/ pronunciation drill tomorrow.",
+                "saveToProgress": True,
+            },
+        },
+    ],
+}

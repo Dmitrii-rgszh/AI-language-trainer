@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, selectinload, sessionmaker
 from app.models.progress_snapshot import ProgressSkillScore
 from app.models.progress_snapshot import ProgressSnapshot as ProgressSnapshotModel
 from app.repositories.lesson_repository import LessonRepository
-from app.repositories.mappers import to_progress_snapshot
+from app.repositories.progress_mappers import to_progress_snapshot
 from app.schemas.blueprint import SkillArea
 from app.schemas.lesson import LessonRunState
 from app.schemas.profile import UserProfile

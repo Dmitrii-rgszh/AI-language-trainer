@@ -1,0 +1,111 @@
+from app.schemas.blueprint import FeedbackMode, ProfessionDomain
+
+
+AI_BUSINESS_FLOW_TEMPLATE = {
+    "id": "template-ai-business-flow",
+    "lesson_type": "mixed",
+    "title": "AI Business Flow",
+    "goal": "Отработать объяснение AI workflow, limits, guardrails и следующего шага для бизнеса.",
+    "difficulty": "A2-B1",
+    "estimated_duration": 25,
+    "enabled_tracks": [ProfessionDomain.AI_BUSINESS.value],
+    "generation_rules": [
+        "Start with review or intro",
+        "Finish with summary block",
+        "Mix grammar, speaking and profession for daily lesson",
+    ],
+    "profession_topic_ids": ["topic-ai-business-risk-brief"],
+    "blocks": [
+        {
+            "id": "block-ai-review-1",
+            "position": 0,
+            "block_type": "review_block",
+            "title": "Review AI workflow language",
+            "instructions": "Повтори ключевые исправления перед новым AI workflow update.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": [],
+            "payload": {
+                "sourceMistakeIds": ["mistake-seed-grammar", "mistake-seed-profession"],
+                "reviewItems": [
+                    "We have tested the workflow and added a human review step.",
+                    "This automation can help, but we still need a clear approval path.",
+                ],
+                "targetErrorTypes": ["tense-choice", "risk-aware-language"],
+            },
+        },
+        {
+            "id": "block-ai-grammar-1",
+            "position": 1,
+            "block_type": "grammar_block",
+            "title": "Present Perfect for AI updates",
+            "instructions": "Собери 3 коротких update о том, что уже протестировано и что изменилось в workflow.",
+            "estimated_minutes": 6,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-ai-review-1"],
+            "payload": {
+                "topicId": "grammar-present-perfect-basics",
+                "focusPoints": ["recent experiments", "workflow updates", "results"],
+                "prompts": [
+                    "Describe what you have already tested in the AI workflow.",
+                    "Explain what has improved after the latest review.",
+                ],
+                "targetErrorTypes": ["tense-choice"],
+            },
+        },
+        {
+            "id": "block-ai-speaking-1",
+            "position": 2,
+            "block_type": "speaking_block",
+            "title": "Guided AI project update",
+            "instructions": "Дай short business update about an AI workflow and keep the explanation calm and concrete.",
+            "estimated_minutes": 7,
+            "feedback_mode": FeedbackMode.CRITICAL_ONLY,
+            "depends_on_block_ids": ["block-ai-grammar-1"],
+            "payload": {
+                "scenarioId": "ai-workflow-update",
+                "mode": "guided",
+                "prompts": [
+                    "Summarize what the AI workflow now does well.",
+                    "Explain one limit or control that still matters.",
+                ],
+                "expectsVoice": False,
+                "feedbackFocus": ["clarity", "business tone", "risk framing"],
+            },
+        },
+        {
+            "id": "block-ai-profession-1",
+            "position": 3,
+            "block_type": "profession_block",
+            "title": "AI workflow briefing",
+            "instructions": "Сделай language practical, risk-aware и понятным для business audience.",
+            "estimated_minutes": 5,
+            "feedback_mode": FeedbackMode.IMMEDIATE,
+            "depends_on_block_ids": ["block-ai-speaking-1"],
+            "payload": {
+                "domain": ProfessionDomain.AI_BUSINESS.value,
+                "topicId": "topic-ai-business-risk-brief",
+                "scenario": "AI workflow update",
+                "targetTerms": ["workflow", "guardrails", "review"],
+            },
+        },
+        {
+            "id": "block-ai-summary-1",
+            "position": 4,
+            "block_type": "summary_block",
+            "title": "Summary and next workflow step",
+            "instructions": "Зафиксируй одну clear phrase, один limit statement и один next step.",
+            "estimated_minutes": 3,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-ai-profession-1"],
+            "payload": {
+                "recapPrompts": [
+                    "Which business-safe phrase sounded strongest?",
+                    "What limit or control should stay in your next update?",
+                ],
+                "nextStep": "Reuse one workflow benefit sentence and one guardrail sentence in the next business explanation.",
+                "saveToProgress": True,
+            },
+        },
+    ],
+}

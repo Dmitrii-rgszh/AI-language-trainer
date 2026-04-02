@@ -1,0 +1,111 @@
+from app.schemas.blueprint import FeedbackMode, ProfessionDomain
+
+
+INSURANCE_CLIENT_FLOW_TEMPLATE = {
+    "id": "template-insurance-client-flow",
+    "lesson_type": "mixed",
+    "title": "Insurance Client Flow",
+    "goal": "Отработать needs analysis, language of protection и уверенный follow-up после разговора с клиентом.",
+    "difficulty": "A2-B1",
+    "estimated_duration": 25,
+    "enabled_tracks": [ProfessionDomain.INSURANCE.value],
+    "generation_rules": [
+        "Start with review or intro",
+        "Finish with summary block",
+        "Mix grammar, speaking and profession for daily lesson",
+    ],
+    "profession_topic_ids": ["topic-insurance-needs"],
+    "blocks": [
+        {
+            "id": "block-insurance-review-1",
+            "position": 0,
+            "block_type": "review_block",
+            "title": "Review client wording",
+            "instructions": "Повтори ключевые исправления перед новым client update.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": [],
+            "payload": {
+                "sourceMistakeIds": ["mistake-seed-grammar", "mistake-seed-profession"],
+                "reviewItems": [
+                    "We have reviewed your coverage needs this week.",
+                    "Could we look at the protection options that fit your current plan?",
+                ],
+                "targetErrorTypes": ["tense-choice", "client-needs-language"],
+            },
+        },
+        {
+            "id": "block-insurance-grammar-1",
+            "position": 1,
+            "block_type": "grammar_block",
+            "title": "Future forms for protection planning",
+            "instructions": "Собери 3 коротких client-facing sentence о следующем шаге и coverage planning.",
+            "estimated_minutes": 6,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-insurance-review-1"],
+            "payload": {
+                "topicId": "grammar-future-forms-planning",
+                "focusPoints": ["next steps", "recommendations", "client follow-up"],
+                "prompts": [
+                    "Explain what you will review before the next policy discussion.",
+                    "Describe what you are going to send to the client after the call.",
+                ],
+                "targetErrorTypes": ["tense-choice"],
+            },
+        },
+        {
+            "id": "block-insurance-speaking-1",
+            "position": 2,
+            "block_type": "speaking_block",
+            "title": "Guided client update",
+            "instructions": "Ответь на guided prompts так, будто это короткий follow-up после needs analysis.",
+            "estimated_minutes": 7,
+            "feedback_mode": FeedbackMode.CRITICAL_ONLY,
+            "depends_on_block_ids": ["block-insurance-grammar-1"],
+            "payload": {
+                "scenarioId": "client-protection-follow-up",
+                "mode": "guided",
+                "prompts": [
+                    "Summarize what protection need the client mentioned most clearly.",
+                    "Explain the next action you will take after this conversation.",
+                ],
+                "expectsVoice": False,
+                "feedbackFocus": ["clarity", "next-step language", "confidence"],
+            },
+        },
+        {
+            "id": "block-insurance-profession-1",
+            "position": 3,
+            "block_type": "profession_block",
+            "title": "Insurance needs analysis",
+            "instructions": "Сделай формулировки мягкими, точными и понятными для клиента.",
+            "estimated_minutes": 5,
+            "feedback_mode": FeedbackMode.IMMEDIATE,
+            "depends_on_block_ids": ["block-insurance-speaking-1"],
+            "payload": {
+                "domain": ProfessionDomain.INSURANCE.value,
+                "topicId": "topic-insurance-needs",
+                "scenario": "Client discovery call",
+                "targetTerms": ["coverage", "protection", "next step"],
+            },
+        },
+        {
+            "id": "block-insurance-summary-1",
+            "position": 4,
+            "block_type": "summary_block",
+            "title": "Summary and next client step",
+            "instructions": "Зафиксируй одну удачную фразу, одно grammar правило и один next step.",
+            "estimated_minutes": 3,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "depends_on_block_ids": ["block-insurance-profession-1"],
+            "payload": {
+                "recapPrompts": [
+                    "What client-friendly phrase do you want to keep?",
+                    "What next-step sentence will you use tomorrow?",
+                ],
+                "nextStep": "Reuse one protection question and one follow-up sentence in the next client conversation.",
+                "saveToProgress": True,
+            },
+        },
+    ],
+}

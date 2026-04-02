@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.user_account import UserAccount as UserAccountModel
-from app.repositories.mappers import to_user_account
+from app.repositories.account_mappers import to_user_account
 from app.schemas.user_account import LoginAvailabilityResponse, UserAccount, UserAccountUpdateRequest
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.user_profile import UserProfile as UserProfileModel
-from app.repositories.mappers import to_user_profile
+from app.repositories.profile_mappers import to_user_profile
 from app.schemas.profile import ProfileUpdateRequest, UserProfile
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.user_provider_preference import UserProviderPreference as UserProviderPreferenceModel
-from app.repositories.mappers import to_provider_preference
+from app.repositories.account_mappers import to_provider_preference
 from app.schemas.provider import ProviderPreference, ProviderPreferenceUpdateRequest, ProviderType
 
 
