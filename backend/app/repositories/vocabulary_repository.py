@@ -1,14 +1,25 @@
 from __future__ import annotations
 
-from collections import Counter
-from datetime import datetime, timedelta
-import re
+from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.vocabulary_item import VocabularyItem as VocabularyItemModel
+from app.repositories.vocabulary_capture import build_capture
+from app.repositories.vocabulary_mappers import (
+    build_mistake_backlinks,
+    build_summary,
+    is_due,
+    to_review_item,
+)
+from app.repositories.vocabulary_queries import (
+    load_due_candidate_items,
+    load_recent_vocabulary_items,
+    load_user_vocabulary_items,
+    load_vocabulary_item,
+    load_vocabulary_item_by_word,
+)
 from app.schemas.adaptive import MistakeVocabularyBacklink, VocabularyLoopSummary, VocabularyReviewItem
 from app.schemas.blueprint import VocabularyStatus
 from app.schemas.mistake_extraction import ExtractedMistake
@@ -20,23 +31,13 @@ class VocabularyRepository:
 
     def list_due_items(self, user_id: str, limit: int = 5) -> list[VocabularyReviewItem]:
         with self._session_factory() as session:
-            statement = (
-                select(VocabularyItemModel)
-                .where(VocabularyItemModel.user_id == user_id)
-                .order_by(VocabularyItemModel.repetition_stage.asc(), VocabularyItemModel.word.asc())
-            )
-            models = session.scalars(statement).all()
-            due_items = [self._to_review_item(model) for model in models if self._is_due(model)]
+            models = load_due_candidate_items(session, user_id)
+            due_items = [to_review_item(model) for model in models if is_due(model)]
             return due_items[:limit]
 
     def review_item(self, user_id: str, item_id: str, successful: bool) -> VocabularyReviewItem | None:
         with self._session_factory() as session:
-            model = session.scalar(
-                select(VocabularyItemModel).where(
-                    VocabularyItemModel.user_id == user_id,
-                    VocabularyItemModel.id == item_id,
-                )
-            )
+            model = load_vocabulary_item(session, user_id, item_id)
             if not model:
                 return None
 
@@ -52,94 +53,32 @@ class VocabularyRepository:
 
             session.commit()
             session.refresh(model)
-            return self._to_review_item(model)
+            return to_review_item(model)
 
     def get_summary(self, user_id: str) -> VocabularyLoopSummary:
         with self._session_factory() as session:
-            models = session.scalars(select(VocabularyItemModel).where(VocabularyItemModel.user_id == user_id)).all()
-            due_items = [model for model in models if self._is_due(model)]
-            categories = Counter(model.category for model in due_items)
-            return VocabularyLoopSummary(
-                due_count=len(due_items),
-                new_count=len([model for model in models if model.learned_status == VocabularyStatus.NEW]),
-                active_count=len([model for model in models if model.learned_status == VocabularyStatus.ACTIVE]),
-                mastered_count=len([model for model in models if model.learned_status == VocabularyStatus.MASTERED]),
-                weakest_category=categories.most_common(1)[0][0] if categories else None,
-            )
+            models = load_user_vocabulary_items(session, user_id)
+            return build_summary(models)
 
     def list_recent_items(self, user_id: str, limit: int = 8) -> list[VocabularyReviewItem]:
         with self._session_factory() as session:
-            statement = (
-                select(VocabularyItemModel)
-                .where(VocabularyItemModel.user_id == user_id)
-                .order_by(VocabularyItemModel.last_reviewed_at.desc().nullslast(), VocabularyItemModel.word.asc())
-                .limit(limit)
-            )
-            return [self._to_review_item(model) for model in session.scalars(statement).all()]
+            models = load_recent_vocabulary_items(session, user_id, limit)
+            return [to_review_item(model) for model in models]
 
     def list_mistake_backlinks(self, user_id: str, limit: int = 6) -> list[MistakeVocabularyBacklink]:
         with self._session_factory() as session:
-            models = session.scalars(select(VocabularyItemModel).where(VocabularyItemModel.user_id == user_id)).all()
-
-        grouped: dict[str, dict[str, object]] = {}
-        for model in models:
-            if not model.linked_mistake_title:
-                continue
-
-            bucket = grouped.setdefault(
-                model.linked_mistake_title,
-                {
-                    "weak_spot_title": model.linked_mistake_title,
-                    "weak_spot_category": model.category,
-                    "due_count": 0,
-                    "active_count": 0,
-                    "example_words": [],
-                    "source_modules": [],
-                },
-            )
-            if self._is_due(model):
-                bucket["due_count"] = int(bucket["due_count"]) + 1
-            bucket["active_count"] = int(bucket["active_count"]) + 1
-            if model.word not in bucket["example_words"] and len(bucket["example_words"]) < 3:
-                cast_list = bucket["example_words"]
-                assert isinstance(cast_list, list)
-                cast_list.append(model.word)
-            if model.source_module not in bucket["source_modules"]:
-                source_list = bucket["source_modules"]
-                assert isinstance(source_list, list)
-                source_list.append(model.source_module)
-
-        ranked = sorted(
-            grouped.values(),
-            key=lambda item: (int(item["due_count"]), int(item["active_count"])),
-            reverse=True,
-        )[:limit]
-        return [
-            MistakeVocabularyBacklink(
-                weak_spot_title=str(item["weak_spot_title"]),
-                weak_spot_category=str(item["weak_spot_category"]),
-                due_count=int(item["due_count"]),
-                active_count=int(item["active_count"]),
-                example_words=list(item["example_words"]),
-                source_modules=list(item["source_modules"]),
-            )
-            for item in ranked
-        ]
+            models = load_user_vocabulary_items(session, user_id)
+        return build_mistake_backlinks(models, limit=limit)
 
     def capture_from_mistakes(self, user_id: str, mistakes: list[ExtractedMistake]) -> list[VocabularyReviewItem]:
-        captures = [capture for mistake in mistakes if (capture := self._build_capture(mistake)) is not None]
+        captures = [capture for mistake in mistakes if (capture := build_capture(mistake)) is not None]
         if not captures:
             return []
 
         with self._session_factory() as session:
             saved: list[VocabularyItemModel] = []
             for capture in captures:
-                existing = session.scalar(
-                    select(VocabularyItemModel).where(
-                        VocabularyItemModel.user_id == user_id,
-                        VocabularyItemModel.word == capture["word"],
-                    )
-                )
+                existing = load_vocabulary_item_by_word(session, user_id, capture["word"])
                 if existing:
                     existing.context = capture["context"]
                     existing.translation = capture["translation"]
@@ -175,147 +114,4 @@ class VocabularyRepository:
             session.commit()
             for model in saved:
                 session.refresh(model)
-            return [self._to_review_item(model) for model in saved]
-
-    @staticmethod
-    def _is_due(model: VocabularyItemModel) -> bool:
-        if model.learned_status != VocabularyStatus.MASTERED:
-            return True
-        if model.last_reviewed_at is None:
-            return True
-        return model.last_reviewed_at <= datetime.utcnow() - timedelta(days=7)
-
-    @staticmethod
-    def _to_review_item(model: VocabularyItemModel) -> VocabularyReviewItem:
-        return VocabularyReviewItem(
-            id=model.id,
-            word=model.word,
-            translation=model.translation,
-            context=model.context,
-            category=model.category,
-            source_module=model.source_module,
-            review_reason=model.review_reason,
-            linked_mistake_subtype=model.linked_mistake_subtype,
-            linked_mistake_title=model.linked_mistake_title,
-            learned_status=model.learned_status.value,
-            repetition_stage=model.repetition_stage,
-            due_now=VocabularyRepository._is_due(model),
-        )
-
-    @staticmethod
-    def _build_capture(mistake: ExtractedMistake) -> dict[str, str] | None:
-        if mistake.subtype == "irregular-past":
-            corrected = VocabularyRepository._extract_irregular_past_target(
-                original_text=mistake.original_text,
-                corrected_text=mistake.corrected_text,
-            )
-            if not corrected:
-                return None
-            return {
-                "word": corrected.lower(),
-                "translation": "неправильная форма прошедшего времени",
-                "context": f"{mistake.original_text} -> {mistake.corrected_text}",
-                "category": "mistake_irregular_verbs",
-                "source_module": mistake.source_module,
-                "review_reason": "Captured from repeated irregular past correction.",
-                "linked_mistake_subtype": mistake.subtype,
-                "linked_mistake_title": "Irregular Past Forms",
-            }
-
-        if mistake.subtype == "subject-verb-agreement":
-            corrected = VocabularyRepository._extract_agreement_target(mistake.corrected_text)
-            if not corrected:
-                return None
-            return {
-                "word": corrected.lower(),
-                "translation": "согласование подлежащего и сказуемого",
-                "context": f"{mistake.original_text} -> {mistake.corrected_text}",
-                "category": "mistake_agreement_patterns",
-                "source_module": mistake.source_module,
-                "review_reason": "Captured from subject-verb agreement correction.",
-                "linked_mistake_subtype": mistake.subtype,
-                "linked_mistake_title": "Subject-Verb Agreement",
-            }
-
-        if mistake.subtype == "comparative-form":
-            corrected = VocabularyRepository._extract_first_token(mistake.corrected_text)
-            if not corrected:
-                return None
-            return {
-                "word": corrected.lower(),
-                "translation": "правильная сравнительная форма",
-                "context": f"{mistake.original_text} -> {mistake.corrected_text}",
-                "category": "mistake_comparatives",
-                "source_module": mistake.source_module,
-                "review_reason": "Captured from comparative form correction.",
-                "linked_mistake_subtype": mistake.subtype,
-                "linked_mistake_title": "Comparative Forms",
-            }
-
-        if mistake.subtype == "feedback-language":
-            phrase = VocabularyRepository._extract_feedback_phrase(mistake.corrected_text)
-            if not phrase:
-                return None
-            return {
-                "word": phrase,
-                "translation": "мягкая формулировка для professional feedback",
-                "context": f"{mistake.original_text} -> {mistake.corrected_text}",
-                "category": "mistake_feedback_language",
-                "source_module": mistake.source_module,
-                "review_reason": "Captured from professional feedback phrasing correction.",
-                "linked_mistake_subtype": mistake.subtype,
-                "linked_mistake_title": "Feedback language for workshops",
-            }
-
-        if mistake.subtype == "tense-choice":
-            phrase = VocabularyRepository._extract_present_perfect_phrase(mistake.corrected_text)
-            if not phrase:
-                return None
-            return {
-                "word": phrase,
-                "translation": "паттерн Present Perfect для опыта и периода с since",
-                "context": f"{mistake.original_text} -> {mistake.corrected_text}",
-                "category": "mistake_tense_patterns",
-                "source_module": mistake.source_module,
-                "review_reason": "Captured from tense correction for active reuse.",
-                "linked_mistake_subtype": mistake.subtype,
-                "linked_mistake_title": "Present Perfect vs Past Simple",
-            }
-
-        return None
-
-    @staticmethod
-    def _extract_first_token(text: str) -> str | None:
-        match = re.search(r"\b([A-Za-z']+)\b", text)
-        return match.group(1) if match else None
-
-    @staticmethod
-    def _extract_irregular_past_target(original_text: str, corrected_text: str) -> str | None:
-        original_tokens = re.findall(r"[A-Za-z']+", original_text.lower())
-        corrected_tokens = re.findall(r"[A-Za-z']+", corrected_text)
-        for token in corrected_tokens:
-            if token.lower() not in original_tokens:
-                return token
-        return VocabularyRepository._extract_first_token(corrected_text)
-
-    @staticmethod
-    def _extract_agreement_target(text: str) -> str | None:
-        match = re.search(r"\b(?:people|participants|managers|trainers|teams)\s+([A-Za-z']+)\b", text, flags=re.IGNORECASE)
-        return match.group(1) if match else VocabularyRepository._extract_first_token(text)
-
-    @staticmethod
-    def _extract_feedback_phrase(text: str) -> str | None:
-        lowered = " ".join(text.split())
-        return lowered[:80] if lowered else None
-
-    @staticmethod
-    def _extract_present_perfect_phrase(text: str) -> str | None:
-        match = re.search(
-            r"\b(?:I|We|They|He|She)\s+(?:have|has)\s+[A-Za-z']+(?:\s+[A-Za-z']+){0,4}",
-            text,
-            flags=re.IGNORECASE,
-        )
-        if match:
-            return match.group(0)
-        compact = " ".join(text.split())
-        return compact[:80] if compact else None
+            return [to_review_item(model) for model in saved]

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-import re
-from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.user_account import UserAccount as UserAccountModel
 from app.repositories.account_mappers import to_user_account
+from app.repositories.user_account_policies import build_login_candidates, normalize_login_candidate
+from app.repositories.user_account_queries import (
+    find_conflicting_email,
+    find_conflicting_login,
+    find_taken_logins,
+    find_user_by_email,
+    find_user_by_login,
+)
 from app.schemas.user_account import LoginAvailabilityResponse, UserAccount, UserAccountUpdateRequest
 
 
@@ -18,22 +23,6 @@ class UserIdentityConflictError(ValueError):
 
 class UserAuthenticationError(ValueError):
     pass
-
-
-def _normalized_identity(value: str) -> str:
-    return value.strip().lower()
-
-
-def _normalize_login_candidate(value: str) -> str:
-    compact = re.sub(r"\s+", "_", value.strip().lower())
-    compact = re.sub(r"[^\w-]", "", compact, flags=re.UNICODE)
-    compact = re.sub(r"_+", "_", compact).strip("_-")
-    return compact or "learner"
-
-
-def _compose_login_candidate(base: str, suffix: str) -> str:
-    clipped_base = base[: max(1, 64 - len(suffix))]
-    return f"{clipped_base}{suffix}"
 
 
 class UserAccountRepository:
@@ -54,8 +43,8 @@ class UserAccountRepository:
 
     def sign_in(self, login: str, email: str) -> UserAccount:
         with self._session_factory() as session:
-            login_model = self._find_by_login(session, login)
-            email_model = self._find_by_email(session, email)
+            login_model = find_user_by_login(session, login)
+            email_model = find_user_by_email(session, email)
 
             if login_model and email_model and login_model.id == email_model.id:
                 return to_user_account(login_model)
@@ -67,13 +56,13 @@ class UserAccountRepository:
         normalized_email = email.strip() if email else None
 
         with self._session_factory() as session:
-            login_model = self._find_by_login(session, normalized_login)
-            email_model = self._find_by_email(session, normalized_email) if normalized_email else None
+            login_model = find_user_by_login(session, normalized_login)
+            email_model = find_user_by_email(session, normalized_email) if normalized_email else None
 
             if login_model is None:
                 return LoginAvailabilityResponse(
                     login=normalized_login,
-                    normalized_login=_normalize_login_candidate(normalized_login),
+                    normalized_login=normalize_login_candidate(normalized_login),
                     available=True,
                     status="available",
                 )
@@ -81,14 +70,14 @@ class UserAccountRepository:
             if email_model and email_model.id == login_model.id:
                 return LoginAvailabilityResponse(
                     login=normalized_login,
-                    normalized_login=_normalize_login_candidate(normalized_login),
+                    normalized_login=normalize_login_candidate(normalized_login),
                     available=True,
                     status="existing_account",
                 )
 
             return LoginAvailabilityResponse(
                 login=normalized_login,
-                normalized_login=_normalize_login_candidate(normalized_login),
+                normalized_login=normalize_login_candidate(normalized_login),
                 available=False,
                 status="taken",
                 suggestions=self._build_login_suggestions(session, normalized_login),
@@ -100,18 +89,8 @@ class UserAccountRepository:
             if model is None:
                 raise LookupError(user_id)
 
-            conflicting_login = session.scalar(
-                select(UserAccountModel).where(
-                    func.lower(UserAccountModel.login) == _normalized_identity(payload.login),
-                    UserAccountModel.id != user_id,
-                )
-            )
-            conflicting_email = session.scalar(
-                select(UserAccountModel).where(
-                    func.lower(UserAccountModel.email) == _normalized_identity(payload.email),
-                    UserAccountModel.id != user_id,
-                )
-            )
+            conflicting_login = find_conflicting_login(session, user_id, payload.login)
+            conflicting_email = find_conflicting_email(session, user_id, payload.email)
             if conflicting_login or conflicting_email:
                 raise UserIdentityConflictError("Login or email is already used by another user.")
 
@@ -123,8 +102,8 @@ class UserAccountRepository:
 
     @staticmethod
     def _resolve_model(session: Session, login: str, email: str) -> UserAccountModel:
-        by_login = UserAccountRepository._find_by_login(session, login)
-        by_email = UserAccountRepository._find_by_email(session, email)
+        by_login = find_user_by_login(session, login)
+        by_email = find_user_by_email(session, email)
 
         if by_login and by_email and by_login.id != by_email.id:
             raise UserIdentityConflictError("Login and email belong to different users.")
@@ -147,53 +126,9 @@ class UserAccountRepository:
         return model
 
     @staticmethod
-    def _find_by_login(session: Session, login: str | None) -> UserAccountModel | None:
-        if not login:
-            return None
-        return session.scalar(
-            select(UserAccountModel).where(func.lower(UserAccountModel.login) == _normalized_identity(login))
-        )
-
-    @staticmethod
-    def _find_by_email(session: Session, email: str | None) -> UserAccountModel | None:
-        if not email:
-            return None
-        return session.scalar(
-            select(UserAccountModel).where(func.lower(UserAccountModel.email) == _normalized_identity(email))
-        )
-
-    @staticmethod
     def _build_login_suggestions(session: Session, login: str, limit: int = 4) -> list[str]:
-        base = _normalize_login_candidate(login)
-        suffixes = [
-            "_1",
-            "_2",
-            "_3",
-            "_7",
-            f"_{datetime.now(timezone.utc).year}",
-            str(datetime.now(timezone.utc).year)[-2:],
-            "_pro",
-            "_study",
-        ]
-
-        candidates: list[str] = []
-        seen: set[str] = set()
-        for suffix in suffixes:
-            candidate = _compose_login_candidate(base, suffix)
-            lowered = candidate.lower()
-            if lowered == base.lower() or lowered in seen:
-                continue
-            seen.add(lowered)
-            candidates.append(candidate)
-
-        taken_candidates = {
-            row[0]
-            for row in session.execute(
-                select(func.lower(UserAccountModel.login)).where(
-                    func.lower(UserAccountModel.login).in_([candidate.lower() for candidate in candidates])
-                )
-            )
-        }
+        candidates = build_login_candidates(login)
+        taken_candidates = find_taken_logins(session, candidates)
 
         available_candidates = [
             candidate for candidate in candidates if candidate.lower() not in taken_candidates and candidate.lower() != login.lower()

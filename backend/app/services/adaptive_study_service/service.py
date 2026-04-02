@@ -17,19 +17,11 @@ from app.schemas.adaptive import (
 from app.schemas.lesson import LessonRunState
 from app.schemas.mistake import WeakSpot
 from app.schemas.profile import UserProfile
-from app.services.adaptive_study_service.loop_copy import (
-    build_generation_rationale,
-    build_headline,
-    build_summary,
+from app.services.adaptive_study_service.loop_builder import (
+    build_adaptive_study_loop,
+    derive_generation_rationale,
 )
-from app.services.adaptive_study_service.loop_heuristics import (
-    build_mistake_resolution,
-    detect_listening_focus,
-)
-from app.services.adaptive_study_service.loop_rotation import (
-    build_module_rotation,
-    build_next_steps,
-)
+from app.services.adaptive_study_service.vocabulary_hub_builder import build_vocabulary_hub
 from app.services.recommendation_service.service import RecommendationService
 
 
@@ -62,61 +54,24 @@ class AdaptiveStudyService:
         due_vocabulary = self._vocabulary_repository.list_due_items(profile.id, limit=4)
         vocabulary_summary = self._vocabulary_repository.get_summary(profile.id)
         vocabulary_backlinks = self._vocabulary_repository.list_mistake_backlinks(profile.id, limit=4)
-        mistake_resolution = build_mistake_resolution(mistakes, vocabulary_backlinks)
-        listening_focus = detect_listening_focus(progress, weak_spots)
-        module_rotation = build_module_rotation(
-            recommendation_lesson_type=recommendation.lesson_type,
-            recommendation_focus_area=recommendation.focus_area,
-            recent_lessons=recent_lessons,
-            due_vocabulary=due_vocabulary,
-            listening_focus=listening_focus,
-            mistake_resolution=mistake_resolution,
-        )
 
-        focus_area = weak_spots[0].category if weak_spots else recommendation.focus_area
-        headline = build_headline(profile.name, focus_area)
-        summary = build_summary(
-            weak_spots=weak_spots,
-            due_vocabulary=due_vocabulary,
-            minutes_completed_today=progress.minutes_completed_today if progress else 0,
-            listening_focus=listening_focus,
-            vocabulary_summary=vocabulary_summary,
-        )
-        generation_rationale = build_generation_rationale(
-            recommendation_lesson_type=recommendation.lesson_type,
-            weak_spots=weak_spots,
-            vocabulary_summary=vocabulary_summary,
-            listening_focus=listening_focus,
-            mistake_resolution=mistake_resolution,
-        )
-
-        return AdaptiveStudyLoop(
-            focus_area=focus_area,
-            headline=headline,
-            summary=summary,
+        return build_adaptive_study_loop(
+            profile=profile,
             recommendation=recommendation,
             weak_spots=weak_spots,
+            mistakes=mistakes,
+            progress=progress,
+            recent_lessons=recent_lessons,
             due_vocabulary=due_vocabulary,
-            vocabulary_backlinks=vocabulary_backlinks,
-            mistake_resolution=mistake_resolution,
-            module_rotation=module_rotation,
             vocabulary_summary=vocabulary_summary,
-            listening_focus=listening_focus,
-            generation_rationale=generation_rationale,
-            next_steps=build_next_steps(
-                recommendation_lesson_type=recommendation.lesson_type,
-                focus_area=focus_area,
-                due_vocabulary=due_vocabulary,
-                listening_focus=listening_focus,
-                module_rotation=module_rotation,
-            ),
+            vocabulary_backlinks=vocabulary_backlinks,
         )
 
     def review_vocabulary(self, user_id: str, item_id: str, successful: bool) -> VocabularyReviewItem | None:
         return self._vocabulary_repository.review_item(user_id, item_id, successful)
 
     def get_vocabulary_hub(self, user_id: str) -> VocabularyHub:
-        return VocabularyHub(
+        return build_vocabulary_hub(
             summary=self._vocabulary_repository.get_summary(user_id),
             due_items=self._vocabulary_repository.list_due_items(user_id, limit=12),
             recent_items=self._vocabulary_repository.list_recent_items(user_id, limit=10),
@@ -152,7 +107,7 @@ class AdaptiveStudyService:
         listening_focus: str | None,
         mistake_resolution: list[MistakeResolutionSignal],
     ) -> list[str]:
-        return build_generation_rationale(
+        return derive_generation_rationale(
             recommendation_lesson_type=recommendation_lesson_type,
             weak_spots=weak_spots,
             vocabulary_summary=vocabulary_summary,
