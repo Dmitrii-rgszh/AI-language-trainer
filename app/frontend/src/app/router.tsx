@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { routes } from "../shared/constants/routes";
+import { WelcomePage } from "../pages/WelcomePage";
 import { AppShell } from "../widgets/AppShell";
+import { RouteErrorScreen } from "./RouteErrorScreen";
 
 function lazyPage<T extends Record<string, unknown>>(load: () => Promise<T>, exportName: keyof T) {
   return async () => {
@@ -13,9 +15,10 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppShell />,
+    errorElement: <RouteErrorScreen />,
     children: [
       { index: true, element: <Navigate to={routes.welcome} replace /> },
-      { path: routes.welcome, lazy: lazyPage(() => import("../pages/WelcomePage"), "WelcomePage") },
+      { path: routes.welcome, element: <WelcomePage /> },
       { path: routes.onboarding, lazy: lazyPage(() => import("../pages/OnboardingPage"), "OnboardingPage") },
       { path: routes.dashboard, lazy: lazyPage(() => import("../pages/DashboardPage"), "DashboardPage") },
       { path: routes.activity, lazy: lazyPage(() => import("../pages/ActivityPage"), "ActivityPage") },

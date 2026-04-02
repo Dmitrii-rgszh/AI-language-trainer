@@ -14,3 +14,7 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 backend/trainer.db
 /trainer.db
+UX_books/
+docs/ux-books-kb/
+app/frontend/*.log
+backend/*.log

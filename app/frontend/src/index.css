@@ -540,6 +540,290 @@ a {
   animation: onboarding-fade-up 420ms ease both;
 }
 
+.proof-lesson-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 34px;
+  min-height: clamp(26.75rem, 47vh, 30.5rem);
+  padding: 1.85rem 2rem 1.8rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 245, 239, 0.78)),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 52%);
+  box-shadow:
+    0 22px 54px rgba(151, 168, 181, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(16px);
+}
+
+.proof-lesson-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.proof-lesson-progress__track {
+  flex: 1 1 auto;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(221, 209, 191, 0.72);
+}
+
+.proof-lesson-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.92), rgba(12, 148, 139, 0.74));
+  transition: width 500ms ease;
+}
+
+.proof-lesson-progress__label {
+  flex: 0 0 auto;
+  min-width: 3.8rem;
+  text-align: right;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #5a6b79;
+}
+
+.proof-lesson-step {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(1.2rem, 3vh, 1.9rem);
+  min-height: 0;
+  margin-top: 2.2rem;
+}
+
+.proof-lesson-step__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.proof-lesson-step__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 42rem;
+}
+
+.proof-lesson-step__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+.proof-lesson-step__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #c96b43;
+}
+
+.proof-lesson-step__title {
+  max-width: 42rem;
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  color: #1d2a38;
+}
+
+.proof-lesson-step__description {
+  max-width: 38rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.95;
+  color: #5a6b79;
+}
+
+.proof-lesson-step__content {
+  width: 100%;
+  max-width: 44rem;
+  margin-top: 0.1rem;
+}
+
+.proof-lesson-step__actions {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.proof-lesson-step__secondary {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.proof-lesson-step__helper {
+  max-width: 36rem;
+  font-size: 0.92rem;
+  line-height: 1.8;
+  color: #6a7987;
+}
+
+.proof-lesson-primary-button {
+  width: 100%;
+  min-height: 3.5rem;
+  border-radius: 24px;
+  padding-inline: 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  box-shadow: 0 16px 34px rgba(15, 118, 110, 0.16);
+}
+
+.proof-lesson-secondary-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #6a7987;
+  text-align: left;
+  transition: color 180ms ease;
+}
+
+.proof-lesson-secondary-action:hover {
+  color: #1d2a38;
+}
+
+.proof-lesson-stack,
+.proof-lesson-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.proof-lesson-stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.proof-lesson-surface {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 24px;
+  padding: 1.4rem;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.proof-lesson-surface--accent {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.07);
+}
+
+.proof-lesson-surface--warm {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: #fffaf4;
+}
+
+.proof-lesson-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.58rem 0.88rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  color: #60707e;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+  backdrop-filter: blur(8px);
+}
+
+.proof-lesson-trust-badge__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: rgba(15, 118, 110, 0.72);
+  flex: 0 0 auto;
+}
+
+.proof-lesson-trust-badge__icon-svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+.proof-lesson-section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #5a6b79;
+}
+
+.proof-lesson-section-label--accent {
+  color: #c96b43;
+}
+
+.proof-lesson-key-text {
+  margin-top: 0.85rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.75rem;
+  letter-spacing: -0.02em;
+  color: #1d2a38;
+}
+
+.proof-lesson-supporting-copy {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.9;
+  color: #5a6b79;
+}
+
+.proof-lesson-list-item {
+  border-radius: 18px;
+  background: #fffaf4;
+  padding: 1rem 1.08rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.8;
+  color: #1d2a38;
+}
+
+.proof-lesson-textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1.35rem;
+  font-size: 1rem;
+  line-height: 1.75rem;
+  color: #1d2a38;
+  outline: none;
+  resize: vertical;
+  transition: border-color 180ms ease;
+}
+
+.proof-lesson-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.proof-lesson-textarea:focus {
+  border-color: rgba(15, 118, 110, 0.45);
+}
+
+.proof-lesson-preview-text {
+  margin-top: 0.85rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.75rem;
+  color: #1d2a38;
+}
+
+
 .onboarding-stagger-item {
   animation: onboarding-fade-up 420ms ease both;
 }
@@ -883,5 +1167,37 @@ a {
   .welcome-scroll-cue__arrow-shell {
     width: 36px;
     height: 36px;
+  }
+
+  .proof-lesson-card {
+    min-height: auto;
+    padding: 1.4rem 1.25rem 1.45rem;
+    border-radius: 28px;
+  }
+
+  .proof-lesson-progress {
+    gap: 0.75rem;
+  }
+
+  .proof-lesson-progress__label {
+    min-width: 3.2rem;
+    font-size: 0.86rem;
+  }
+
+  .proof-lesson-step {
+    gap: 1.1rem;
+    margin-top: 1.9rem;
+  }
+
+  .proof-lesson-step__body {
+    gap: 1rem;
+  }
+
+  .proof-lesson-step__header {
+    gap: 0.72rem;
+  }
+
+  .proof-lesson-surface {
+    padding: 1.05rem;
   }
 }

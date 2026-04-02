@@ -1,17 +1,22 @@
 @echo off
-setlocal EnableDelayedExpansion
+setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
-set "BACKEND_PORT=8000"
-set "FRONTEND_PORT=4173"
+if "%BACKEND_PORT%"=="" set "BACKEND_PORT=8000"
+if "%FRONTEND_PORT%"=="" set "FRONTEND_PORT=5173"
+set "LEGACY_FRONTEND_PORT=4173"
 
 echo ==========================================
 echo AI English Trainer Pro - Local Stop
 echo ==========================================
 echo.
 
-call :kill_port %BACKEND_PORT% "backend"
-call :kill_port %FRONTEND_PORT% "frontend"
+call :kill_port "%BACKEND_PORT%" "backend"
+call :kill_port "%FRONTEND_PORT%" "frontend"
+
+if /I not "%FRONTEND_PORT%"=="%LEGACY_FRONTEND_PORT%" (
+    call :kill_port "%LEGACY_FRONTEND_PORT%" "frontend legacy"
+)
 
 echo.
 echo [INFO] Stop routine finished.
@@ -23,24 +28,21 @@ exit /b 0
 :kill_port
 set "TARGET_PORT=%~1"
 set "TARGET_LABEL=%~2"
-set "FOUND_PID="
+set "FOUND_ANY=0"
 
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:":%TARGET_PORT% .*LISTENING"') do (
-    set "FOUND_PID=%%P"
-    goto :kill_found
+    set "FOUND_ANY=1"
+    echo [INFO] Stopping %TARGET_LABEL% on port %TARGET_PORT% ^(PID %%P^)^...
+    taskkill /PID %%P /T /F >nul 2>&1
+    if errorlevel 1 (
+        echo [WARN] Could not stop PID %%P on port %TARGET_PORT%.
+    ) else (
+        echo [OK] %TARGET_LABEL% process on port %TARGET_PORT% stopped.
+    )
 )
 
-echo [INFO] No %TARGET_LABEL% process found on port %TARGET_PORT%.
-goto :eof
-
-:kill_found
-echo [INFO] Stopping %TARGET_LABEL% on port %TARGET_PORT% ^(PID !FOUND_PID!^)^...
-taskkill /PID !FOUND_PID! /T /F >nul 2>&1
-
-if errorlevel 1 (
-    echo [WARN] Could not stop PID !FOUND_PID! on port %TARGET_PORT%.
-) else (
-    echo [OK] %TARGET_LABEL% stopped.
+if "!FOUND_ANY!"=="0" (
+    echo [INFO] No %TARGET_LABEL% process found on port %TARGET_PORT%.
 )
 
 goto :eof
