@@ -19,11 +19,13 @@ const HERO_WHEEL_DEBOUNCE_MS = 180;
 const HERO_TRACKPAD_DEBOUNCE_MS = 260;
 const HERO_WHEEL_COOLDOWN_MS = 1100;
 const HERO_WHEEL_MAX_SCROLL_Y = 56;
+const HERO_RETURN_MIN_SCROLL_Y = 84;
+const HERO_RETURN_TOP_TOLERANCE = 112;
 const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
 const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
 
 const heroPrimaryCtaLabel = {
-  ru: "Собрать первый урок",
+  ru: "Просто попробовать урок",
   en: "Build the first lesson",
 } as const;
 
@@ -45,6 +47,7 @@ export function WelcomeScreen() {
   const heroSectionRef = useRef<HTMLElement | null>(null);
   const onboardingSectionRef = useRef<HTMLElement | null>(null);
   const heroWheelAccumulatedDeltaRef = useRef(0);
+  const heroWheelDirectionRef = useRef<1 | -1 | 0>(0);
   const heroWheelDebounceRef = useRef<number | null>(null);
   const heroWheelCooldownUntilRef = useRef(0);
 
@@ -84,12 +87,14 @@ export function WelcomeScreen() {
 
   useEffect(() => {
     const heroNode = heroSectionRef.current;
-    if (!heroNode) {
+    const onboardingNode = onboardingSectionRef.current;
+    if (!heroNode || !onboardingNode) {
       return;
     }
 
     const resetWheelIntent = () => {
       heroWheelAccumulatedDeltaRef.current = 0;
+      heroWheelDirectionRef.current = 0;
 
       if (heroWheelDebounceRef.current !== null) {
         window.clearTimeout(heroWheelDebounceRef.current);
@@ -97,23 +102,26 @@ export function WelcomeScreen() {
       }
     };
 
-    const getHeroPrimaryScrollTarget = () =>
-      document.getElementById(HERO_PRIMARY_SCROLL_TARGET_ID) ?? onboardingSectionRef.current;
-
-    const triggerHeroSectionAdvance = () => {
-      const targetSection = getHeroPrimaryScrollTarget();
-      if (!targetSection) {
-        return;
-      }
-
-      targetSection.scrollIntoView({
+    const scrollToViewportTop = (top: number) => {
+      window.scrollTo({
+        top: Math.max(0, top),
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "start",
       });
     };
 
+    const getSectionViewportTop = (node: HTMLElement) =>
+      window.scrollY + node.getBoundingClientRect().top;
+
+    const triggerHeroSectionAdvance = () => {
+      scrollToViewportTop(getSectionViewportTop(onboardingNode));
+    };
+
+    const triggerHeroSectionReturn = () => {
+      scrollToViewportTop(getSectionViewportTop(heroNode));
+    };
+
     const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX) || event.deltaY <= 0) {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX) || event.deltaY === 0) {
         resetWheelIntent();
         return;
       }
@@ -128,12 +136,20 @@ export function WelcomeScreen() {
       }
 
       const heroRect = heroNode.getBoundingClientRect();
+      const onboardingRect = onboardingNode.getBoundingClientRect();
       const heroIsPrimaryViewport =
         window.scrollY <= HERO_WHEEL_MAX_SCROLL_Y &&
         heroRect.top <= 8 &&
         heroRect.bottom >= window.innerHeight * 0.55;
+      const onboardingIsPrimaryViewport =
+        window.scrollY >= HERO_RETURN_MIN_SCROLL_Y &&
+        onboardingRect.top <= HERO_RETURN_TOP_TOLERANCE &&
+        onboardingRect.bottom >= window.innerHeight * 0.45;
+      const direction = event.deltaY > 0 ? 1 : -1;
+      const movingDownFromHero = direction === 1 && heroIsPrimaryViewport;
+      const movingUpFromOnboarding = direction === -1 && onboardingIsPrimaryViewport;
 
-      if (!heroIsPrimaryViewport) {
+      if (!movingDownFromHero && !movingUpFromOnboarding) {
         resetWheelIntent();
         return;
       }
@@ -151,8 +167,13 @@ export function WelcomeScreen() {
         ? HERO_TRACKPAD_DEBOUNCE_MS
         : HERO_WHEEL_DEBOUNCE_MS;
       const normalizedDelta = isLikelyTrackpad
-        ? Math.max(0, event.deltaY - HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD) * 0.9
-        : event.deltaY;
+        ? Math.max(0, Math.abs(event.deltaY) - HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD) * 0.9
+        : Math.abs(event.deltaY);
+
+      if (heroWheelDirectionRef.current !== direction) {
+        heroWheelAccumulatedDeltaRef.current = 0;
+        heroWheelDirectionRef.current = direction;
+      }
 
       heroWheelAccumulatedDeltaRef.current += normalizedDelta;
 
@@ -172,13 +193,18 @@ export function WelcomeScreen() {
       event.preventDefault();
       heroWheelCooldownUntilRef.current = now + HERO_WHEEL_COOLDOWN_MS;
       resetWheelIntent();
-      triggerHeroSectionAdvance();
+      if (movingDownFromHero) {
+        triggerHeroSectionAdvance();
+        return;
+      }
+
+      triggerHeroSectionReturn();
     };
 
-    heroNode.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      heroNode.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("wheel", handleWheel);
       resetWheelIntent();
     };
   }, []);
@@ -204,9 +230,13 @@ export function WelcomeScreen() {
   const handleHeroPrimaryAction = () => {
     const targetSection = getHeroPrimaryScrollTarget();
 
-    targetSection?.scrollIntoView({
+    if (!targetSection) {
+      return;
+    }
+
+    window.scrollTo({
+      top: window.scrollY + targetSection.getBoundingClientRect().top,
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
     });
   };
 

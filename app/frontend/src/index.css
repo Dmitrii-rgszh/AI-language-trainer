@@ -816,12 +816,53 @@ a {
 }
 
 .proof-lesson-preview-text {
-  margin-top: 0.85rem;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.75rem;
-  color: #1d2a38;
-}
+    margin-top: 0.85rem;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.75rem;
+    color: #1d2a38;
+  }
+
+  .proof-lesson-voice-surface {
+    padding: 1rem 1.1rem;
+  }
+
+  .proof-lesson-voice-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #4e6070;
+  }
+
+  .proof-lesson-voice-status__dot {
+    width: 0.72rem;
+    height: 0.72rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.22);
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.24);
+  }
+
+  .proof-lesson-voice-status__dot--live {
+    background: rgba(15, 118, 110, 0.88);
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.32);
+    animation: proof-lesson-voice-pulse 1.6s ease-out infinite;
+  }
+
+  @keyframes proof-lesson-voice-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.28);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px rgba(15, 118, 110, 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 rgba(15, 118, 110, 0);
+    }
+  }
 
 
 .onboarding-stagger-item {

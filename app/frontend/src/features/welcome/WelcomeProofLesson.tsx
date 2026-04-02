@@ -35,6 +35,14 @@ type ProofLessonTextComposerProps = {
   onSubmit: () => void;
 };
 
+type ProofLessonVoiceComposerProps = {
+  value: string;
+  isRecording: boolean;
+  isProcessing: boolean;
+  statusLabel: string;
+  previewLabel: string;
+};
+
 const proofLessonStepCopy = {
   ru: {
     introEyebrow: "Быстрый старт в Verba",
@@ -162,6 +170,46 @@ function ProofLessonTextComposer({
   );
 }
 
+function ProofLessonVoiceComposer({
+  value,
+  isRecording,
+  isProcessing,
+  statusLabel,
+  previewLabel,
+}: ProofLessonVoiceComposerProps) {
+  return (
+    <div className="proof-lesson-composer">
+      <ProofLessonSurface className="proof-lesson-voice-surface">
+        <div className="proof-lesson-voice-status">
+          <span
+            className={cn(
+              "proof-lesson-voice-status__dot",
+              isRecording && "proof-lesson-voice-status__dot--live",
+            )}
+            aria-hidden="true"
+          />
+          <span>{statusLabel}</span>
+        </div>
+      </ProofLessonSurface>
+
+      {value.trim() ? (
+        <ProofLessonSurface tone="warm">
+          <ProofLessonSectionLabel>{previewLabel}</ProofLessonSectionLabel>
+          <div className="proof-lesson-preview-text">{value.trim()}</div>
+        </ProofLessonSurface>
+      ) : null}
+
+      {isProcessing ? (
+        <ProofLessonSurface tone="warm">
+          <div className="proof-lesson-supporting-copy">
+            {statusLabel}
+          </div>
+        </ProofLessonSurface>
+      ) : null}
+    </div>
+  );
+}
+
 function ProofLessonTrustBadge({ children }: { children: ReactNode }) {
   return (
     <div className="proof-lesson-trust-badge" aria-label={String(children)}>
@@ -195,6 +243,19 @@ export function WelcomeProofLesson({
         {lesson.attemptMessage ? (
           <ProofLessonSurface tone="warm">{lesson.attemptMessage}</ProofLessonSurface>
         ) : null}
+        <ProofLessonVoiceComposer
+          value={lesson.attemptAnswer}
+          isRecording={lesson.isVoiceRecording}
+          isProcessing={lesson.isVoiceProcessing}
+          statusLabel={
+            lesson.isVoiceProcessing
+              ? lesson.scenario.errors.networkRetry
+              : lesson.isVoiceRecording
+                ? lesson.scenario.firstAttempt.voiceRecordingCta
+                : lesson.scenario.firstAttempt.voiceStartCta
+          }
+          previewLabel={lesson.scenario.firstAttempt.saidLabel}
+        />
       </div>
     ) : (
       <div className="proof-lesson-stack">
@@ -223,6 +284,22 @@ export function WelcomeProofLesson({
 
       {lesson.retryMessage ? (
         <ProofLessonSurface tone="warm">{lesson.retryMessage}</ProofLessonSurface>
+      ) : null}
+
+      {lesson.retryInputMode === "voice" && lesson.voiceInputEnabled ? (
+        <ProofLessonVoiceComposer
+          value={lesson.retryAnswer}
+          isRecording={lesson.isVoiceRecording}
+          isProcessing={lesson.isVoiceProcessing}
+          statusLabel={
+            lesson.isVoiceProcessing
+              ? lesson.scenario.errors.networkRetry
+              : lesson.isVoiceRecording
+                ? lesson.scenario.retry.voiceRecordingCta
+                : lesson.scenario.retry.voiceStartCta
+          }
+          previewLabel={lesson.scenario.retry.saidLabel}
+        />
       ) : null}
 
       {lesson.retryInputMode === "text" ? (
@@ -305,8 +382,23 @@ export function WelcomeProofLesson({
         content: attemptContent,
         primaryAction:
           lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
-            <Button type="button" className="proof-lesson-primary-button">
-              {lesson.scenario.firstAttempt.voiceStartCta}
+            <Button
+              type="button"
+              onClick={() =>
+                void (lesson.isVoiceRecording
+                  ? lesson.stopVoiceRecording()
+                  : lesson.startVoiceRecording("attempt"))
+              }
+              disabled={lesson.isVoiceProcessing}
+              className="proof-lesson-primary-button"
+            >
+              {lesson.isVoiceProcessing
+                ? locale === "ru"
+                  ? "Обрабатываем..."
+                  : "Processing..."
+                : lesson.isVoiceRecording
+                  ? lesson.scenario.firstAttempt.voiceDoneCta
+                  : lesson.scenario.firstAttempt.voiceStartCta}
             </Button>
           ) : undefined,
         secondaryAction:
@@ -443,8 +535,23 @@ export function WelcomeProofLesson({
               {lesson.scenario.retry.primaryCta}
             </Button>
           ) : lesson.retryInputMode === "voice" && lesson.voiceInputEnabled ? (
-            <Button type="button" className="proof-lesson-primary-button">
-              {lesson.scenario.retry.voiceStartCta}
+            <Button
+              type="button"
+              onClick={() =>
+                void (lesson.isVoiceRecording
+                  ? lesson.stopVoiceRecording()
+                  : lesson.startVoiceRecording("retry"))
+              }
+              disabled={lesson.isVoiceProcessing}
+              className="proof-lesson-primary-button"
+            >
+              {lesson.isVoiceProcessing
+                ? locale === "ru"
+                  ? "Обрабатываем..."
+                  : "Processing..."
+                : lesson.isVoiceRecording
+                  ? lesson.scenario.retry.voiceDoneCta
+                  : lesson.scenario.retry.voiceStartCta}
             </Button>
           ) : undefined,
         secondaryAction:

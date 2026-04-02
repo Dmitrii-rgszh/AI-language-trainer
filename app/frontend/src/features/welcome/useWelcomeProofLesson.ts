@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiClient } from "../../shared/api/client";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { routes } from "../../shared/constants/routes";
 import { writeGuestIntent } from "./guest-intent";
@@ -11,7 +12,6 @@ import type {
 import { welcomeProofLessonScenarios } from "./welcomeProofLessonScenario";
 
 const WELCOME_PROOF_LESSON_NEXT_ROUTE = routes.onboarding;
-const WELCOME_PROOF_LESSON_VOICE_ENABLED = false;
 const WELCOME_PROOF_LESSON_MIN_WORDS = 3;
 const WELCOME_PROOF_LESSON_RESULT_DELAY_MS = 900;
 
@@ -25,6 +25,7 @@ type WelcomeProofLessonStep =
   | "result";
 
 type ProofLessonResponseMode = "text" | "voice";
+type WelcomeProofLessonVoiceTarget = "attempt" | "retry" | null;
 
 const WELCOME_PROOF_LESSON_STEPS: WelcomeProofLessonStep[] = [
   "intro",
@@ -114,9 +115,21 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     useState<ProofLessonResponseMode>("text");
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const [retrySuccessful, setRetrySuccessful] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const resultTimerRef = useRef<number | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const voiceTargetRef = useRef<WelcomeProofLessonVoiceTarget>(null);
   const scenario = scenarios[scenarioIndex] ?? scenarios[0];
   const currentStep = WELCOME_PROOF_LESSON_STEPS[stepIndex] ?? "intro";
+  const voiceInputEnabled =
+    typeof window !== "undefined" &&
+    window.isSecureContext &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getUserMedia === "function" &&
+    typeof MediaRecorder !== "undefined";
 
   const feedback = useMemo(() => {
     const userVersion =
@@ -159,6 +172,9 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     setSubmittedRetryMode("text");
     setRetryMessage(null);
     setRetrySuccessful(false);
+    setIsVoiceRecording(false);
+    setIsVoiceProcessing(false);
+    voiceTargetRef.current = null;
 
     if (!nextScenario) {
       setAttemptInputMode("voice");
@@ -175,6 +191,8 @@ export function useWelcomeProofLesson(locale: AppLocale) {
 
     return () => {
       clearResultTimer();
+      mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -194,7 +212,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
   }, [retrySuccessful]);
 
   function getResolvedMode(mode: WelcomeProofLessonInputMode) {
-    if (mode === "voice" && !WELCOME_PROOF_LESSON_VOICE_ENABLED) {
+    if (mode === "voice" && !voiceInputEnabled) {
       return "text";
     }
 
@@ -288,6 +306,136 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     resetFlow(nextScenarioIndex);
   }
 
+  function stopMediaTracks() {
+    mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current = null;
+  }
+
+  async function startVoiceRecording(target: Exclude<WelcomeProofLessonVoiceTarget, null>) {
+    if (isVoiceRecording || isVoiceProcessing) {
+      return;
+    }
+
+    const targetInputMode = target === "attempt" ? attemptInputMode : retryInputMode;
+    if (targetInputMode !== "voice") {
+      return;
+    }
+
+    if (!voiceInputEnabled) {
+      const fallbackMessage = scenario.errors.micUnavailable;
+      if (target === "attempt") {
+        setAttemptInputMode("text");
+        setAttemptMessage(fallbackMessage);
+      } else {
+        setRetryInputMode("text");
+        setRetryMessage(fallbackMessage);
+      }
+      return;
+    }
+
+    recordedChunksRef.current = [];
+    voiceTargetRef.current = target;
+
+    if (target === "attempt") {
+      setAttemptMessage(null);
+      setAttemptAnswer("");
+    } else {
+      setRetryMessage(null);
+      setRetryAnswer("");
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+      mediaRecorder.start();
+      setIsVoiceRecording(true);
+    } catch (error) {
+      voiceTargetRef.current = null;
+      const fallbackMessage =
+        error instanceof Error && error.message ? error.message : scenario.errors.micUnavailable;
+      if (target === "attempt") {
+        setAttemptInputMode("text");
+        setAttemptMessage(fallbackMessage);
+      } else {
+        setRetryInputMode("text");
+        setRetryMessage(fallbackMessage);
+      }
+    }
+  }
+
+  async function stopVoiceRecording() {
+    const mediaRecorder = mediaRecorderRef.current;
+    const target = voiceTargetRef.current;
+    if (!mediaRecorder || !target) {
+      return;
+    }
+
+    setIsVoiceProcessing(true);
+
+    const recordedBlob = await new Promise<Blob>((resolve) => {
+      mediaRecorder.onstop = () => {
+        resolve(
+          new Blob(recordedChunksRef.current, {
+            type: mediaRecorder.mimeType || "audio/webm",
+          }),
+        );
+      };
+      mediaRecorder.stop();
+    });
+
+    stopMediaTracks();
+    setIsVoiceRecording(false);
+
+    try {
+      const response = await apiClient.transcribeSpeech(recordedBlob);
+      const transcript = response.transcript.trim();
+      if (!transcript) {
+        throw new Error(scenario.errors.recognitionFailed);
+      }
+
+      if (target === "attempt") {
+        setAttemptAnswer(transcript);
+        setAttemptMessage(null);
+        setSubmittedAttemptAnswer(transcript);
+        setSubmittedAttemptMode("voice");
+        setStepIndex(3);
+      } else {
+        const successful =
+          matchesAcceptedAnswer(transcript, scenario.retry.acceptedAnswers) ||
+          (normalizeAnswer(transcript).includes("i'd like") &&
+            normalizeAnswer(transcript).includes("tea") &&
+            normalizeAnswer(transcript).includes("without") &&
+            normalizeAnswer(transcript).includes("milk"));
+
+        setRetryAnswer(transcript);
+        setRetryMessage(successful ? null : scenario.errors.recognitionFailed);
+        setSubmittedRetryAnswer(transcript);
+        setSubmittedRetryMode("voice");
+        setRetrySuccessful(successful);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message ? error.message : scenario.errors.networkRetry;
+      if (target === "attempt") {
+        setAttemptMessage(message);
+      } else {
+        setRetryMessage(message);
+      }
+    } finally {
+      voiceTargetRef.current = null;
+      setIsVoiceProcessing(false);
+    }
+  }
+
   return {
     attemptAnswer,
     attemptInputMode,
@@ -315,7 +463,9 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     setAttemptAnswer,
     setRetryAnswer,
     showAnotherExample,
+    startVoiceRecording,
     startLesson: () => setStepIndex(1),
+    stopVoiceRecording,
     stepIndex,
     submittedAttemptAnswer,
     submittedAttemptMode,
@@ -324,6 +474,8 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     submitFirstAttempt,
     submitRetry,
     totalSteps: WELCOME_PROOF_LESSON_STEPS.length,
-    voiceInputEnabled: WELCOME_PROOF_LESSON_VOICE_ENABLED,
+    voiceInputEnabled,
+    isVoiceProcessing,
+    isVoiceRecording,
   };
 }

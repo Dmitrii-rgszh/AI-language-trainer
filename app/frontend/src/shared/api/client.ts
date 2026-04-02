@@ -262,4 +262,13 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  transcribeSpeech: (audio: Blob) => {
+    const formData = new FormData();
+    formData.append("audio", audio, "welcome-proof-lesson.webm");
+
+    return request<{ transcript: string }>("/api/voice/transcribe", {
+      method: "POST",
+      body: formData,
+    });
+  },
 };
