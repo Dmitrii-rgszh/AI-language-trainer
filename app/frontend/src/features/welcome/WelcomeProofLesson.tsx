@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { Button } from "../../shared/ui/Button";
 import { cn } from "../../shared/utils/cn";
+import { WelcomeAiTutorCue } from "./WelcomeAiTutorCue";
 import { useWelcomeProofLesson } from "./useWelcomeProofLesson";
 import { WelcomeProofLessonStepLayout } from "./WelcomeProofLessonStepLayout";
 
@@ -15,6 +16,7 @@ type WelcomeProofLessonStepView = {
   title: string;
   description?: string;
   content?: ReactNode;
+  contentClassName?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
   helperText?: ReactNode;
@@ -355,6 +357,16 @@ export function WelcomeProofLesson({
         eyebrow: lesson.scenario.situation.label,
         title: lesson.scenario.situation.title,
         description: lesson.scenario.situation.description,
+        contentClassName: "proof-lesson-step__content--scene",
+        content: (
+          <WelcomeAiTutorCue
+            isVisible={isVisible}
+            locale={locale}
+            label={lesson.scenario.situation.coachLabel}
+            message={lesson.scenario.situation.coachPrompt}
+            replayCta={lesson.scenario.situation.coachReplayCta}
+          />
+        ),
         primaryAction: (
           <Button
             type="button"
@@ -371,7 +383,6 @@ export function WelcomeProofLesson({
             {lesson.scenario.situation.secondaryCta}
           </ProofLessonSecondaryAction>
         ),
-        helperText: lesson.scenario.situation.hint,
       };
       break;
     case "attempt":
@@ -644,6 +655,7 @@ export function WelcomeProofLesson({
       title={stepView.title}
       description={stepView.description}
       content={stepView.content}
+      contentClassName={stepView.contentClassName}
       primaryAction={stepView.primaryAction}
       secondaryAction={stepView.secondaryAction}
       helperText={stepView.helperText}

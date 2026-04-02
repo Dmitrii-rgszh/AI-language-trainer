@@ -18,6 +18,7 @@ from app.api.routes.recommendations import router as recommendations_router
 from app.api.routes.speaking import router as speaking_router
 from app.api.routes.users import router as users_router
 from app.api.routes.voice import router as voice_router
+from app.api.routes.welcome import router as welcome_router
 from app.api.routes.writing import router as writing_router
 from app.core.config import settings
 
@@ -35,6 +36,7 @@ api_router.include_router(grammar_router)
 api_router.include_router(speaking_router)
 api_router.include_router(pronunciation_router)
 api_router.include_router(voice_router)
+api_router.include_router(welcome_router)
 api_router.include_router(writing_router)
 api_router.include_router(profession_router)
 api_router.include_router(progress_router)

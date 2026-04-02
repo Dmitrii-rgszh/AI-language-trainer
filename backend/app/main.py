@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.dependencies import welcome_tutor_service
 from app.core.errors import AppError
 
 app = FastAPI(title=settings.app_name)
@@ -19,5 +20,11 @@ app.add_middleware(
 @app.exception_handler(AppError)
 async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.on_event("startup")
+async def prewarm_welcome_tutor() -> None:
+    welcome_tutor_service.schedule_default_prewarm()
+
 
 app.include_router(api_router)

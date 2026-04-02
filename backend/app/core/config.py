@@ -30,6 +30,33 @@ class Settings(BaseModel):
     xtts_default_speaker: str = os.getenv("XTTS_DEFAULT_SPEAKER", "Ana Florence")
     xtts_reference_wav: str = os.getenv("XTTS_REFERENCE_WAV", "")
     coqui_tos_agreed: bool = os.getenv("COQUI_TOS_AGREED", "1") == "1"
+    musetalk_enabled: bool = os.getenv("MUSE_TALK_ENABLED", "0") == "1"
+    musetalk_python_path: str = os.getenv(
+        "MUSE_TALK_PYTHON_PATH",
+        str((BACKEND_DIR / ".venv-musetalk" / "Scripts" / "python.exe").as_posix()),
+    )
+    musetalk_project_dir: str = os.getenv(
+        "MUSE_TALK_PROJECT_DIR",
+        str((BACKEND_DIR / ".runtime" / "MuseTalk").as_posix()),
+    )
+    musetalk_result_dir: str = os.getenv(
+        "MUSE_TALK_RESULT_DIR",
+        str((BACKEND_DIR / "generated" / "musetalk").as_posix()),
+    )
+    musetalk_ffmpeg_path: str = os.getenv("MUSE_TALK_FFMPEG_PATH", "ffmpeg")
+    musetalk_avatar_verba_tutor_image: str = os.getenv(
+        "MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE",
+        str((BACKEND_DIR / "assets" / "musetalk" / "verba_tutor.png").as_posix()),
+    )
+    musetalk_version: str = os.getenv("MUSE_TALK_VERSION", "v15")
+    musetalk_gpu_id: int = int(os.getenv("MUSE_TALK_GPU_ID", "0"))
+    musetalk_fps: int = int(os.getenv("MUSE_TALK_FPS", "25"))
+    musetalk_batch_size: int = int(os.getenv("MUSE_TALK_BATCH_SIZE", "8"))
+    musetalk_extra_margin: int = int(os.getenv("MUSE_TALK_EXTRA_MARGIN", "10"))
+    musetalk_audio_padding_left: int = int(os.getenv("MUSE_TALK_AUDIO_PADDING_LEFT", "2"))
+    musetalk_audio_padding_right: int = int(os.getenv("MUSE_TALK_AUDIO_PADDING_RIGHT", "2"))
+    musetalk_use_float16: bool = os.getenv("MUSE_TALK_USE_FLOAT16", "1") == "1"
+    musetalk_default_speaker: str = os.getenv("MUSE_TALK_DEFAULT_SPEAKER", "Daisy Studious")
 
 
 settings = Settings()

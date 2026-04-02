@@ -8,12 +8,23 @@ class VoiceService:
     def __init__(self, provider: BaseTTSProvider | None) -> None:
         self._provider = provider
 
-    def synthesize(self, text: str, language: str, speaker: str | None = None) -> bytes:
+    def synthesize(
+        self,
+        text: str,
+        language: str,
+        speaker: str | None = None,
+        style: str | None = None,
+    ) -> bytes:
         if self._provider is None:
             raise ServiceUnavailableError("TTS provider is not configured.")
 
         try:
-            return self._provider.synthesize(text=text, language=language, speaker=speaker)
+            return self._provider.synthesize(
+                text=text,
+                language=language,
+                speaker=speaker,
+                style=style,
+            )
         except AppError:
             raise
         except Exception as exc:

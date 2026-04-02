@@ -19,5 +19,6 @@ recommendation_service = runtime.recommendation_service
 speaking_service = runtime.speaking_service
 stt_service = runtime.stt_service
 user_service = runtime.user_service
+welcome_tutor_service = runtime.welcome_tutor_service
 voice_service = runtime.voice_service
 writing_service = runtime.writing_service

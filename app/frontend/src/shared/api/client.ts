@@ -34,6 +34,7 @@ import type {
   SpeakingScenario,
   SpeakingVoiceFeedback,
   VocabularyReviewItem,
+  WelcomeTutorStatus,
   VocabularyHub,
   WritingAttempt,
   WritingTask,
@@ -80,6 +81,50 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
   }
 
   return await response.blob();
+}
+
+const welcomeTutorClipCache = new Map<string, Promise<Blob>>();
+const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v2";
+
+function buildWelcomeTutorClipCacheKey(payload: {
+  text: string;
+  language: "ru" | "en";
+  avatarKey?: string;
+}) {
+  return [
+    WELCOME_TUTOR_CLIP_CACHE_SCHEMA,
+    payload.avatarKey ?? "verba_tutor",
+    payload.language,
+    payload.text.trim(),
+  ].join("|");
+}
+
+function getWelcomeTutorClip(payload: {
+  text: string;
+  language: "ru" | "en";
+  avatarKey?: string;
+}) {
+  const cacheKey = buildWelcomeTutorClipCacheKey(payload);
+  const cachedRequest = welcomeTutorClipCache.get(cacheKey);
+  if (cachedRequest) {
+    return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  }
+
+  const nextRequest = requestBlob("/api/welcome/ai-tutor/video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: payload.text,
+      language: payload.language,
+      avatar_key: payload.avatarKey ?? "verba_tutor",
+    }),
+  }).catch((error) => {
+    welcomeTutorClipCache.delete(cacheKey);
+    throw error;
+  });
+
+  welcomeTutorClipCache.set(cacheKey, nextRequest);
+  return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
 }
 
 export const apiClient = {
@@ -241,6 +286,7 @@ export const apiClient = {
   getMistakes: () => request<Mistake[]>("/api/mistakes"),
   getProgress: () => request<ProgressSnapshot>("/api/progress"),
   getProviders: () => request<ProviderStatus[]>("/api/providers/status"),
+  getWelcomeTutorStatus: () => request<WelcomeTutorStatus>("/api/welcome/ai-tutor/status"),
   getProviderPreferences: () => request<ProviderPreference[]>("/api/providers/preferences"),
   saveProviderPreference: (
     providerType: ProviderPreference["providerType"],
@@ -270,5 +316,17 @@ export const apiClient = {
       method: "POST",
       body: formData,
     });
+  },
+  renderWelcomeTutorClip: (payload: {
+    text: string;
+    language: "ru" | "en";
+    avatarKey?: string;
+  }) => getWelcomeTutorClip(payload),
+  prefetchWelcomeTutorClip: async (payload: {
+    text: string;
+    language: "ru" | "en";
+    avatarKey?: string;
+  }) => {
+    await getWelcomeTutorClip(payload);
   },
 };

@@ -39,6 +39,7 @@ from app.services.recommendation_service.service import RecommendationService
 from app.services.speaking_service.service import SpeakingService
 from app.services.stt_service.service import STTService
 from app.services.user_service.service import UserService
+from app.services.welcome_tutor_service.service import WelcomeTutorService
 from app.services.voice_service.service import VoiceService
 from app.services.writing_service.service import WritingService
 
@@ -92,5 +93,6 @@ class AppRuntime:
     speaking_service: SpeakingService
     stt_service: STTService
     user_service: UserService
+    welcome_tutor_service: WelcomeTutorService
     voice_service: VoiceService
     writing_service: WritingService

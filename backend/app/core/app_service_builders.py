@@ -16,6 +16,7 @@ from app.services.provider_service.service import ProviderService
 from app.services.recommendation_service.service import RecommendationService
 from app.services.speaking_service.service import SpeakingService
 from app.services.user_service.service import UserService
+from app.services.welcome_tutor_service.service import WelcomeTutorService
 from app.services.voice_service.service import VoiceService
 from app.services.writing_service.service import WritingService
 
@@ -24,6 +25,7 @@ def build_app_runtime(
     repositories: AppRepositories,
     dependencies: AppRuntimeDependencies,
 ) -> AppRuntime:
+    voice_service = VoiceService(dependencies.provider_registry.tts_provider)
     recommendation_service = RecommendationService(
         repositories.lesson_repository,
         repositories.mistake_repository,
@@ -84,7 +86,8 @@ def build_app_runtime(
         ),
         stt_service=dependencies.stt_service,
         user_service=UserService(repositories.user_account_repository),
-        voice_service=VoiceService(dependencies.provider_registry.tts_provider),
+        welcome_tutor_service=WelcomeTutorService(voice_service),
+        voice_service=voice_service,
         writing_service=WritingService(
             repositories.content_repository,
             dependencies.ai_orchestrator,

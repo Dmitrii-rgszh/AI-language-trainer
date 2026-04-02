@@ -12,6 +12,9 @@ venv/
 .env.local
 backend/.mypy_cache/
 backend/.ruff_cache/
+backend/.runtime/
+backend/.venv-musetalk/
+backend/generated/
 backend/trainer.db
 /trainer.db
 UX_books/

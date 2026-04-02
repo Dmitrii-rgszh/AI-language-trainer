@@ -271,6 +271,12 @@ export interface ProviderPreference {
   settings: Record<string, unknown>;
 }
 
+export interface WelcomeTutorStatus {
+  available: boolean;
+  mode: "musetalk" | "fallback";
+  details: string;
+}
+
 export interface AITextFeedback {
   source: "ai" | "mock";
   summary: string;

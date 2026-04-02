@@ -17,9 +17,11 @@ export type WelcomeProofLessonScenario = {
     label: string;
     title: string;
     description: string;
+    coachLabel: string;
+    coachPrompt: string;
+    coachReplayCta: string;
     primaryCta: string;
     secondaryCta: string;
-    hint: string;
   };
   firstAttempt: {
     title: string;
@@ -115,9 +117,12 @@ export const welcomeProofLessonScenarios: Record<
         label: "Ситуация",
         title: "Представь: ты в кафе.",
         description: "Нужно вежливо заказать кофе без сахара.",
+        coachLabel: "Лиза",
+        coachPrompt:
+          "Представь, что ты в кафе. Тебе нужно вежливо заказать кофе без сахара. Ответь так, как ты бы сказал это по-английски.",
+        coachReplayCta: "Послушать ещё раз",
         primaryCta: "Ответить голосом",
         secondaryCta: "Нет микрофона? Ответить текстом",
-        hint: "Главный путь — голос. Текст доступен как запасной вариант.",
       },
       firstAttempt: {
         title: "Как бы ты сказал это по-английски?",
@@ -234,9 +239,12 @@ export const welcomeProofLessonScenarios: Record<
         label: "Situation",
         title: "Imagine: you are in a cafe.",
         description: "You need to politely order a coffee without sugar.",
+        coachLabel: "Liza",
+        coachPrompt:
+          "Imagine you are in a cafe. You need to order a coffee without sugar politely. Answer the way you would say it in English.",
+        coachReplayCta: "Hear it again",
         primaryCta: "Answer by voice",
         secondaryCta: "No microphone? Answer by text",
-        hint: "Voice is the main path. Text is available as a backup.",
       },
       firstAttempt: {
         title: "How would you say this in English?",

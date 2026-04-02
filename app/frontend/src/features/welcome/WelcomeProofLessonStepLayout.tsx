@@ -16,6 +16,7 @@ type WelcomeProofLessonStepLayoutProps = {
   title: string;
   description?: string;
   content?: ReactNode;
+  contentClassName?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
   helperText?: ReactNode;
@@ -50,6 +51,7 @@ export function WelcomeProofLessonStepLayout({
   title,
   description,
   content,
+  contentClassName,
   primaryAction,
   secondaryAction,
   helperText,
@@ -80,7 +82,11 @@ export function WelcomeProofLessonStepLayout({
               ) : null}
             </div>
 
-            {content ? <div className="proof-lesson-step__content">{content}</div> : null}
+            {content ? (
+              <div className={cn("proof-lesson-step__content", contentClassName)}>
+                {content}
+              </div>
+            ) : null}
           </div>
 
           {hasFooter ? (

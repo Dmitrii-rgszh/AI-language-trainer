@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import wave
 from pathlib import Path
 from typing import Any
@@ -30,9 +31,15 @@ class XTTSProvider(BaseTTSProvider):
         self._reference_wav = reference_wav or settings.xtts_reference_wav
         self._tts: Any | None = None
 
-    def synthesize(self, text: str, language: str, speaker: str | None = None) -> bytes:
+    def synthesize(
+        self,
+        text: str,
+        language: str,
+        speaker: str | None = None,
+        style: str | None = None,
+    ) -> bytes:
         tts = self._get_tts()
-        normalized_text = text.strip()
+        normalized_text = self._prepare_text(text=text, language=language, style=style)
         if not normalized_text:
             raise ValueError("Text for speech synthesis cannot be empty.")
 
@@ -48,6 +55,46 @@ class XTTSProvider(BaseTTSProvider):
 
         wav = tts.tts(**kwargs)
         return _wav_to_bytes(wav)
+
+    def _prepare_text(self, *, text: str, language: str, style: str | None) -> str:
+        normalized_text = text.strip()
+        if not normalized_text:
+            return ""
+
+        normalized_text = (
+            normalized_text
+            .replace("…", ", ")
+            .replace("—", ", ")
+            .replace("–", ", ")
+            .replace(";", ", ")
+            .replace(":", ", ")
+            .replace("*", " ")
+            .replace("`", " ")
+            .replace("(", ", ")
+            .replace(")", " ")
+            .replace("[", ", ")
+            .replace("]", " ")
+            .replace("{", ", ")
+            .replace("}", " ")
+            .replace("/", " ")
+            .replace("\\", " ")
+        )
+        normalized_text = re.sub(r"\.{2,}", ", ", normalized_text)
+        normalized_text = re.sub(r'["“”«»]', "", normalized_text)
+
+        sentence_parts = [
+            re.sub(r"[.!?]+$", "", chunk.strip())
+            for chunk in re.split(r"(?<=[.!?])\s+", normalized_text)
+            if chunk.strip()
+        ]
+        if sentence_parts:
+            joiner = ", " if style in {"coach", "warm"} else " "
+            normalized_text = joiner.join(sentence_parts)
+
+        normalized_text = re.sub(r"\s*,\s*", ", ", normalized_text)
+        normalized_text = re.sub(r"\s+", " ", normalized_text).strip(" ,")
+
+        return normalized_text
 
     def status(self) -> ProviderStatus:
         try:
@@ -65,7 +112,7 @@ class XTTSProvider(BaseTTSProvider):
             f"XTTS v2 is configured for {self._device} with default speaker "
             f"'{self._default_speaker}' and Russian support."
         )
-        if self._reference_wav:
+        if self._reference_wav and os.path.exists(self._reference_wav):
             details = f"XTTS v2 is configured with custom reference voice at '{self._reference_wav}'."
 
         return ProviderStatus(

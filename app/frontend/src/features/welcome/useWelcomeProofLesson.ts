@@ -211,6 +211,16 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     };
   }, [retrySuccessful]);
 
+  useEffect(() => {
+    void apiClient
+      .prefetchWelcomeTutorClip({
+        text: scenario.situation.coachPrompt,
+        language: locale === "ru" ? "ru" : "en",
+        avatarKey: "verba_tutor",
+      })
+      .catch(() => undefined);
+  }, [locale, scenario.id, scenario.situation.coachPrompt]);
+
   function getResolvedMode(mode: WelcomeProofLessonInputMode) {
     if (mode === "voice" && !voiceInputEnabled) {
       return "text";

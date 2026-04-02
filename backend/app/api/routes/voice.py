@@ -17,6 +17,7 @@ def synthesize_speech(payload: SynthesizeSpeechRequest) -> StreamingResponse:
         text=payload.text,
         language=payload.language,
         speaker=payload.speaker,
+        style=payload.style,
     )
     return StreamingResponse(
         BytesIO(audio_bytes),

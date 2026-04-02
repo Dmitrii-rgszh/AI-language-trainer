@@ -12,6 +12,10 @@ set "BACKEND_LOG=%BACKEND_DIR%\backend-dev.log"
 set "BACKEND_ERR_LOG=%BACKEND_DIR%\backend-dev.err.log"
 set "FRONTEND_LOG=%FRONTEND_DIR%\frontend-dev.log"
 set "FRONTEND_ERR_LOG=%FRONTEND_DIR%\frontend-dev.err.log"
+set "MUSE_TALK_PYTHON=%BACKEND_DIR%\.venv-musetalk\Scripts\python.exe"
+set "MUSE_TALK_PROJECT=%BACKEND_DIR%\.runtime\MuseTalk"
+set "MUSE_TALK_RESULTS=%BACKEND_DIR%\generated\musetalk"
+set "MUSE_TALK_AVATAR=%BACKEND_DIR%\assets\musetalk\verba_tutor.png"
 set "RESET_DB=0"
 
 if /I "%~1"=="--reset-db" set "RESET_DB=1"
@@ -41,12 +45,25 @@ if "%BACKEND_HOST%"=="" set "BACKEND_HOST=127.0.0.1"
 if "%BACKEND_PORT%"=="" set "BACKEND_PORT=8000"
 if "%FRONTEND_HOST%"=="" set "FRONTEND_HOST=127.0.0.1"
 if "%FRONTEND_PORT%"=="" set "FRONTEND_PORT=5173"
+if "%MUSE_TALK_ENABLED%"=="" (
+    if exist "%MUSE_TALK_PYTHON%" if exist "%MUSE_TALK_PROJECT%\models\musetalkV15\unet.pth" if exist "%MUSE_TALK_AVATAR%" (
+        set "MUSE_TALK_ENABLED=1"
+    ) else (
+        set "MUSE_TALK_ENABLED=0"
+    )
+)
+if "%MUSE_TALK_PYTHON_PATH%"=="" set "MUSE_TALK_PYTHON_PATH=%MUSE_TALK_PYTHON%"
+if "%MUSE_TALK_PROJECT_DIR%"=="" set "MUSE_TALK_PROJECT_DIR=%MUSE_TALK_PROJECT%"
+if "%MUSE_TALK_RESULT_DIR%"=="" set "MUSE_TALK_RESULT_DIR=%MUSE_TALK_RESULTS%"
+if "%MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE%"=="" set "MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE=%MUSE_TALK_AVATAR%"
+if "%MUSE_TALK_DEFAULT_SPEAKER%"=="" set "MUSE_TALK_DEFAULT_SPEAKER=Daisy Studious"
 
 echo [INFO] Backend URL:  http://%BACKEND_HOST%:%BACKEND_PORT%
 echo [INFO] Frontend URL: http://%FRONTEND_HOST%:%FRONTEND_PORT%
 echo [INFO] SQLite DB:    %BACKEND_DIR%\trainer.db
 echo [INFO] LM Studio:    %LMSTUDIO_BASE_URL%
 echo [INFO] Model:        %LMSTUDIO_MODEL%
+echo [INFO] MuseTalk:     %MUSE_TALK_ENABLED%
 if "%RESET_DB%"=="1" (
     echo [INFO] Database reset: enabled
 ) else (
@@ -114,7 +131,7 @@ break > "%FRONTEND_LOG%"
 break > "%FRONTEND_ERR_LOG%"
 
 echo [STEP] Starting backend in background...
-powershell -NoProfile -Command "$env:LLM_PROVIDER='%LLM_PROVIDER%'; $env:LMSTUDIO_BASE_URL='%LMSTUDIO_BASE_URL%'; $env:LMSTUDIO_MODEL='%LMSTUDIO_MODEL%'; Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m','uvicorn','app.main:app','--host','%BACKEND_HOST%','--port','%BACKEND_PORT%' -WorkingDirectory '%BACKEND_DIR%' -RedirectStandardOutput '%BACKEND_LOG%' -RedirectStandardError '%BACKEND_ERR_LOG%'" >nul 2>&1
+powershell -NoProfile -Command "$env:LLM_PROVIDER='%LLM_PROVIDER%'; $env:LMSTUDIO_BASE_URL='%LMSTUDIO_BASE_URL%'; $env:LMSTUDIO_MODEL='%LMSTUDIO_MODEL%'; $env:MUSE_TALK_ENABLED='%MUSE_TALK_ENABLED%'; $env:MUSE_TALK_PYTHON_PATH='%MUSE_TALK_PYTHON_PATH%'; $env:MUSE_TALK_PROJECT_DIR='%MUSE_TALK_PROJECT_DIR%'; $env:MUSE_TALK_RESULT_DIR='%MUSE_TALK_RESULT_DIR%'; $env:MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE='%MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE%'; $env:MUSE_TALK_DEFAULT_SPEAKER='%MUSE_TALK_DEFAULT_SPEAKER%'; Start-Process -FilePath '%BACKEND_PYTHON%' -ArgumentList '-m','uvicorn','app.main:app','--host','%BACKEND_HOST%','--port','%BACKEND_PORT%' -WorkingDirectory '%BACKEND_DIR%' -RedirectStandardOutput '%BACKEND_LOG%' -RedirectStandardError '%BACKEND_ERR_LOG%'" >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Failed to start backend process.
     exit /b 1

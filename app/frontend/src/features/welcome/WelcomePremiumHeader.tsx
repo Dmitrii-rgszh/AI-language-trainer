@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { readStoredActiveUserId } from "../../shared/auth/active-user";
+import { routes } from "../../shared/constants/routes";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { BrandLogo } from "../../shared/ui/BrandLogo";
 import { cn } from "../../shared/utils/cn";
@@ -34,15 +37,26 @@ export function WelcomePremiumHeader({
   setLocale,
   tr,
 }: WelcomePremiumHeaderProps) {
+  const navigate = useNavigate();
+
+  const handleBrandClick = () => {
+    navigate(readStoredActiveUserId() ? routes.dashboard : routes.welcome);
+  };
+
   return (
     <div className="welcome-premium-header-shell">
       <div className="welcome-premium-header__fixed">
         <header className={cn("welcome-premium-header welcome-reveal", heroVisible && "is-visible")}>
           <div className="welcome-premium-header__row">
             <div className="welcome-premium-header__brand-stack">
-              <div className="welcome-premium-header__brand-object">
+              <button
+                type="button"
+                onClick={handleBrandClick}
+                className="welcome-premium-header__brand-object"
+                aria-label={tr("Open dashboard")}
+              >
                 <BrandLogo className="w-[108px] sm:w-[118px] lg:w-[128px]" />
-              </div>
+              </button>
             </div>
 
             <div className="welcome-premium-header__utility">
