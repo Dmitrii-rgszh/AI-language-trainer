@@ -4,6 +4,8 @@ chcp 65001 >nul
 
 if "%BACKEND_PORT%"=="" set "BACKEND_PORT=8000"
 if "%FRONTEND_PORT%"=="" set "FRONTEND_PORT=5173"
+if "%QWEN_TTS_PORT%"=="" set "QWEN_TTS_PORT=8010"
+if "%MUSE_TALK_LIVE_PORT%"=="" set "MUSE_TALK_LIVE_PORT=8011"
 set "LEGACY_FRONTEND_PORT=4173"
 
 echo ==========================================
@@ -12,6 +14,8 @@ echo ==========================================
 echo.
 
 call :kill_port "%BACKEND_PORT%" "backend"
+call :kill_port "%QWEN_TTS_PORT%" "qwen-tts"
+call :kill_port "%MUSE_TALK_LIVE_PORT%" "musetalk-live"
 call :kill_port "%FRONTEND_PORT%" "frontend"
 
 if /I not "%FRONTEND_PORT%"=="%LEGACY_FRONTEND_PORT%" (

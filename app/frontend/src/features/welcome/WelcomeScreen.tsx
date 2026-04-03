@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { apiClient } from "../../shared/api/client";
+import { useAppStore } from "../../shared/store/app-store";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { ConvergingPathsScrollIndicator } from "../../shared/ui/ConvergingPathsScrollIndicator";
 import { Button } from "../../shared/ui/Button";
@@ -7,6 +9,7 @@ import { WelcomeProofLesson } from "./WelcomeProofLesson";
 import { WelcomePremiumHeader } from "./WelcomePremiumHeader";
 import { WelcomeSignInModal } from "./WelcomeSignInModal";
 import { useWelcomeSignIn } from "./useWelcomeSignIn";
+import { welcomeProofLessonScenarios } from "./welcomeProofLessonScenario";
 import {
   welcomeScrollIndicatorConfig,
   welcomeScrollIndicatorMessages,
@@ -39,7 +42,15 @@ export function WelcomeScreen() {
   const [heroVisible, setHeroVisible] = useState(false);
   const [wizardVisible, setWizardVisible] = useState(false);
   const { locale, setLocale, tr } = useLocale();
+  const providers = useAppStore((state) => state.providers);
   const signInView = useWelcomeSignIn(locale);
+  const ttsProvider = providers.find((provider) => provider.type === "tts");
+  const ttsCacheSignature = ttsProvider
+    ? `${ttsProvider.key}|${ttsProvider.details}`
+    : "tts-provider-pending";
+  const scenario = welcomeProofLessonScenarios[locale][0];
+  const warmupPrompt =
+    scenario?.situation.coachSpokenPrompt ?? scenario?.situation.coachPrompt ?? "";
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
     { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
@@ -50,11 +61,49 @@ export function WelcomeScreen() {
   const heroWheelDirectionRef = useRef<1 | -1 | 0>(0);
   const heroWheelDebounceRef = useRef<number | null>(null);
   const heroWheelCooldownUntilRef = useRef(0);
+  const welcomeTutorPreloadKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => setHeroVisible(true));
     return () => window.cancelAnimationFrame(animationFrame);
   }, []);
+
+  useEffect(() => {
+    if (!heroVisible || !warmupPrompt.trim()) {
+      return;
+    }
+
+    const preloadKey = `${locale}:${warmupPrompt}:${ttsCacheSignature}`;
+    if (welcomeTutorPreloadKeyRef.current === preloadKey) {
+      return;
+    }
+    welcomeTutorPreloadKeyRef.current = preloadKey;
+
+    const prefetchClip = () => {
+      void apiClient.prefetchWelcomeTutorClip({
+        text: warmupPrompt,
+        language: locale === "ru" ? "ru" : "en",
+        avatarKey: "verba_tutor",
+        cacheSignature: ttsCacheSignature,
+      }).catch(() => undefined);
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      const callbackId = idleWindow.requestIdleCallback(prefetchClip, { timeout: 1200 });
+      return () => idleWindow.cancelIdleCallback?.(callbackId);
+    }
+
+    const timeoutId = window.setTimeout(prefetchClip, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [heroVisible, locale, ttsCacheSignature, warmupPrompt]);
 
   useEffect(() => {
     const handleScroll = () => {

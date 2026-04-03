@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -13,6 +15,7 @@ import wave
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 import numpy as np
 
 from app.core.config import settings
@@ -105,28 +108,24 @@ class CachedMuseTalkStatus:
 
 
 MUSE_TALK_STATUS_CACHE_TTL_SECONDS = 90.0
-MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v2"
+MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v3_tts_signature"
 WELCOME_TUTOR_AUDIO_SAMPLE_RATE = 24000
 WELCOME_TUTOR_AUDIO_CHANNELS = 1
 WELCOME_TUTOR_AUDIO_SAMPLE_WIDTH = 2
 WELCOME_TUTOR_SILENCE_THRESHOLD = 0.008
 WELCOME_TUTOR_SILENCE_PADDING_MS = 80
+WELCOME_TUTOR_MIN_CLIP_DURATION_SECONDS = 1.0
+WELCOME_TUTOR_CLIP_TO_AUDIO_DURATION_RATIO_FLOOR = 0.7
 WELCOME_TUTOR_PREWARM_CLIPS = (
     {
         "language": "ru",
         "avatar_key": "verba_tutor",
-        "text": (
-            "Представь, что ты в кафе. Тебе нужно вежливо заказать кофе без сахара. "
-            "Ответь так, как ты бы сказал это по-английски."
-        ),
+        "text": "Как бы ты вежливо заказал кофе без сахара?",
     },
     {
         "language": "en",
         "avatar_key": "verba_tutor",
-        "text": (
-            "Imagine you are in a cafe. You need to order a coffee without sugar politely. "
-            "Answer the way you would say it in English."
-        ),
+        "text": "How would you politely order a coffee without sugar?",
     },
 )
 
@@ -137,6 +136,8 @@ class WelcomeTutorService:
         self._cached_status: CachedMuseTalkStatus | None = None
         self._prewarm_started = False
         self._prewarm_lock = threading.Lock()
+        self._render_lock_guard = threading.Lock()
+        self._render_locks: dict[str, threading.Lock] = {}
         self._runtime_config = MuseTalkRuntimeConfig(
             enabled=settings.musetalk_enabled,
             python_path=Path(settings.musetalk_python_path),
@@ -284,83 +285,145 @@ class WelcomeTutorService:
         )
         output_dir = self._runtime_config.result_dir / self._runtime_config.version
         output_path = output_dir / f"{clip_hash}.mp4"
-        if output_path.exists():
-            return output_path
+        render_lock = self._get_render_lock(clip_hash)
+        with render_lock:
+            if output_path.exists():
+                if self._is_valid_cached_clip(output_path):
+                    return output_path
+                output_path.unlink(missing_ok=True)
 
-        workspace_root = Path(tempfile.gettempdir()) / "verba-musetalk" / clip_hash
-        input_dir = workspace_root / "inputs"
-        render_result_dir = workspace_root / "results"
-        temp_dir = input_dir
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        output_dir.mkdir(parents=True, exist_ok=True)
+            workspace_root = Path(tempfile.gettempdir()) / "verba-musetalk" / clip_hash
+            input_dir = workspace_root / "inputs"
+            render_result_dir = workspace_root / "results"
+            temp_dir = input_dir
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        audio_path = temp_dir / "voice.wav"
-        inference_config_path = temp_dir / "inference.yaml"
-        avatar_workspace_path = temp_dir / f"{avatar_key}{avatar_path.suffix or '.png'}"
-        normalized_output_path = temp_dir / f"normalized_{output_path.name}"
+            audio_path = temp_dir / "voice.wav"
+            inference_config_path = temp_dir / "inference.yaml"
+            avatar_workspace_path = temp_dir / f"{avatar_key}{avatar_path.suffix or '.png'}"
+            normalized_output_path = temp_dir / f"normalized_{output_path.name}"
 
-        try:
-            audio_bytes = self._voice_service.synthesize(
-                text=normalized_text,
-                language=language,
-                speaker=self._runtime_config.default_speaker,
-                style="warm",
-            )
-            normalized_audio_bytes = self._trim_wav_silence(audio_bytes)
-            shutil.copy2(avatar_path, avatar_workspace_path)
-            audio_path.write_bytes(normalized_audio_bytes)
-            inference_config_path.write_text(
-                self._build_inference_config(
-                    avatar_path=avatar_workspace_path,
-                    audio_path=audio_path,
-                ),
-                encoding="utf-8",
-            )
+            try:
+                audio_bytes = self._voice_service.synthesize(
+                    text=normalized_text,
+                    language=language,
+                    speaker=self._runtime_config.default_speaker,
+                    style="warm",
+                )
+                normalized_audio_bytes = self._trim_wav_silence(audio_bytes)
+                shutil.copy2(avatar_path, avatar_workspace_path)
+                audio_path.write_bytes(normalized_audio_bytes)
+                inference_config_path.write_text(
+                    self._build_inference_config(
+                        avatar_path=avatar_workspace_path,
+                        audio_path=audio_path,
+                    ),
+                    encoding="utf-8",
+                )
 
-            command = self._build_command(
-                inference_config_path=inference_config_path,
-                result_dir=render_result_dir,
-                output_name=output_path.name,
-            )
-            process = subprocess.run(
-                command,
-                cwd=self._runtime_config.project_dir,
-                env={
-                    **os.environ,
-                    "PYTHONIOENCODING": "utf-8",
-                    "PYTHONUTF8": "1",
-                },
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            rendered_output_path = render_result_dir / self._runtime_config.version / output_path.name
-
-            if process.returncode != 0 or not rendered_output_path.exists():
-                diagnostics = "\n".join(
-                    part
-                    for part in (
-                        process.stdout.strip(),
-                        process.stderr.strip(),
+                if settings.musetalk_live_enabled:
+                    self._render_clip_with_live_sidecar(
+                        source_audio_path=audio_path,
+                        avatar_key=avatar_key,
+                        target_output_path=normalized_output_path,
                     )
-                    if part
-                )
-                raise BadGatewayError(
-                    "MuseTalk render failed."
-                    + (f" Diagnostics:\n{diagnostics[-1200:]}" if diagnostics else "")
-                )
+                else:
+                    command = self._build_command(
+                        inference_config_path=inference_config_path,
+                        result_dir=render_result_dir,
+                        output_name=output_path.name,
+                    )
+                    process = subprocess.run(
+                        command,
+                        cwd=self._runtime_config.project_dir,
+                        env={
+                            **os.environ,
+                            "PYTHONIOENCODING": "utf-8",
+                            "PYTHONUTF8": "1",
+                        },
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        check=False,
+                    )
+                    rendered_output_path = render_result_dir / self._runtime_config.version / output_path.name
 
-            self._normalize_muxed_clip(
-                rendered_video_path=rendered_output_path,
-                source_audio_path=audio_path,
-                target_output_path=normalized_output_path,
-            )
-            shutil.move(str(normalized_output_path), str(output_path))
-            return output_path
-        finally:
-            shutil.rmtree(workspace_root, ignore_errors=True)
+                    if process.returncode != 0 or not rendered_output_path.exists():
+                        diagnostics = "\n".join(
+                            part
+                            for part in (
+                                process.stdout.strip(),
+                                process.stderr.strip(),
+                            )
+                            if part
+                        )
+                        raise BadGatewayError(
+                            "MuseTalk render failed."
+                            + (f" Diagnostics:\n{diagnostics[-1200:]}" if diagnostics else "")
+                        )
+
+                    self._normalize_muxed_clip(
+                        rendered_video_path=rendered_output_path,
+                        source_audio_path=audio_path,
+                        target_output_path=normalized_output_path,
+                    )
+                self._ensure_clip_matches_audio(
+                    clip_path=normalized_output_path,
+                    source_audio_path=audio_path,
+                )
+                shutil.move(str(normalized_output_path), str(output_path))
+                return output_path
+            except Exception:
+                if settings.musetalk_live_enabled and not normalized_output_path.exists():
+                    command = self._build_command(
+                        inference_config_path=inference_config_path,
+                        result_dir=render_result_dir,
+                        output_name=output_path.name,
+                    )
+                    process = subprocess.run(
+                        command,
+                        cwd=self._runtime_config.project_dir,
+                        env={
+                            **os.environ,
+                            "PYTHONIOENCODING": "utf-8",
+                            "PYTHONUTF8": "1",
+                        },
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        check=False,
+                    )
+                    rendered_output_path = render_result_dir / self._runtime_config.version / output_path.name
+                    if process.returncode != 0 or not rendered_output_path.exists():
+                        diagnostics = "\n".join(
+                            part
+                            for part in (
+                                process.stdout.strip(),
+                                process.stderr.strip(),
+                            )
+                            if part
+                        )
+                        raise BadGatewayError(
+                            "MuseTalk render failed."
+                            + (f" Diagnostics:\n{diagnostics[-1200:]}" if diagnostics else "")
+                        )
+                    self._normalize_muxed_clip(
+                        rendered_video_path=rendered_output_path,
+                        source_audio_path=audio_path,
+                        target_output_path=normalized_output_path,
+                    )
+                    self._ensure_clip_matches_audio(
+                        clip_path=normalized_output_path,
+                        source_audio_path=audio_path,
+                    )
+                    shutil.move(str(normalized_output_path), str(output_path))
+                    return output_path
+                raise
+            finally:
+                shutil.rmtree(workspace_root, ignore_errors=True)
 
     def _prewarm_default_clips_safe(self) -> None:
         try:
@@ -376,6 +439,15 @@ class WelcomeTutorService:
                 )
         except Exception:
             return
+
+    def _get_render_lock(self, clip_hash: str) -> threading.Lock:
+        with self._render_lock_guard:
+            existing_lock = self._render_locks.get(clip_hash)
+            if existing_lock is not None:
+                return existing_lock
+            next_lock = threading.Lock()
+            self._render_locks[clip_hash] = next_lock
+            return next_lock
 
     def _build_command(
         self,
@@ -422,6 +494,124 @@ class WelcomeTutorService:
         if self._runtime_config.use_float16:
             command.append("--use_float16")
         return command
+
+    def _render_clip_with_live_sidecar(
+        self,
+        *,
+        source_audio_path: Path,
+        avatar_key: str,
+        target_output_path: Path,
+    ) -> None:
+        avatar_path = self._runtime_config.avatar_image_paths[avatar_key]
+        base_url = settings.musetalk_live_base_url.rstrip("/")
+        frames_dir = target_output_path.parent / "live_frames"
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        frame_index = 0
+        timeout = httpx.Timeout(connect=30.0, read=600.0, write=60.0, pool=30.0)
+
+        with httpx.Client(timeout=timeout) as client:
+            prepare_response = client.post(
+                f"{base_url}/prepare-avatar",
+                json={
+                    "avatar_id": avatar_key,
+                    "image_path": avatar_path.as_posix(),
+                },
+            )
+            prepare_response.raise_for_status()
+
+            with client.stream(
+                "POST",
+                f"{base_url}/render-stream",
+                json={
+                    "avatar_id": avatar_key,
+                    "audio_path": source_audio_path.as_posix(),
+                    "fps": self._runtime_config.fps,
+                },
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    payload = json.loads(line)
+                    event_type = payload.get("type")
+                    if event_type in {"meta", "done"}:
+                        continue
+                    if event_type == "error":
+                        raise RuntimeError(payload.get("detail", "MuseTalk live render failed."))
+                    if event_type != "frame":
+                        continue
+
+                    image_bytes = base64.b64decode(payload["data"])
+                    frame_path = frames_dir / f"frame_{frame_index:06d}.jpg"
+                    frame_path.write_bytes(image_bytes)
+                    frame_index += 1
+
+        if frame_index == 0:
+            raise RuntimeError("MuseTalk live render did not return any frames.")
+
+        self._encode_frames_to_clip(
+            frames_dir=frames_dir,
+            source_audio_path=source_audio_path,
+            target_output_path=target_output_path,
+        )
+
+    def _encode_frames_to_clip(
+        self,
+        *,
+        frames_dir: Path,
+        source_audio_path: Path,
+        target_output_path: Path,
+    ) -> None:
+        process = subprocess.run(
+            [
+                self._runtime_config.ffmpeg_path,
+                "-y",
+                "-v",
+                "warning",
+                "-framerate",
+                str(self._runtime_config.fps),
+                "-i",
+                str(frames_dir / "frame_%06d.jpg"),
+                "-i",
+                str(source_audio_path),
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-preset",
+                "veryfast",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                str(target_output_path),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if process.returncode != 0 or not target_output_path.exists():
+            diagnostics = "\n".join(
+                part
+                for part in (
+                    process.stdout.strip(),
+                    process.stderr.strip(),
+                )
+                if part
+            )
+            raise BadGatewayError(
+                "MuseTalk live post-processing failed."
+                + (f" Diagnostics:\n{diagnostics[-1200:]}" if diagnostics else "")
+            )
 
     @staticmethod
     def _build_inference_config(*, avatar_path: Path, audio_path: Path) -> str:
@@ -485,6 +675,68 @@ class WelcomeTutorService:
                 + (f" Diagnostics:\n{diagnostics[-1200:]}" if diagnostics else "")
             )
 
+    def _is_valid_cached_clip(self, clip_path: Path) -> bool:
+        duration_seconds = self._probe_media_duration_seconds(clip_path)
+        return duration_seconds >= WELCOME_TUTOR_MIN_CLIP_DURATION_SECONDS
+
+    def _ensure_clip_matches_audio(self, *, clip_path: Path, source_audio_path: Path) -> None:
+        clip_duration_seconds = self._probe_media_duration_seconds(clip_path)
+        audio_duration_seconds = self._probe_wav_duration_seconds(source_audio_path)
+        minimum_expected_duration = max(
+            WELCOME_TUTOR_MIN_CLIP_DURATION_SECONDS,
+            audio_duration_seconds * WELCOME_TUTOR_CLIP_TO_AUDIO_DURATION_RATIO_FLOOR,
+        )
+        if clip_duration_seconds < minimum_expected_duration:
+            raise BadGatewayError(
+                "MuseTalk produced an unexpectedly short welcome clip. "
+                f"Expected at least {minimum_expected_duration:.2f}s from {audio_duration_seconds:.2f}s audio, "
+                f"but got {clip_duration_seconds:.2f}s."
+            )
+
+    def _probe_media_duration_seconds(self, media_path: Path) -> float:
+        ffprobe_path = self._resolve_ffprobe_path()
+        process = subprocess.run(
+            [
+                ffprobe_path,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(media_path),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if process.returncode != 0:
+            return 0.0
+
+        try:
+            return float(process.stdout.strip())
+        except ValueError:
+            return 0.0
+
+    def _resolve_ffprobe_path(self) -> str:
+        ffmpeg_path = Path(self._runtime_config.ffmpeg_path)
+        if not ffmpeg_path.is_absolute():
+            return "ffprobe"
+
+        ffprobe_name = ffmpeg_path.name.replace("ffmpeg", "ffprobe")
+        return str(ffmpeg_path.with_name(ffprobe_name))
+
+    @staticmethod
+    def _probe_wav_duration_seconds(audio_path: Path) -> float:
+        with wave.open(str(audio_path), "rb") as wav_file:
+            frame_rate = wav_file.getframerate()
+            frame_count = wav_file.getnframes()
+        if frame_rate <= 0:
+            return 0.0
+        return frame_count / frame_rate
+
     def _build_clip_hash(self, *, avatar_key: str, text: str, language: str) -> str:
         payload = "|".join(
             [
@@ -493,10 +745,67 @@ class WelcomeTutorService:
                 text,
                 self._runtime_config.version,
                 self._runtime_config.default_speaker,
+                self._build_tts_cache_signature(),
                 MUSE_TALK_RENDER_PIPELINE_REVISION,
             ]
         )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
+
+    def _build_tts_cache_signature(self) -> str:
+        provider_key = settings.tts_provider.strip().lower() or "unknown"
+        parts = [f"provider={provider_key}"]
+
+        if provider_key == "qwen3_tts":
+            parts.extend(
+                [
+                    f"model={settings.qwen_tts_model_id}",
+                    self._fingerprint_file(settings.qwen_tts_reference_wav or settings.xtts_reference_wav),
+                    self._fingerprint_text_source(),
+                ]
+            )
+        elif provider_key == "xtts":
+            parts.extend(
+                [
+                    f"model={settings.xtts_model_name}",
+                    f"default_speaker={settings.xtts_default_speaker}",
+                    self._fingerprint_file(settings.xtts_reference_wav),
+                ]
+            )
+
+        return "|".join(part for part in parts if part)
+
+    @staticmethod
+    def _fingerprint_file(file_path: str) -> str:
+        normalized_path = (file_path or "").strip()
+        if not normalized_path:
+            return "file=none"
+
+        path = Path(normalized_path)
+        if not path.exists():
+            return f"file={path.as_posix()}|missing"
+
+        stat = path.stat()
+        return f"file={path.as_posix()}|size={stat.st_size}|mtime={stat.st_mtime_ns}"
+
+    def _fingerprint_text_source(self) -> str:
+        inline_text = settings.qwen_tts_reference_text.strip()
+        if inline_text:
+            return self._fingerprint_text(inline_text, prefix="inline")
+
+        text_file = settings.qwen_tts_reference_text_file.strip()
+        if text_file:
+            path = Path(text_file)
+            if path.exists():
+                return self._fingerprint_text(path.read_text(encoding="utf-8", errors="ignore"), prefix=path.as_posix())
+            return f"text_file={path.as_posix()}|missing"
+
+        return "text=auto"
+
+    @staticmethod
+    def _fingerprint_text(text: str, *, prefix: str) -> str:
+        normalized = re.sub(r"\s+", " ", text).strip()
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+        return f"text_source={prefix}|sha={digest}"
 
     def _trim_wav_silence(self, audio_bytes: bytes) -> bytes:
         with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:

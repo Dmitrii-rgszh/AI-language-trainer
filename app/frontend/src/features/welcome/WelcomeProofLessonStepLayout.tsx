@@ -12,6 +12,7 @@ type WelcomeProofLessonStepLayoutProps = {
   currentStep: number;
   totalSteps: number;
   progressLabel: string;
+  showProgress?: boolean;
   stepKey?: string;
   eyebrow?: string;
   title: string;
@@ -50,6 +51,7 @@ export function WelcomeProofLessonStepLayout({
   currentStep,
   totalSteps,
   progressLabel,
+  showProgress = true,
   stepKey,
   eyebrow,
   title,
@@ -74,11 +76,13 @@ export function WelcomeProofLessonStepLayout({
         )}
         style={{ transitionDelay: "120ms" }}
       >
-        <WelcomeProofLessonProgress
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          progressLabel={progressLabel}
-        />
+        {showProgress ? (
+          <WelcomeProofLessonProgress
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            progressLabel={progressLabel}
+          />
+        ) : null}
 
         <div
           key={stepKey}

@@ -85,6 +85,8 @@ export const livingDepthSectionIds = {
 
 const routeSectionByPath: Record<string, string> = {
   [routes.welcome]: livingDepthSectionIds.routeWelcome,
+  [routes.welcomeClassic]: livingDepthSectionIds.routeWelcome,
+  [routes.liveAvatar]: livingDepthSectionIds.routeWelcome,
   [routes.onboarding]: livingDepthSectionIds.routeOnboarding,
   [routes.dashboard]: livingDepthSectionIds.routeDashboard,
   [routes.activity]: livingDepthSectionIds.routeActivity,

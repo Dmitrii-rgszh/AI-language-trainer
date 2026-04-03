@@ -181,7 +181,9 @@ class XTTSProvider(BaseTTSProvider):
         import TTS.tts.models.xtts as xtts_module
         import TTS.utils.io as io_module
         import fsspec
+        import soundfile as soundfile
         import torch
+        import torchaudio.functional as torchaudio_functional
         from TTS.utils.generic_utils import get_user_data_dir
 
         def load_fsspec_compat(
@@ -203,8 +205,25 @@ class XTTSProvider(BaseTTSProvider):
             with fsspec.open(path, "rb") as file_handle:
                 return torch.load(file_handle, map_location=map_location, **kwargs)
 
+        def load_audio_compat(audiopath: str, sampling_rate: int) -> Any:
+            audio_array, loaded_sample_rate = soundfile.read(audiopath, dtype="float32", always_2d=True)
+            audio = torch.from_numpy(audio_array.T.copy())
+
+            if audio.size(0) != 1:
+                audio = torch.mean(audio, dim=0, keepdim=True)
+
+            if loaded_sample_rate != sampling_rate:
+                audio = torchaudio_functional.resample(audio, loaded_sample_rate, sampling_rate)
+
+            if torch.any(audio > 10) or not torch.any(audio < 0):
+                print(f"Error with {audiopath}. Max={audio.max()} min={audio.min()}")
+
+            audio.clip_(-1, 1)
+            return audio
+
         io_module.load_fsspec = load_fsspec_compat
         xtts_module.load_fsspec = load_fsspec_compat
+        xtts_module.load_audio = load_audio_compat
 
 
 def _wav_to_bytes(wav_data: list[float] | np.ndarray, sample_rate: int = 24000) -> bytes:

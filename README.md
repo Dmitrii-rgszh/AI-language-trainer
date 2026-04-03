@@ -16,6 +16,7 @@
 - [app/frontend](./app/frontend) — frontend shell
 - [backend](./backend) — backend API
 - [docs/architecture-map.md](./docs/architecture-map.md) — карта модулей
+- [docs/live-avatar-webrtc.md](./docs/live-avatar-webrtc.md) — live avatar режим на WebRTC + Qwen3-TTS + MuseTalk
 - [docs/entity-model-and-lesson-schema.md](./docs/entity-model-and-lesson-schema.md) — сущности и lesson blocks
 - [docs/product-roadmap.md](./docs/product-roadmap.md) — продуктовый roadmap и план следующего онбординга
 
@@ -43,6 +44,23 @@ uvicorn app.main:app --reload
 ```
 
 Frontend ожидает backend по адресу `http://localhost:8000`.
+
+### Live Avatar
+
+Для live-режима аватара есть отдельная страница:
+
+```text
+http://127.0.0.1:5173/live-avatar
+```
+
+Полный контур поднимается через `run_local_app.bat`, включая:
+
+- backend API
+- frontend Vite app
+- `Qwen3-TTS` sidecar
+- `MuseTalk live` sidecar
+
+Подробности по модулям, env и ограничениям v1 описаны в [docs/live-avatar-webrtc.md](./docs/live-avatar-webrtc.md).
 
 ### LM Studio
 

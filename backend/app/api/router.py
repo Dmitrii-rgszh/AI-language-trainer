@@ -6,6 +6,7 @@ from app.api.routes.diagnostic import router as diagnostic_router
 from app.api.routes.grammar import router as grammar_router
 from app.api.routes.health import router as health_router
 from app.api.routes.lessons import router as lessons_router
+from app.api.routes.live_avatar import router as live_avatar_router
 from app.api.routes.listening import router as listening_router
 from app.api.routes.mistakes import router as mistakes_router
 from app.api.routes.onboarding import router as onboarding_router
@@ -32,6 +33,7 @@ api_router.include_router(diagnostic_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(lessons_router)
 api_router.include_router(listening_router)
+api_router.include_router(live_avatar_router)
 api_router.include_router(grammar_router)
 api_router.include_router(speaking_router)
 api_router.include_router(pronunciation_router)

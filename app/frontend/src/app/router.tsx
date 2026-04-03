@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { routes } from "../shared/constants/routes";
 import { WelcomePage } from "../pages/WelcomePage";
+import { WelcomeClassicPage } from "../pages/WelcomeClassicPage";
 import { AppShell } from "../widgets/AppShell";
 import { RouteErrorScreen } from "./RouteErrorScreen";
 
@@ -19,6 +20,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to={routes.welcome} replace /> },
       { path: routes.welcome, element: <WelcomePage /> },
+      { path: routes.welcomeClassic, element: <WelcomeClassicPage /> },
+      { path: routes.liveAvatar, lazy: lazyPage(() => import("../pages/LiveAvatarPage"), "LiveAvatarPage") },
       { path: routes.onboarding, lazy: lazyPage(() => import("../pages/OnboardingPage"), "OnboardingPage") },
       { path: routes.dashboard, lazy: lazyPage(() => import("../pages/DashboardPage"), "DashboardPage") },
       { path: routes.activity, lazy: lazyPage(() => import("../pages/ActivityPage"), "ActivityPage") },

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { routes } from "../shared/constants/routes";
+import { readStoredActiveUserId } from "../shared/auth/active-user";
 import { useLocale } from "../shared/i18n/useLocale";
 import { useAppStore } from "../shared/store/app-store";
 import { cn } from "../shared/utils/cn";
@@ -12,6 +13,7 @@ import { AppTopRail } from "./navigation/AppTopRail";
 export function AppShell() {
   const location = useLocation();
   const isWelcomeRoute = location.pathname === routes.welcome;
+  const isWelcomeClassicRoute = location.pathname === routes.welcomeClassic;
   const isOnboardingRoute = location.pathname === routes.onboarding;
   const routeSectionId = getLivingDepthRouteSectionId(location.pathname);
   const bootstrap = useAppStore((state) => state.bootstrap);
@@ -19,6 +21,8 @@ export function AppShell() {
   const isBootstrapping = useAppStore((state) => state.isBootstrapping);
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const needsOnboarding = useAppStore((state) => state.needsOnboarding);
+  const hasStoredActiveUser = Boolean(readStoredActiveUserId());
+  const shouldShowGuestEntry = needsOnboarding || !hasStoredActiveUser;
   const { locale, setLocale, tr, formatRecommendationGoal } = useLocale();
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
@@ -43,21 +47,21 @@ export function AppShell() {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  if (needsOnboarding && !isOnboardingRoute && !isWelcomeRoute) {
+  if (shouldShowGuestEntry && !isOnboardingRoute && !isWelcomeRoute && !isWelcomeClassicRoute) {
     return <Navigate to={routes.welcome} replace />;
   }
 
-  if (!needsOnboarding && (isOnboardingRoute || isWelcomeRoute)) {
+  if (!shouldShowGuestEntry && (isOnboardingRoute || isWelcomeRoute || isWelcomeClassicRoute)) {
     return <Navigate to={routes.dashboard} replace />;
   }
 
-  if (needsOnboarding && (isOnboardingRoute || isWelcomeRoute)) {
+  if (shouldShowGuestEntry && (isOnboardingRoute || isWelcomeRoute || isWelcomeClassicRoute)) {
     return (
       <div className="onboarding-layout living-depth-shell">
         <LivingBackgroundSystem routeSectionId={routeSectionId} />
         <div className="onboarding-layout__orb onboarding-layout__orb--left" />
         <div className="onboarding-layout__orb onboarding-layout__orb--right" />
-        {!isWelcomeRoute ? (
+        {!isWelcomeRoute && !isWelcomeClassicRoute ? (
           <div className="absolute right-4 top-4 z-20 lg:right-6 lg:top-6">
             <div className="flex rounded-full border border-white/60 bg-white/80 p-1 shadow-soft backdrop-blur">
               {localeOptions.map((targetLocale) => (

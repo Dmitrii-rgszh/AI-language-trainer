@@ -8,6 +8,7 @@ grammar_service = runtime.grammar_service
 lesson_runtime_service = runtime.lesson_runtime_service
 lesson_service = runtime.lesson_service
 listening_service = runtime.listening_service
+live_avatar_service = runtime.live_avatar_service
 mistake_service = runtime.mistake_service
 onboarding_service = runtime.onboarding_service
 profile_service = runtime.profile_service

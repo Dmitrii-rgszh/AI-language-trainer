@@ -3,6 +3,7 @@ from app.providers.llm.lmstudio_provider import LMStudioProvider
 from app.providers.llm.mock_provider import MockLLMProvider
 from app.providers.scoring.rule_based_provider import RuleBasedScoringProvider
 from app.providers.stt.faster_whisper_provider import FasterWhisperProvider
+from app.providers.tts.qwen3_tts_provider import Qwen3TTSProvider
 from app.providers.tts.xtts_provider import XTTSProvider
 from app.schemas.provider import ProviderStatus
 
@@ -12,6 +13,7 @@ class ProviderRegistry:
         self.mock_llm_provider = MockLLMProvider()
         self.lmstudio_llm_provider = LMStudioProvider()
         self.faster_whisper_provider = FasterWhisperProvider()
+        self.qwen3_tts_provider = Qwen3TTSProvider()
         self.xtts_provider = XTTSProvider()
         self.rule_based_scoring_provider = RuleBasedScoringProvider()
         self.llm_provider = self._resolve_default_llm_provider()
@@ -28,6 +30,11 @@ class ProviderRegistry:
         return self.mock_llm_provider
 
     def _resolve_default_tts_provider(self):
+        if settings.tts_provider == "qwen3_tts":
+            status = self.qwen3_tts_provider.status()
+            if status.status == "ready":
+                return self.qwen3_tts_provider
+
         if settings.tts_provider == "xtts":
             status = self.xtts_provider.status()
             if status.status == "ready":
@@ -56,8 +63,12 @@ class ProviderRegistry:
                 details=self.mock_llm_provider.UNAVAILABLE_DETAILS,
             )
 
-        tts_status = self.xtts_provider.status()
-        if settings.tts_provider != "xtts":
+        if settings.tts_provider == "qwen3_tts":
+            tts_status = self.qwen3_tts_provider.status()
+        else:
+            tts_status = self.xtts_provider.status()
+
+        if settings.tts_provider not in {"xtts", "qwen3_tts"}:
             tts_status = ProviderStatus(
                 key="tts_disabled",
                 name="TTS Engine",

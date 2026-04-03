@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { ApiError, apiClient } from "../../shared/api/client";
+import { useAppStore } from "../../shared/store/app-store";
 import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
 import { cn } from "../../shared/utils/cn";
 
@@ -10,18 +11,20 @@ type WelcomeAiTutorCueProps = {
   locale: AppLocale;
   label: string;
   message: string;
+  spokenMessage?: string;
   replayCta: string;
 };
 
 const AI_TUTOR_SPEAKER = "Daisy Studious";
-const WELCOME_TUTOR_VIDEO_WAIT_MS = 3500;
-const WELCOME_TUTOR_REPLAY_VIDEO_WAIT_MS = 12000;
+const WELCOME_TUTOR_VIDEO_WAIT_MS = 12000;
+const WELCOME_TUTOR_REPLAY_VIDEO_WAIT_MS = 18000;
 
 function getPlaybackLabels(locale: AppLocale) {
   if (locale === "ru") {
     return {
       autoplayHint: "Если звук не стартовал автоматически, нажми «Послушать ещё раз».",
       loading: "Лиза готовит задание...",
+      warming: "Первый запуск прогревает видео-аватар. Это может занять несколько секунд.",
       playing: "Лиза озвучивает задание",
     };
   }
@@ -29,6 +32,7 @@ function getPlaybackLabels(locale: AppLocale) {
   return {
     autoplayHint: "If audio did not start automatically, press “Hear it again”.",
     loading: "Liza is preparing the prompt...",
+    warming: "The first launch is warming up the avatar video. This can take a few seconds.",
     playing: "Liza is saying the prompt",
   };
 }
@@ -38,6 +42,7 @@ export function WelcomeAiTutorCue({
   locale,
   label,
   message,
+  spokenMessage,
   replayCta,
 }: WelcomeAiTutorCueProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +63,12 @@ export function WelcomeAiTutorCue({
   const playbackRequestRef = useRef(0);
   const labels = getPlaybackLabels(locale);
   const avatarAlt = locale === "ru" ? "Лиза" : "Liza";
+  const livePrompt = (spokenMessage || message).trim();
+  const providers = useAppStore((state) => state.providers);
+  const ttsProvider = providers.find((provider) => provider.type === "tts");
+  const ttsCacheSignature = ttsProvider
+    ? `${ttsProvider.key}|${ttsProvider.details}`
+    : "tts-provider-pending";
 
   function stopCurrentPlayback() {
     audioRef.current?.pause();
@@ -97,14 +108,14 @@ export function WelcomeAiTutorCue({
       return;
     }
 
-    const autoPlayKey = `${locale}:${message}`;
+    const autoPlayKey = `${locale}:${livePrompt}:${ttsCacheSignature}`;
     if (autoPlayKeyRef.current === autoPlayKey) {
       return;
     }
 
     autoPlayKeyRef.current = autoPlayKey;
     void playTutorCue("auto");
-  }, [isVisible, locale, message]);
+  }, [isVisible, locale, livePrompt, ttsCacheSignature]);
 
   function ensureAudioElement() {
     if (audioRef.current) {
@@ -120,7 +131,7 @@ export function WelcomeAiTutorCue({
   }
 
   function buildVideoSourceKey() {
-    return `${locale}:${message}`;
+    return `${locale}:${livePrompt}:${ttsCacheSignature}`;
   }
 
   async function ensureAudioSource() {
@@ -141,7 +152,7 @@ export function WelcomeAiTutorCue({
     preparedAudioKeyRef.current = sourceKey;
     preparedAudioPromiseRef.current = apiClient
       .synthesizeSpeech({
-        text: message,
+        text: livePrompt,
         language: locale === "ru" ? "ru" : "en",
         speaker: AI_TUTOR_SPEAKER,
         style: "warm",
@@ -173,9 +184,10 @@ export function WelcomeAiTutorCue({
     preparedVideoKeyRef.current = sourceKey;
     preparedVideoPromiseRef.current = apiClient
       .renderWelcomeTutorClip({
-        text: message,
+        text: livePrompt,
         language: locale === "ru" ? "ru" : "en",
         avatarKey: "verba_tutor",
+        cacheSignature: ttsCacheSignature,
       })
       .then((videoBlob) => {
         preparedVideoBlobRef.current = videoBlob;
@@ -196,6 +208,20 @@ export function WelcomeAiTutorCue({
     return (
       preparedVideoKeyRef.current === buildVideoSourceKey() &&
       Boolean(preparedVideoBlobRef.current)
+    );
+  }
+
+  function hasPreparedAudioSource() {
+    return (
+      preparedAudioKeyRef.current === buildVideoSourceKey() &&
+      Boolean(currentAudioUrlRef.current)
+    );
+  }
+
+  function isVideoPreparingForCurrentCue() {
+    return (
+      preparedVideoKeyRef.current === buildVideoSourceKey() &&
+      Boolean(preparedVideoPromiseRef.current)
     );
   }
 
@@ -353,9 +379,23 @@ export function WelcomeAiTutorCue({
     stopCurrentPlayback();
 
     try {
-      if (trigger === "manual" && hasPreparedVideoSource()) {
-        await playMuseTalkVideo(initialRequestId, true);
-        return;
+      if (trigger === "manual") {
+        if (hasPreparedAudioSource() && !hasPreparedVideoSource() && !isVideoPreparingForCurrentCue()) {
+          await playNarration(initialRequestId);
+          return;
+        }
+
+        if (hasPreparedVideoSource()) {
+          try {
+            await playMuseTalkVideo(initialRequestId, true);
+            return;
+          } catch {
+            const fallbackRequestId = playbackRequestRef.current + 1;
+            playbackRequestRef.current = fallbackRequestId;
+            await playNarration(fallbackRequestId);
+            return;
+          }
+        }
       }
 
       await playMuseTalkVideoWithTimeout(
@@ -374,12 +414,6 @@ export function WelcomeAiTutorCue({
         error instanceof Error && error.name === "TutorVideoTimeoutError";
 
       if (videoTimedOut) {
-        if (trigger === "manual") {
-          setPlaybackHint(labels.loading);
-          setIsPlaying(false);
-          return;
-        }
-
         const fallbackRequestId = playbackRequestRef.current + 1;
         playbackRequestRef.current = fallbackRequestId;
 
@@ -391,7 +425,15 @@ export function WelcomeAiTutorCue({
             fallbackError instanceof Error &&
             (fallbackError.name === "NotAllowedError" ||
               fallbackError.message.includes("play"));
-          setPlaybackHint(labels.autoplayHint);
+          if (trigger === "manual") {
+            setPlaybackHint(labels.loading);
+            setIsPlaying(false);
+            if (!fallbackBlocked) {
+              setRenderMode("audio");
+            }
+            return;
+          }
+          setPlaybackHint(labels.warming);
           setIsPlaying(false);
           if (!fallbackBlocked) {
             setRenderMode("audio");
@@ -473,7 +515,6 @@ export function WelcomeAiTutorCue({
             <button
               type="button"
               onClick={() => void playTutorCue("manual")}
-              disabled={isLoading}
               className="proof-lesson-ai-cue__replay"
             >
               {replayCta}

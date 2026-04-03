@@ -235,10 +235,16 @@ export function WelcomeProofLesson({
   locale,
 }: WelcomeProofLessonProps) {
   const lesson = useWelcomeProofLesson(locale);
-  const progressLabel =
-    locale === "ru"
-      ? `${lesson.stepIndex + 1} из ${lesson.totalSteps}`
-      : `${lesson.stepIndex + 1} of ${lesson.totalSteps}`;
+  const showsProgress = lesson.currentStep !== "intro";
+  const progressTotalSteps = Math.max(1, lesson.totalSteps - 1);
+  const progressCurrentStep = showsProgress
+    ? Math.min(progressTotalSteps, Math.max(1, lesson.stepIndex))
+    : 0;
+  const progressLabel = showsProgress
+    ? locale === "ru"
+      ? `${progressCurrentStep} из ${progressTotalSteps}`
+      : `${progressCurrentStep} of ${progressTotalSteps}`
+    : "";
   const copy = proofLessonStepCopy[locale];
 
   const attemptContent =
@@ -331,6 +337,9 @@ export function WelcomeProofLesson({
   );
 
   let stepView: WelcomeProofLessonStepView;
+  const situationPrompt =
+    lesson.scenario.situation.coachSpokenPrompt ??
+    lesson.scenario.situation.coachPrompt;
 
   switch (lesson.currentStep) {
     case "intro":
@@ -368,7 +377,8 @@ export function WelcomeProofLesson({
             isVisible={isVisible}
             locale={locale}
             label={lesson.scenario.situation.coachLabel}
-            message={lesson.scenario.situation.coachPrompt}
+            message={situationPrompt}
+            spokenMessage={situationPrompt}
             replayCta={lesson.scenario.situation.coachReplayCta}
           />
         ),
@@ -652,9 +662,10 @@ export function WelcomeProofLesson({
   return (
     <WelcomeProofLessonStepLayout
       isVisible={isVisible}
-      currentStep={lesson.stepIndex + 1}
-      totalSteps={lesson.totalSteps}
+      currentStep={progressCurrentStep}
+      totalSteps={progressTotalSteps}
       progressLabel={progressLabel}
+      showProgress={showsProgress}
       stepKey={`${lesson.scenario.id}-${lesson.currentStep}`}
       eyebrow={stepView.eyebrow}
       title={stepView.title}

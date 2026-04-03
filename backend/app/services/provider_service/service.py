@@ -25,7 +25,24 @@ class ProviderService:
         for status in statuses:
             preference = stored_preferences.get(status.type.value)
             if preference:
-                preferences.append(preference)
+                valid_provider_keys = {
+                    candidate.key
+                    for candidate in statuses
+                    if candidate.type == status.type
+                }
+                selected_provider = (
+                    preference.selected_provider
+                    if preference.selected_provider in valid_provider_keys
+                    else status.key
+                )
+                preferences.append(
+                    ProviderPreference(
+                        provider_type=preference.provider_type,
+                        selected_provider=selected_provider,
+                        enabled=preference.enabled,
+                        settings=preference.settings,
+                    )
+                )
                 continue
 
             preferences.append(

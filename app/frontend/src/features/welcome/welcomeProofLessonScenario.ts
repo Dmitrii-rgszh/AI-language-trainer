@@ -19,6 +19,7 @@ export type WelcomeProofLessonScenario = {
     description: string;
     coachLabel: string;
     coachPrompt: string;
+    coachSpokenPrompt?: string;
     coachReplayCta: string;
     primaryCta: string;
     secondaryCta: string;
@@ -120,6 +121,8 @@ export const welcomeProofLessonScenarios: Record<
         coachLabel: "Лиза",
         coachPrompt:
           "Представь, что ты в кафе. Тебе нужно вежливо заказать кофе без сахара. Ответь так, как ты бы сказал это по-английски.",
+        coachSpokenPrompt:
+          "Как бы ты вежливо заказал кофе без сахара?",
         coachReplayCta: "Послушать ещё раз",
         primaryCta: "Ответить голосом",
         secondaryCta: "Нет микрофона? Ответить текстом",
@@ -242,6 +245,8 @@ export const welcomeProofLessonScenarios: Record<
         coachLabel: "Liza",
         coachPrompt:
           "Imagine you are in a cafe. You need to order a coffee without sugar politely. Answer the way you would say it in English.",
+        coachSpokenPrompt:
+          "How would you politely order a coffee without sugar?",
         coachReplayCta: "Hear it again",
         primaryCta: "Answer by voice",
         secondaryCta: "No microphone? Answer by text",

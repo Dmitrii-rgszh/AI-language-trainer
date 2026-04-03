@@ -1,6 +1,7 @@
 import { routes } from "./routes";
 
 export const navigationItems = [
+  { label: "Live Avatar", to: routes.liveAvatar },
   { label: "Onboarding", to: routes.onboarding },
   { label: "Dashboard", to: routes.dashboard },
   { label: "Activity", to: routes.activity },

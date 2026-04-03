@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "FastAPI backend for AI English Trainer Pro"
 requires-python = ">=3.10"
 dependencies = [
+  "aiortc>=1.14.0,<2",
   "alembic>=1.14.0",
   "faster-whisper>=1.1.0",
   "fastapi>=0.115.0",

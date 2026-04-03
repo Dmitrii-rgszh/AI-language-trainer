@@ -14,6 +14,7 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.runtime/
 backend/.venv-musetalk/
+backend/.venv-qwen/
 backend/generated/
 backend/trainer.db
 /trainer.db

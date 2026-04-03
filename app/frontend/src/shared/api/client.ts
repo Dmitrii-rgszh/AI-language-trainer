@@ -16,6 +16,11 @@ import type { LoginAvailability, UserAccount } from "../../entities/account/mode
 import type { UserProfile } from "../../entities/user/model";
 import { readStoredActiveUserId } from "../auth/active-user";
 import type {
+  LiveAvatarConfig,
+  LiveAvatarFallbackResponse,
+  LiveAvatarStatus,
+} from "../types/live-avatar";
+import type {
   AITextFeedback,
   AdaptiveStudyLoop,
   DashboardData,
@@ -84,18 +89,20 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
 }
 
 const welcomeTutorClipCache = new Map<string, Promise<Blob>>();
-const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v2";
+const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v3-tts-signature";
 
 function buildWelcomeTutorClipCacheKey(payload: {
   text: string;
   language: "ru" | "en";
   avatarKey?: string;
+  cacheSignature?: string;
 }) {
   return [
     WELCOME_TUTOR_CLIP_CACHE_SCHEMA,
     payload.avatarKey ?? "verba_tutor",
     payload.language,
     payload.text.trim(),
+    payload.cacheSignature?.trim() || "tts-unknown",
   ].join("|");
 }
 
@@ -103,6 +110,7 @@ function getWelcomeTutorClip(payload: {
   text: string;
   language: "ru" | "en";
   avatarKey?: string;
+  cacheSignature?: string;
 }) {
   const cacheKey = buildWelcomeTutorClipCacheKey(payload);
   const cachedRequest = welcomeTutorClipCache.get(cacheKey);
@@ -288,6 +296,24 @@ export const apiClient = {
   getProviders: () => request<ProviderStatus[]>("/api/providers/status"),
   getWelcomeTutorStatus: () => request<WelcomeTutorStatus>("/api/welcome/ai-tutor/status"),
   getProviderPreferences: () => request<ProviderPreference[]>("/api/providers/preferences"),
+  getLiveAvatarConfig: () => request<LiveAvatarConfig>("/api/live-avatar/config"),
+  getLiveAvatarStatus: () => request<LiveAvatarStatus>("/api/live-avatar/status"),
+  renderLiveAvatarFallback: (payload: {
+    userText: string;
+    language: "ru" | "en";
+    avatarKey?: string;
+  }) =>
+    request<LiveAvatarFallbackResponse>("/api/live-avatar/fallback-render", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_text: payload.userText,
+        language: payload.language,
+        avatar_key: payload.avatarKey ?? "verba_tutor",
+      }),
+    }),
+  getLiveAvatarFallbackClip: (clipId: string) =>
+    requestBlob(`/api/live-avatar/fallback-render/${clipId}`),
   saveProviderPreference: (
     providerType: ProviderPreference["providerType"],
     payload: Omit<ProviderPreference, "providerType">,
@@ -321,11 +347,13 @@ export const apiClient = {
     text: string;
     language: "ru" | "en";
     avatarKey?: string;
+    cacheSignature?: string;
   }) => getWelcomeTutorClip(payload),
   prefetchWelcomeTutorClip: async (payload: {
     text: string;
     language: "ru" | "en";
     avatarKey?: string;
+    cacheSignature?: string;
   }) => {
     await getWelcomeTutorClip(payload);
   },

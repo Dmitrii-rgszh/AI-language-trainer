@@ -27,6 +27,7 @@ from app.services.grammar_service.service import GrammarService
 from app.services.lesson_runtime_service.service import LessonRuntimeService
 from app.services.lesson_service.service import LessonService
 from app.services.listening_service.service import ListeningService
+from app.services.live_avatar_service.service import LiveAvatarService
 from app.services.mistake_extraction_service.service import MistakeExtractionService
 from app.services.mistake_service.service import MistakeService
 from app.services.onboarding_service.service import OnboardingService
@@ -82,6 +83,7 @@ class AppRuntime:
     lesson_runtime_service: LessonRuntimeService
     lesson_service: LessonService
     listening_service: ListeningService
+    live_avatar_service: LiveAvatarService
     mistake_service: MistakeService
     onboarding_service: OnboardingService
     profile_service: ProfileService

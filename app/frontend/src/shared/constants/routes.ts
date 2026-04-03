@@ -1,5 +1,7 @@
 export const routes = {
   welcome: "/welcome",
+  welcomeClassic: "/welcome-classic",
+  liveAvatar: "/live-avatar",
   onboarding: "/onboarding",
   dashboard: "/dashboard",
   activity: "/activity",
