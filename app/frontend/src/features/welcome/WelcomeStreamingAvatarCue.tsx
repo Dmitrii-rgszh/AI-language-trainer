@@ -3,6 +3,7 @@ import type { AppLocale } from "../../shared/i18n/locale";
 import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
 import { useLiveAvatarSession } from "../live-avatar/useLiveAvatarSession";
 import { cn } from "../../shared/utils/cn";
+import { TutorCard } from "./TutorCard";
 
 type WelcomeStreamingAvatarCueProps = {
   isVisible: boolean;
@@ -189,36 +190,33 @@ export function WelcomeStreamingAvatarCue({
 
   return (
     <div className="proof-lesson-ai-cue">
-      <div className="proof-lesson-surface proof-lesson-surface--warm proof-lesson-ai-cue__stage">
-        <div className="proof-lesson-ai-cue__copy">
-          <div className="proof-lesson-ai-cue__label">{label}</div>
-          <p className="proof-lesson-ai-cue__message">{message}</p>
-
-          <div className="proof-lesson-ai-cue__footer">
-            <div className="proof-lesson-ai-cue__status">
-              <span
-                className={cn(
-                  "proof-lesson-ai-cue__status-dot",
-                  (isBusy || isPlaying) && "proof-lesson-ai-cue__status-dot--live",
-                )}
-                aria-hidden="true"
-              />
-              <span>{error || statusLabel}</span>
-            </div>
-
-            {playbackHint ? <div className="proof-lesson-ai-cue__hint">{playbackHint}</div> : null}
-
-            <button
-              type="button"
-              onClick={handleReplay}
-              className="proof-lesson-ai-cue__replay"
-            >
-              {replayCta}
-            </button>
+      <TutorCard
+        label={label}
+        message={message}
+        replayAction={
+          <button
+            type="button"
+            onClick={handleReplay}
+            className="proof-lesson-ai-cue__replay"
+          >
+            {replayCta}
+          </button>
+        }
+        status={
+          <div className="proof-lesson-ai-cue__status">
+            <span
+              className={cn(
+                "proof-lesson-ai-cue__status-dot",
+                (isBusy || isPlaying) && "proof-lesson-ai-cue__status-dot--live",
+              )}
+              aria-hidden="true"
+            />
+            <span>{error || statusLabel}</span>
           </div>
-        </div>
-
-        <div className="proof-lesson-ai-cue__visual">
+        }
+        hint={playbackHint}
+        isSpeaking={isPlaying || connectionState === "speaking"}
+        avatarStage={
           <div
             className={cn(
               "proof-lesson-ai-avatar",
@@ -247,8 +245,8 @@ export function WelcomeStreamingAvatarCue({
             <audio ref={audioRef} autoPlay preload="auto" className="sr-only" />
             <div className="proof-lesson-ai-avatar__ambient-ring" aria-hidden="true" />
           </div>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 }

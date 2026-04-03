@@ -577,12 +577,12 @@ a {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 39rem;
+  max-width: 47.5rem;
   margin-inline: auto;
   border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 34px;
-  min-height: clamp(26.75rem, 47vh, 30.5rem);
-  padding: 1.85rem 2rem 1.8rem;
+  border-radius: 32px;
+  min-height: clamp(36rem, 72vh, 40rem);
+  padding: 2rem 2rem 1.8rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 245, 239, 0.78)),
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 52%);
@@ -598,13 +598,13 @@ a {
 }
 
 .proof-lesson-card--intro {
-  max-width: 39rem;
+  max-width: 35.5rem;
+  min-height: auto;
+  padding: 1.85rem 1.9rem 1.75rem;
 }
 
 .proof-lesson-card--scene {
-  max-width: 47rem;
-  min-height: clamp(29.5rem, 54vh, 34rem);
-  padding-right: 2.15rem;
+  min-height: clamp(38rem, 74vh, 41rem);
   box-shadow:
     0 30px 68px rgba(151, 168, 181, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.86);
@@ -614,6 +614,7 @@ a {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-height: 1.25rem;
 }
 
 .proof-lesson-progress__track {
@@ -646,29 +647,30 @@ a {
   flex: 1 1 auto;
   flex-direction: column;
   justify-content: space-between;
-  gap: clamp(1.2rem, 3vh, 1.9rem);
+  gap: clamp(1.35rem, 3vh, 1.8rem);
   min-height: 0;
-  margin-top: 2.2rem;
+  margin-top: 1.75rem;
 }
 
 .proof-lesson-step__body {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 1.75rem;
 }
 
 .proof-lesson-step__header {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  max-width: 42rem;
+  gap: 0.8rem;
+  max-width: 40rem;
 }
 
 .proof-lesson-step__footer {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.75rem;
   width: 100%;
+  padding-top: 0.15rem;
 }
 
 .proof-lesson-step__eyebrow {
@@ -680,55 +682,66 @@ a {
 }
 
 .proof-lesson-step__title {
-  max-width: 42rem;
+  max-width: 40rem;
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.15rem);
   font-weight: 700;
-  line-height: 1.02;
+  line-height: 1.04;
   letter-spacing: -0.045em;
   color: #1d2a38;
 }
 
 .proof-lesson-step__description {
-  max-width: 38rem;
+  max-width: 34rem;
   margin: 0;
   font-size: 1rem;
-  line-height: 1.95;
+  line-height: 1.75;
   color: #5a6b79;
 }
 
 .proof-lesson-step__content {
   width: 100%;
-  max-width: 44rem;
-  margin-top: 0.1rem;
+  max-width: none;
+  margin-top: 0;
 }
 
 .proof-lesson-step__content--scene {
   max-width: 100%;
-  margin-top: 0.55rem;
-  min-height: clamp(14rem, 31vh, 17rem);
+  margin-top: 0;
+  min-height: auto;
 }
 
 .proof-lesson-step--scene {
-  gap: clamp(1.4rem, 3vh, 2rem);
+  gap: clamp(1.35rem, 3vh, 1.75rem);
 }
 
 .proof-lesson-step--scene .proof-lesson-step__header {
-  max-width: 34rem;
+  max-width: 36rem;
 }
 
 .proof-lesson-step--scene .proof-lesson-step__footer {
-  max-width: 22.5rem;
+  max-width: none;
+  gap: 0.62rem;
+  position: relative;
+  padding-top: 0.9rem;
+}
+
+.proof-lesson-step--scene .proof-lesson-step__footer::before {
+  content: "";
+  width: min(18.5rem, 100%);
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.14), rgba(15, 118, 110, 0.03));
 }
 
 .proof-lesson-step__actions {
   width: 100%;
-  max-width: 24rem;
+  max-width: 20rem;
 }
 
 .proof-lesson-step__secondary {
   width: 100%;
-  max-width: 28rem;
+  max-width: 24rem;
 }
 
 .proof-lesson-step__helper {
@@ -740,16 +753,27 @@ a {
 
 .proof-lesson-primary-button {
   width: 100%;
-  min-height: 3.5rem;
+  min-height: 3rem;
   border-radius: 24px;
   padding-inline: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.015em;
-  box-shadow: 0 16px 34px rgba(15, 118, 110, 0.16);
+  box-shadow:
+    0 14px 28px rgba(15, 118, 110, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition:
+    transform 180ms ease,
+    box-shadow 220ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
 }
 
 .proof-lesson-secondary-action {
+  display: inline-flex;
+  align-items: center;
   border: 0;
   padding: 0;
   background: transparent;
@@ -758,11 +782,22 @@ a {
   line-height: 1.6;
   color: #6a7987;
   text-align: left;
-  transition: color 180ms ease;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+.proof-lesson-primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 18px 32px rgba(15, 118, 110, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .proof-lesson-secondary-action:hover {
   color: #1d2a38;
+  opacity: 0.9;
 }
 
 .proof-lesson-stack,
@@ -941,40 +976,51 @@ a {
   max-width: 100%;
 }
 
-.proof-lesson-ai-cue__stage {
+.proof-lesson-tutor-card {
   position: relative;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1.46fr) minmax(0, 1.14fr);
+  align-items: center;
+  gap: 1.08rem;
   width: 100%;
-  min-height: clamp(13.75rem, 30vh, 16.4rem);
-  overflow: visible;
-  padding: 1.55rem clamp(11.6rem, 24vw, 14.8rem) 1.48rem 1.5rem;
+  min-height: clamp(14.5rem, 31vh, 15.5rem);
+  overflow: hidden;
+  padding: 1.5rem;
   border-color: rgba(255, 255, 255, 0.84);
-  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 28px;
   background:
-    radial-gradient(circle at 88% 22%, rgba(174, 234, 226, 0.34), transparent 26%),
-    radial-gradient(circle at 16% 112%, rgba(255, 230, 204, 0.48), transparent 34%),
+    radial-gradient(circle at 88% 18%, rgba(174, 234, 226, 0.3), transparent 24%),
+    radial-gradient(circle at 14% 108%, rgba(255, 230, 204, 0.44), transparent 32%),
     linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(251, 246, 238, 0.94));
   box-shadow:
     0 24px 48px rgba(151, 168, 181, 0.13),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
-.proof-lesson-ai-cue__stage::before {
+.proof-lesson-tutor-card--speaking {
+  box-shadow:
+    0 26px 52px rgba(151, 168, 181, 0.14),
+    0 0 0 1px rgba(15, 118, 110, 0.025),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.proof-lesson-tutor-card::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 34%),
-    radial-gradient(circle at 74% 16%, rgba(255, 255, 255, 0.26), transparent 16%);
+    radial-gradient(circle at 74% 16%, rgba(255, 255, 255, 0.26), transparent 18%);
   opacity: 0.94;
 }
 
-.proof-lesson-ai-cue__stage::after {
+.proof-lesson-tutor-card::after {
   content: "";
   position: absolute;
-  inset: auto -8% -28% 32%;
-  height: 12rem;
+  inset: auto -10% -34% 30%;
+  height: 10rem;
   pointer-events: none;
   background:
     radial-gradient(circle at center, rgba(193, 235, 228, 0.26), transparent 44%),
@@ -983,54 +1029,159 @@ a {
   opacity: 0.88;
 }
 
-.proof-lesson-ai-cue__copy {
+.proof-lesson-tutor-card__message-column {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.92rem;
-  min-height: 100%;
-  max-width: 28rem;
-  animation: proof-lesson-scene-copy-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  min-width: 0;
+  max-width: 22rem;
 }
 
-.proof-lesson-ai-cue__visual {
+.proof-lesson-tutor-card__message-column::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -0.85rem;
+  width: 2rem;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.12), rgba(15, 118, 110, 0));
+  opacity: 0.58;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.proof-lesson-tutor-card__identity-row {
+  margin-bottom: 0.95rem;
+}
+
+.proof-lesson-tutor-card__name-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.5rem 0.82rem;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.54)),
+    rgba(255, 255, 255, 0.56);
+  box-shadow:
+    0 8px 18px rgba(151, 168, 181, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0f766e;
+}
+
+.proof-lesson-tutor-card__utterance {
+  max-width: 22rem;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.025em;
+  color: #2b3e4f;
+}
+
+.proof-lesson-tutor-card__replay-row {
+  margin-top: 0.88rem;
+}
+
+.proof-lesson-tutor-card__state-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+  margin-top: 0.65rem;
+}
+
+.proof-lesson-tutor-card__state-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.proof-lesson-tutor-card__hint {
+  max-width: 20rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #6a7987;
+}
+
+.proof-lesson-tutor-card__avatar-stage {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: stretch;
-  justify-content: flex-end;
-  position: absolute;
-  top: -1.35rem;
-  right: -1.18rem;
-  bottom: -1.35rem;
-  width: clamp(11.25rem, 25vw, 14.7rem);
-  min-height: 0;
-  animation: proof-lesson-avatar-dock-in 760ms cubic-bezier(0.2, 0.95, 0.22, 1) both;
+  align-items: center;
+  justify-content: center;
+  min-height: 14.2rem;
 }
 
-.proof-lesson-ai-cue__visual::before {
-  content: "";
-  position: absolute;
-  inset: 0.8rem 0.5rem 0.8rem -0.2rem;
-  border-radius: 38px;
+.proof-lesson-tutor-card__avatar-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 15.35rem);
+  aspect-ratio: 1 / 1;
+  padding: 0.55rem;
+  border: 1px solid rgba(15, 118, 110, 0.08);
+  border-radius: 27px;
   background:
-    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.92), rgba(228, 243, 240, 0.46) 42%, rgba(228, 243, 240, 0.08) 72%, transparent 84%);
-  filter: blur(14px);
-  opacity: 0.86;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(243, 246, 245, 0.72)),
+    rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 16px 30px rgba(151, 168, 181, 0.1);
+  transition:
+    box-shadow 240ms ease,
+    border-color 240ms ease,
+    transform 240ms ease;
 }
 
-.proof-lesson-ai-cue__visual::after {
+.proof-lesson-tutor-card__avatar-shell::before {
   content: "";
   position: absolute;
-  left: 8%;
-  right: 6%;
-  bottom: 0.65rem;
+  inset: 0.6rem;
+  border-radius: 23px;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at 74% 82%, rgba(186, 230, 223, 0.12), transparent 28%);
+  opacity: 0.58;
+}
+
+.proof-lesson-tutor-card__avatar-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto 12% 0.85rem 12%;
+  height: 0.8rem;
   border-radius: 999px;
-  background: radial-gradient(circle at center, rgba(44, 95, 92, 0.22), rgba(44, 95, 92, 0.03) 68%, transparent 82%);
-  filter: blur(14px);
-  opacity: 0.85;
+  background: radial-gradient(circle at center, rgba(33, 78, 77, 0.11), transparent 72%);
+  filter: blur(10px);
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell {
+  border-color: rgba(15, 118, 110, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 32px rgba(151, 168, 181, 0.11),
+    0 0 0 1px rgba(15, 118, 110, 0.04);
+}
+
+.proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at 74% 82%, rgba(186, 230, 223, 0.16), transparent 28%);
+}
+
+.proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell::after {
+  opacity: 0.56;
 }
 
 .proof-lesson-ai-avatar {
@@ -1041,14 +1192,17 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 34px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 238, 228, 0.88)),
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.44), transparent 52%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 241, 233, 0.9)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.24), transparent 48%);
   box-shadow:
-    0 28px 58px rgba(151, 168, 181, 0.2),
-    0 10px 22px rgba(255, 255, 255, 0.36) inset,
+    0 20px 40px rgba(151, 168, 181, 0.14),
+    0 8px 18px rgba(255, 255, 255, 0.3) inset,
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   isolation: isolate;
-  transform: translateX(0);
+  transition:
+    transform 240ms ease,
+    box-shadow 240ms ease,
+    filter 240ms ease;
 }
 
 .proof-lesson-ai-avatar::before {
@@ -1072,6 +1226,14 @@ a {
   background: linear-gradient(180deg, rgba(29, 42, 56, 0), rgba(29, 42, 56, 0.08));
   border-radius: 0 0 28px 28px;
   opacity: 0.42;
+}
+
+.proof-lesson-ai-avatar--speaking {
+  transform: translateY(-1px);
+  box-shadow:
+    0 24px 44px rgba(141, 165, 176, 0.16),
+    0 8px 18px rgba(255, 255, 255, 0.3) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.94);
 }
 
 .proof-lesson-ai-avatar__image {
@@ -1104,60 +1266,21 @@ a {
 
 .proof-lesson-ai-avatar__ambient-ring {
   position: absolute;
-  inset: -0.4rem;
+  inset: -0.35rem;
   z-index: -1;
-  border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 34px;
-  opacity: 0.34;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 28px;
+  opacity: 0.12;
   transform: scale(1);
+  filter: blur(0.2px);
   transition:
     opacity 180ms ease,
     transform 180ms ease;
 }
 
 .proof-lesson-ai-avatar--speaking .proof-lesson-ai-avatar__ambient-ring {
-  opacity: 0.66;
-  animation: proof-lesson-avatar-breathe 2.6s ease-in-out infinite;
-}
-
-.proof-lesson-ai-cue__bubble {
-  padding: 1rem 1.1rem 0.95rem;
-}
-
-.proof-lesson-ai-cue__label {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  max-width: 100%;
-  padding: 0.48rem 0.82rem;
-  border: 1px solid rgba(255, 255, 255, 0.66);
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.54)),
-    rgba(255, 255, 255, 0.56);
-  box-shadow:
-    0 8px 18px rgba(151, 168, 181, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.88);
-  font-size: 0.84rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #0f766e;
-}
-
-.proof-lesson-ai-cue__message {
-  margin: 0;
-  font-size: 1.04rem;
-  line-height: 1.92;
-  letter-spacing: -0.012em;
-  color: #2b3e4f;
-}
-
-.proof-lesson-ai-cue__footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.72rem 0.95rem;
-  margin-top: 0.25rem;
+  opacity: 0.26;
+  animation: proof-lesson-avatar-breathe 3.4s ease-in-out infinite;
 }
 
 .proof-lesson-ai-cue__status {
@@ -1186,7 +1309,7 @@ a {
   border: 0;
   padding: 0;
   background: transparent;
-  font-size: 0.84rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #0f766e;
@@ -1212,7 +1335,7 @@ a {
   font-size: 0.82rem;
   line-height: 1.55;
   color: #6a7987;
-  max-width: 18rem;
+  max-width: 20rem;
 }
 
 @keyframes proof-lesson-avatar-breathe {
@@ -1601,14 +1724,13 @@ a {
   .proof-lesson-card {
     max-width: 100%;
     min-height: auto;
-    padding: 1.4rem 1.25rem 1.45rem;
+    padding: 1.5rem 1.25rem 1.45rem;
     border-radius: 28px;
   }
 
   .proof-lesson-card--scene {
     max-width: 100%;
     min-height: auto;
-    padding-right: 1.25rem;
   }
 
   .proof-lesson-progress {
@@ -1621,69 +1743,62 @@ a {
   }
 
   .proof-lesson-step {
-    gap: 1.1rem;
-    margin-top: 1.9rem;
+    gap: 1.2rem;
+    margin-top: 1.55rem;
   }
 
   .proof-lesson-step__body {
-    gap: 1rem;
+    gap: 1.3rem;
   }
 
   .proof-lesson-step__header {
-    gap: 0.72rem;
+    gap: 0.68rem;
   }
 
   .proof-lesson-surface {
     padding: 1.05rem;
   }
 
-  .proof-lesson-ai-cue {
-    text-align: left;
+  .proof-lesson-step__actions,
+  .proof-lesson-step__secondary {
+    max-width: 100%;
   }
 
-  .proof-lesson-ai-cue__stage {
+  .proof-lesson-tutor-card {
+    grid-template-columns: 1fr;
+    gap: 0.95rem;
     min-height: auto;
     padding: 1.1rem;
-    overflow: hidden;
   }
 
-  .proof-lesson-ai-cue__copy {
+  .proof-lesson-tutor-card__message-column::after {
+    display: none;
+  }
+
+  .proof-lesson-tutor-card__message-column {
     max-width: none;
-    animation: none;
   }
 
-  .proof-lesson-ai-cue__footer {
-    justify-content: flex-start;
+  .proof-lesson-tutor-card__identity-row {
+    margin-bottom: 0.9rem;
   }
 
-  .proof-lesson-ai-cue__visual {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    justify-content: center;
-    align-self: auto;
-    min-height: 11rem;
-    animation: none;
+  .proof-lesson-tutor-card__utterance {
+    max-width: none;
+    font-size: 1.08rem;
+    line-height: 1.62;
+  }
+
+  .proof-lesson-tutor-card__avatar-stage {
+    min-height: auto;
+  }
+
+  .proof-lesson-tutor-card__avatar-shell {
+    width: min(100%, 13rem);
+    padding: 0.42rem;
   }
 
   .proof-lesson-ai-avatar {
-    width: min(10rem, 48vw);
-    height: auto;
-    aspect-ratio: 0.86;
-    border-radius: 28px;
-    transform: none;
-  }
-
-  .proof-lesson-ai-cue__visual::before {
-    top: 0.7rem;
-    bottom: 0.7rem;
-    left: 50%;
-    right: auto;
-    width: min(10.5rem, 52vw);
-    height: auto;
-    aspect-ratio: 0.86;
-    transform: translateX(-50%);
+    border-radius: 22px;
   }
 }

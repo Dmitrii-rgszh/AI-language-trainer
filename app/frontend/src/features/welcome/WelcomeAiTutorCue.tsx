@@ -5,6 +5,7 @@ import { ApiError, apiClient } from "../../shared/api/client";
 import { useAppStore } from "../../shared/store/app-store";
 import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
 import { cn } from "../../shared/utils/cn";
+import { TutorCard } from "./TutorCard";
 
 type WelcomeAiTutorCueProps = {
   isVisible: boolean;
@@ -489,40 +490,35 @@ export function WelcomeAiTutorCue({
 
   return (
     <div className="proof-lesson-ai-cue">
-      <div className="proof-lesson-surface proof-lesson-surface--warm proof-lesson-ai-cue__stage">
-        <div className="proof-lesson-ai-cue__copy">
-          <div className="proof-lesson-ai-cue__label">{label}</div>
-          <p className="proof-lesson-ai-cue__message">{message}</p>
-
-          <div className="proof-lesson-ai-cue__footer">
-            {isLoading || isPlaying ? (
-              <div className="proof-lesson-ai-cue__status">
-                <span
-                  className={cn(
-                    "proof-lesson-ai-cue__status-dot",
-                    (isLoading || isPlaying) && "proof-lesson-ai-cue__status-dot--live",
-                  )}
-                  aria-hidden="true"
-                />
-                <span>{isLoading ? labels.loading : labels.playing}</span>
-              </div>
-            ) : null}
-
-            {playbackHint ? (
-              <div className="proof-lesson-ai-cue__hint">{playbackHint}</div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void playTutorCue("manual")}
-              className="proof-lesson-ai-cue__replay"
-            >
-              {replayCta}
-            </button>
-          </div>
-        </div>
-
-        <div className="proof-lesson-ai-cue__visual">
+      <TutorCard
+        label={label}
+        message={message}
+        replayAction={
+          <button
+            type="button"
+            onClick={() => void playTutorCue("manual")}
+            className="proof-lesson-ai-cue__replay"
+          >
+            {replayCta}
+          </button>
+        }
+        status={
+          isLoading || isPlaying ? (
+            <div className="proof-lesson-ai-cue__status">
+              <span
+                className={cn(
+                  "proof-lesson-ai-cue__status-dot",
+                  (isLoading || isPlaying) && "proof-lesson-ai-cue__status-dot--live",
+                )}
+                aria-hidden="true"
+              />
+              <span>{isLoading ? labels.loading : labels.playing}</span>
+            </div>
+          ) : null
+        }
+        hint={playbackHint}
+        isSpeaking={isPlaying}
+        avatarStage={
           <div
             className={cn(
               "proof-lesson-ai-avatar",
@@ -550,8 +546,8 @@ export function WelcomeAiTutorCue({
             />
             <div className="proof-lesson-ai-avatar__ambient-ring" aria-hidden="true" />
           </div>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 }
