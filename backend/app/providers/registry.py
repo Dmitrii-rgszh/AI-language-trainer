@@ -1,6 +1,7 @@
 from app.core.config import settings
 from app.providers.llm.lmstudio_provider import LMStudioProvider
 from app.providers.llm.mock_provider import MockLLMProvider
+from app.providers.scoring.phoneme_alignment_provider import PhonemeAlignmentScoringProvider
 from app.providers.scoring.rule_based_provider import RuleBasedScoringProvider
 from app.providers.stt.faster_whisper_provider import FasterWhisperProvider
 from app.providers.tts.qwen3_tts_provider import Qwen3TTSProvider
@@ -16,10 +17,11 @@ class ProviderRegistry:
         self.qwen3_tts_provider = Qwen3TTSProvider()
         self.xtts_provider = XTTSProvider()
         self.rule_based_scoring_provider = RuleBasedScoringProvider()
+        self.phoneme_alignment_scoring_provider = PhonemeAlignmentScoringProvider(self.rule_based_scoring_provider)
         self.llm_provider = self._resolve_default_llm_provider()
         self.stt_provider = self._resolve_default_stt_provider()
         self.tts_provider = self._resolve_default_tts_provider()
-        self.scoring_provider = self.rule_based_scoring_provider
+        self.scoring_provider = self.phoneme_alignment_scoring_provider
 
     def _resolve_default_llm_provider(self):
         if settings.llm_provider == "lmstudio":
@@ -90,5 +92,5 @@ class ProviderRegistry:
             llm_status,
             stt_status,
             tts_status,
-            self.rule_based_scoring_provider.status(),
+            self.scoring_provider.status(),
         ]

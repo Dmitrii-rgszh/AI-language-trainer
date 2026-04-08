@@ -253,6 +253,16 @@ export function WelcomeProofLesson({
       : `${progressCurrentStep} of ${progressTotalSteps}`
     : "";
   const copy = proofLessonStepCopy[locale];
+  const voiceProcessingLabel =
+    locale === "ru" ? "Распознаём твою фразу..." : "Recognizing your phrase...";
+  const naturalMatchDescription =
+    locale === "ru"
+      ? "Ты уже сказал именно ту фразу, которая звучит естественно и вежливо. Ниже коротко закрепим, почему она хороша."
+      : "You already said the natural and polite version. Below is a short explanation of why it works well.";
+  const naturalMatchLabel =
+    locale === "ru" ? "Отлично, это уже хороший вариант" : "Great, this is already a strong version";
+  const naturalMatchHint =
+    locale === "ru" ? "Совпадает с рекомендуемой формулировкой." : "It matches the recommended phrasing.";
 
   const attemptContent =
     lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
@@ -266,7 +276,7 @@ export function WelcomeProofLesson({
           isProcessing={lesson.isVoiceProcessing}
           statusLabel={
             lesson.isVoiceProcessing
-              ? lesson.scenario.errors.networkRetry
+              ? voiceProcessingLabel
               : lesson.isVoiceRecording
                 ? lesson.scenario.firstAttempt.voiceRecordingCta
                 : lesson.scenario.firstAttempt.voiceStartCta
@@ -310,7 +320,7 @@ export function WelcomeProofLesson({
           isProcessing={lesson.isVoiceProcessing}
           statusLabel={
             lesson.isVoiceProcessing
-              ? lesson.scenario.errors.networkRetry
+              ? voiceProcessingLabel
               : lesson.isVoiceRecording
                 ? lesson.scenario.retry.voiceRecordingCta
                 : lesson.scenario.retry.voiceStartCta
@@ -503,28 +513,44 @@ export function WelcomeProofLesson({
       stepView = {
         eyebrow: copy.feedbackEyebrow,
         title: lesson.feedback.title,
-        description: copy.feedbackDescription,
+        description: lesson.feedback.isAlreadyNatural
+          ? naturalMatchDescription
+          : copy.feedbackDescription,
         content: (
           <div className="proof-lesson-stack">
-            <div className="grid gap-4 md:grid-cols-2">
-              <ProofLessonSurface>
-                <ProofLessonSectionLabel>
-                  {lesson.scenario.feedback.userVersionLabel}
+            {lesson.feedback.isAlreadyNatural ? (
+              <ProofLessonSurface tone="accent">
+                <ProofLessonSectionLabel accent>
+                  {naturalMatchLabel}
                 </ProofLessonSectionLabel>
                 <div className="proof-lesson-key-text">
                   {lesson.feedback.userVersion}
                 </div>
+                <p className="proof-lesson-supporting-copy mt-5">
+                  {naturalMatchHint}
+                </p>
               </ProofLessonSurface>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <ProofLessonSurface>
+                  <ProofLessonSectionLabel>
+                    {lesson.scenario.feedback.userVersionLabel}
+                  </ProofLessonSectionLabel>
+                  <div className="proof-lesson-key-text">
+                    {lesson.feedback.userVersion}
+                  </div>
+                </ProofLessonSurface>
 
-              <ProofLessonSurface tone="accent">
-                <ProofLessonSectionLabel accent>
-                  {lesson.scenario.feedback.improvedVersionLabel}
-                </ProofLessonSectionLabel>
-                <div className="proof-lesson-key-text">
-                  {lesson.feedback.improvedVersion}
-                </div>
-              </ProofLessonSurface>
-            </div>
+                <ProofLessonSurface tone="accent">
+                  <ProofLessonSectionLabel accent>
+                    {lesson.scenario.feedback.improvedVersionLabel}
+                  </ProofLessonSectionLabel>
+                  <div className="proof-lesson-key-text">
+                    {lesson.feedback.improvedVersion}
+                  </div>
+                </ProofLessonSurface>
+              </div>
+            )}
 
             <ProofLessonSurface tone="warm">
               <div className="proof-lesson-stack-sm">
@@ -587,7 +613,7 @@ export function WelcomeProofLesson({
                 {lesson.scenario.clarity.hintsTitle}
               </ProofLessonSectionLabel>
               <div className="mt-4 grid gap-3">
-                {lesson.scenario.clarity.hints.map((hint) => (
+                {lesson.clarityHints.map((hint) => (
                   <div key={hint} className="proof-lesson-list-item">
                     {hint}
                   </div>

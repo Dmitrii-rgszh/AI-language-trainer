@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
 import type { AppLocale } from "../../shared/i18n/locale";
+import type { PronunciationAssessment } from "../../shared/types/app-data";
 import { routes } from "../../shared/constants/routes";
 import { writeGuestIntent } from "./guest-intent";
 import type {
@@ -95,6 +96,63 @@ function buildNextExampleScenarioIndex(
   return (scenarioIndex + 1) % scenarios.length;
 }
 
+function buildClarityStatusKeyFromScore(score: number): WelcomeProofLessonClarityStatusKey {
+  if (score >= 85) {
+    return "easy";
+  }
+  if (score >= 65) {
+    return "almost";
+  }
+  return "needsMore";
+}
+
+function buildPronunciationHints(
+  locale: AppLocale,
+  scenario: WelcomeProofLessonScenario,
+  assessment: PronunciationAssessment | null,
+): string[] {
+  if (!assessment) {
+    return scenario.clarity.hints;
+  }
+
+  const hints: string[] = [];
+  for (const focus of assessment.focusAssessments) {
+    if (focus.status === "stable") {
+      continue;
+    }
+    if (focus.focus === "th") {
+      hints.push(locale === "ru" ? "Сделай звук /th/ чётче" : "Make the /th/ sound clearer");
+    } else if (focus.focus === "r-coloring") {
+      hints.push(locale === "ru" ? "Чётче выдели звук /r/" : "Make the /r/ sound clearer");
+    } else if (focus.focus === "word rhythm") {
+      hints.push(locale === "ru" ? "Скажи фразу более слитно, без потери слов" : "Keep the phrase connected without dropping words");
+    } else if (focus.focus === "word ending") {
+      hints.push(locale === "ru" ? "Не съедай окончания слов" : "Do not swallow the word endings");
+    }
+  }
+
+  for (const word of assessment.weakestWords) {
+    hints.push(locale === "ru" ? `Чётче выдели ${word}` : `Stress ${word} more clearly`);
+  }
+
+  const uniqueHints = Array.from(new Set(hints)).slice(0, 3);
+  if (uniqueHints.length > 0) {
+    return uniqueHints;
+  }
+
+  return locale === "ru"
+    ? [
+        "Ключевые слова звучат уверенно",
+        "Ритм фразы держится хорошо",
+        "Можно говорить в том же спокойном темпе",
+      ]
+    : [
+        "The key words sound stable",
+        "The rhythm of the phrase holds together well",
+        "You can keep the same calm pace",
+      ];
+}
+
 export function useWelcomeProofLesson(locale: AppLocale) {
   const navigate = useNavigate();
   const scenarios = welcomeProofLessonScenarios[locale];
@@ -107,6 +165,8 @@ export function useWelcomeProofLesson(locale: AppLocale) {
   const [submittedAttemptMode, setSubmittedAttemptMode] =
     useState<ProofLessonResponseMode>("text");
   const [attemptMessage, setAttemptMessage] = useState<string | null>(null);
+  const [attemptPronunciationAssessment, setAttemptPronunciationAssessment] =
+    useState<PronunciationAssessment | null>(null);
   const [retryInputMode, setRetryInputMode] =
     useState<WelcomeProofLessonInputMode | null>(null);
   const [retryAnswer, setRetryAnswer] = useState("");
@@ -134,22 +194,40 @@ export function useWelcomeProofLesson(locale: AppLocale) {
   const feedback = useMemo(() => {
     const userVersion =
       submittedAttemptAnswer.trim() || scenario.languageTargets.firstAttemptImproved;
+    const improvedVersion = scenario.languageTargets.firstAttemptImproved;
+    const isAlreadyNatural =
+      normalizeAnswer(userVersion) === normalizeAnswer(improvedVersion);
 
     return {
-      title: scenario.feedback.title,
+      title: isAlreadyNatural
+        ? locale === "ru"
+          ? "Уже звучит естественно"
+          : "This already sounds natural"
+        : scenario.feedback.title,
       userVersion,
-      improvedVersion: scenario.languageTargets.firstAttemptImproved,
+      improvedVersion,
       explanationPrimary: scenario.feedback.explanationPrimary,
       explanationSecondary: scenario.feedback.explanationSecondary,
+      isAlreadyNatural,
     };
-  }, [scenario, submittedAttemptAnswer]);
+  }, [locale, scenario, submittedAttemptAnswer]);
 
   const clarityStatusKey = useMemo(
-    () => buildClarityStatusKey(submittedAttemptAnswer),
-    [submittedAttemptAnswer],
+    () =>
+      attemptPronunciationAssessment && submittedAttemptMode === "voice"
+        ? buildClarityStatusKeyFromScore(attemptPronunciationAssessment.score)
+        : buildClarityStatusKey(submittedAttemptAnswer),
+    [attemptPronunciationAssessment, submittedAttemptAnswer, submittedAttemptMode],
   );
 
   const clarityStatusLabel = scenario.clarity.statuses[clarityStatusKey];
+  const clarityHints = useMemo(
+    () =>
+      submittedAttemptMode === "voice"
+        ? buildPronunciationHints(locale, scenario, attemptPronunciationAssessment)
+        : scenario.clarity.hints,
+    [attemptPronunciationAssessment, locale, scenario, submittedAttemptMode],
+  );
 
   function clearResultTimer() {
     if (resultTimerRef.current !== null) {
@@ -166,6 +244,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     setSubmittedAttemptAnswer("");
     setSubmittedAttemptMode("text");
     setAttemptMessage(null);
+    setAttemptPronunciationAssessment(null);
     setRetryInputMode(null);
     setRetryAnswer("");
     setSubmittedRetryAnswer("");
@@ -239,6 +318,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
         ? scenario.errors.micUnavailable
         : null,
     );
+    setAttemptPronunciationAssessment(null);
     setAttemptAnswer("");
     setStepIndex(2);
   }
@@ -251,6 +331,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     }
 
     setAttemptMessage(null);
+    setAttemptPronunciationAssessment(null);
     setSubmittedAttemptAnswer(attemptAnswer.trim());
     setSubmittedAttemptMode(attemptInputMode === "voice" ? "voice" : "text");
     setStepIndex(3);
@@ -340,6 +421,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
 
     if (target === "attempt") {
       setAttemptMessage(null);
+      setAttemptPronunciationAssessment(null);
       setAttemptAnswer("");
     } else {
       setRetryMessage(null);
@@ -379,6 +461,11 @@ export function useWelcomeProofLesson(locale: AppLocale) {
       return;
     }
 
+    if (target === "attempt") {
+      setAttemptMessage(null);
+    } else {
+      setRetryMessage(null);
+    }
     setIsVoiceProcessing(true);
 
     const recordedBlob = await new Promise<Blob>((resolve) => {
@@ -408,6 +495,15 @@ export function useWelcomeProofLesson(locale: AppLocale) {
         setSubmittedAttemptAnswer(transcript);
         setSubmittedAttemptMode("voice");
         setStepIndex(3);
+        void apiClient
+          .assessPronunciation({
+            targetText: transcript,
+            audio: recordedBlob,
+          })
+          .then((assessment) => {
+            setAttemptPronunciationAssessment(assessment);
+          })
+          .catch(() => undefined);
       } else {
         const successful =
           matchesAcceptedAnswer(transcript, scenario.retry.acceptedAnswers) ||
@@ -444,6 +540,7 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     beginRetry,
     buildNextLesson,
     clarityStatusLabel,
+    clarityHints,
     currentStep,
     feedback,
     goToClarity: () => setStepIndex(4),

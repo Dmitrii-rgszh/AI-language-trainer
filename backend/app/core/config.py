@@ -53,6 +53,12 @@ class Settings(BaseModel):
     faster_whisper_model: str = os.getenv("FASTER_WHISPER_MODEL", "large-v3-turbo")
     faster_whisper_device: str = os.getenv("FASTER_WHISPER_DEVICE", "auto")
     faster_whisper_compute_type: str = os.getenv("FASTER_WHISPER_COMPUTE_TYPE", "auto")
+    pronunciation_alignment_enabled: bool = os.getenv("PRONUNCIATION_ALIGNMENT_ENABLED", "1") == "1"
+    pronunciation_alignment_model: str = os.getenv(
+        "PRONUNCIATION_ALIGNMENT_MODEL",
+        "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    )
+    pronunciation_alignment_device: str = os.getenv("PRONUNCIATION_ALIGNMENT_DEVICE", "auto")
     xtts_model_name: str = os.getenv("XTTS_MODEL_NAME", "tts_models/multilingual/multi-dataset/xtts_v2")
     xtts_hf_repo_id: str = os.getenv("XTTS_HF_REPO_ID", "coqui/XTTS-v2")
     xtts_device: str = os.getenv("XTTS_DEVICE", "auto")

@@ -18,9 +18,15 @@ class RuleBasedScoringProvider(BaseScoringProvider):
             return 74
         return 82
 
-    def score_pronunciation(self, target_text: str, transcript: str) -> dict[str, object]:
+    def score_pronunciation(
+        self,
+        target_text: str,
+        transcript: str,
+        acoustic_signals: dict[str, object] | None = None,
+    ) -> dict[str, object]:
         target_tokens = self._normalize(target_text)
         transcript_tokens = self._normalize(transcript)
+        acoustic_words = list((acoustic_signals or {}).get("words") or [])
         if not target_tokens:
             return {
                 "score": 0,
@@ -35,7 +41,7 @@ class RuleBasedScoringProvider(BaseScoringProvider):
         matched = [token for token in target_tokens if token in transcript_tokens]
         missed = [token for token in target_tokens if token not in transcript_tokens]
         token_ratio = len(matched) / len(target_tokens)
-        word_assessments = self._build_word_assessments(target_tokens, transcript_tokens)
+        word_assessments = self._build_word_assessments(target_tokens, transcript_tokens, acoustic_words)
         weakest_words = [
             assessment["target_word"]
             for assessment in sorted(word_assessments, key=lambda item: item["score"])[:2]
@@ -43,7 +49,12 @@ class RuleBasedScoringProvider(BaseScoringProvider):
         ]
         focus_assessments = self._build_focus_assessments(target_tokens, transcript_tokens, target_text, transcript)
 
-        score = round(token_ratio * 100)
+        average_word_score = (
+            sum(int(assessment["score"]) for assessment in word_assessments) / len(word_assessments)
+            if word_assessments
+            else 0
+        )
+        score = round((token_ratio * 100) * 0.45 + average_word_score * 0.55)
         if "th" in target_text.lower():
             if any("th" in token for token in transcript_tokens):
                 score = min(100, score + 8)
@@ -57,13 +68,13 @@ class RuleBasedScoringProvider(BaseScoringProvider):
         score = max(0, score - weak_focuses * 3)
 
         if score >= 85:
-            feedback = "Strong match with the target phrase. Keep the same rhythm, stress and clarity."
+            feedback = "Strong pronunciation clarity. The phrase was recognized confidently and the wording stayed stable."
         elif score >= 65:
-            feedback = "Mostly clear. Repeat once more and focus on the weaker words or sound patterns."
+            feedback = "Mostly clear. A few words sounded softer, but the phrase stayed understandable."
         elif score >= 45:
-            feedback = "Part of the phrase was recognized, but key sounds or words dropped. Slow down and repeat word by word."
+            feedback = "The phrase was partly understood, but a few words lost clarity. Slow down and stress the key words."
         else:
-            feedback = "Recognition was weak. Break the phrase into smaller parts and retry with clearer articulation."
+            feedback = "Clarity was weak. Break the phrase into smaller parts and repeat more clearly."
 
         return {
             "score": score,
@@ -99,20 +110,28 @@ class RuleBasedScoringProvider(BaseScoringProvider):
                 best_ratio = ratio
         return best_word, best_ratio
 
-    def _build_word_assessments(self, target_tokens: list[str], transcript_tokens: list[str]) -> list[dict[str, object]]:
+    def _build_word_assessments(
+        self,
+        target_tokens: list[str],
+        transcript_tokens: list[str],
+        acoustic_words: list[dict[str, object]],
+    ) -> list[dict[str, object]]:
         assessments: list[dict[str, object]] = []
         for target_word in target_tokens:
             heard_word, ratio = self._best_match(target_word, transcript_tokens)
-            score = round(ratio * 100)
-            if heard_word == target_word:
+            acoustic_probability = self._best_acoustic_probability(target_word, acoustic_words)
+            acoustic_score = round(acoustic_probability * 100)
+            combined_ratio = ratio * 0.58 + acoustic_probability * 0.42
+            score = round(combined_ratio * 100)
+            if heard_word == target_word and acoustic_probability >= 0.72:
                 status = "stable"
-                note = "Word was recognized clearly."
+                note = "The word was recognized clearly and with good confidence."
             elif score >= 70:
                 status = "near_match"
-                note = "Close match, but pronunciation or articulation still softened part of the word."
+                note = "The word was close, but pronunciation confidence was not fully stable."
             else:
                 status = "needs_work"
-                note = "This word was weakly recognized. Slow down and exaggerate the stressed sounds."
+                note = "This word sounded weak or uncertain. Slow down and stress it more clearly."
 
             assessments.append(
                 {
@@ -121,9 +140,24 @@ class RuleBasedScoringProvider(BaseScoringProvider):
                     "score": score,
                     "status": status,
                     "note": note,
+                    "acoustic_score": acoustic_score,
                 }
             )
         return assessments
+
+    def _best_acoustic_probability(self, target_word: str, acoustic_words: list[dict[str, object]]) -> float:
+        best_probability = 0.0
+        best_ratio = 0.0
+        for item in acoustic_words:
+            word = str(item.get("word") or "").strip().lower()
+            if not word:
+                continue
+            ratio = SequenceMatcher(None, target_word, word).ratio()
+            if ratio > best_ratio:
+                probability = item.get("probability")
+                best_ratio = ratio
+                best_probability = float(probability) if isinstance(probability, (int, float)) else 0.0
+        return best_probability
 
     def _build_focus_assessments(
         self,

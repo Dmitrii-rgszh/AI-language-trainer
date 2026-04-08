@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.core.config import settings
@@ -20,17 +21,61 @@ class FasterWhisperProvider(BaseSTTProvider):
         self._model: Any | None = None
 
     def transcribe(self, audio_path: str) -> str:
+        details = self.transcribe_detailed(audio_path)
+        transcript = str(details.get("transcript") or "").strip()
+        if not transcript:
+            raise RuntimeError("No speech was recognized in the uploaded audio.")
+        return transcript
+
+    def transcribe_detailed(self, audio_path: str) -> dict[str, object]:
         model = self._get_model()
         segments, _ = model.transcribe(
             audio=audio_path,
             beam_size=5,
             vad_filter=True,
             condition_on_previous_text=False,
+            word_timestamps=True,
         )
-        transcript = " ".join(segment.text.strip() for segment in segments).strip()
+        segment_list = list(segments)
+        transcript = " ".join(segment.text.strip() for segment in segment_list).strip()
         if not transcript:
             raise RuntimeError("No speech was recognized in the uploaded audio.")
-        return transcript
+
+        words: list[dict[str, object]] = []
+        avg_logprobs: list[float] = []
+        no_speech_probs: list[float] = []
+
+        for segment in segment_list:
+            avg_logprob = getattr(segment, "avg_logprob", None)
+            if isinstance(avg_logprob, (int, float)):
+                avg_logprobs.append(float(avg_logprob))
+
+            no_speech_prob = getattr(segment, "no_speech_prob", None)
+            if isinstance(no_speech_prob, (int, float)):
+                no_speech_probs.append(float(no_speech_prob))
+
+            for word in getattr(segment, "words", []) or []:
+                raw_word = str(getattr(word, "word", "") or "").strip()
+                normalized_word = re.sub(r"(^[^a-zA-Z']+|[^a-zA-Z']+$)", "", raw_word).lower()
+                if not normalized_word:
+                    continue
+                probability = getattr(word, "probability", None)
+                words.append(
+                    {
+                        "word": normalized_word,
+                        "raw_word": raw_word,
+                        "probability": float(probability) if isinstance(probability, (int, float)) else None,
+                        "start": getattr(word, "start", None),
+                        "end": getattr(word, "end", None),
+                    }
+                )
+
+        return {
+            "transcript": transcript,
+            "words": words,
+            "average_logprob": sum(avg_logprobs) / len(avg_logprobs) if avg_logprobs else None,
+            "no_speech_prob": sum(no_speech_probs) / len(no_speech_probs) if no_speech_probs else None,
+        }
 
     def status(self) -> ProviderStatus:
         try:
@@ -91,4 +136,3 @@ class FasterWhisperProvider(BaseSTTProvider):
             return requested_compute_type
 
         return "float16" if self._resolve_device() == "cuda" else "int8"
-

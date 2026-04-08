@@ -9,7 +9,12 @@ class BaseScoringProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def score_pronunciation(self, target_text: str, transcript: str) -> dict[str, object]:
+    def score_pronunciation(
+        self,
+        target_text: str,
+        transcript: str,
+        acoustic_signals: dict[str, object] | None = None,
+    ) -> dict[str, object]:
         raise NotImplementedError
 
     @abstractmethod
