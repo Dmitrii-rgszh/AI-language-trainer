@@ -6,8 +6,8 @@ from app.core.config import settings
 from app.services.voice_service.service import VoiceService
 
 WELCOME_REPLAY_PROMPTS: dict[str, str] = {
-    "ru": "Как бы ты вежливо заказал кофе без сахара?",
-    "en": "How would you politely order a coffee without sugar?",
+    "ru": "Как бы ты вежливо заказал кофе без сахара на английском языке?",
+    "en": "How would you politely order a coffee without sugar in English?",
 }
 
 WELCOME_REPLAY_SPEAKER = "Daisy Studious"

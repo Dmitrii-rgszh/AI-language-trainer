@@ -28,6 +28,7 @@ const HERO_RETURN_MIN_SCROLL_Y = 84;
 const HERO_RETURN_TOP_TOLERANCE = 112;
 const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
 const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
+const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix";
 
 const heroPrimaryCtaLabel = {
   ru: "Просто попробовать урок",
@@ -82,12 +83,14 @@ export function WelcomeScreen() {
           locale: locale === "ru" ? "ru" : "en",
           kind: "intro",
           variant,
+          revision: WELCOME_TUTOR_PRESET_REVISION,
         }).catch(() => undefined);
       }
       void apiClient.prefetchWelcomeTutorPresetClip({
         locale: locale === "ru" ? "ru" : "en",
         kind: "replay",
         variant: 0,
+        revision: WELCOME_TUTOR_PRESET_REVISION,
       }).catch(() => undefined);
     };
 
@@ -113,7 +116,7 @@ export function WelcomeScreen() {
       return;
     }
 
-    const preloadKey = "verba_tutor:presence_master_01";
+    const preloadKey = "verba_tutor:presence_01";
     if (welcomePresencePreloadKeyRef.current === preloadKey) {
       return;
     }
@@ -121,7 +124,7 @@ export function WelcomeScreen() {
 
     const preloadPresenceVideo = () => {
       void apiClient
-        .preloadLiveAvatarPresenceVideo("verba_tutor", "presence-master-01-v2-generated")
+        .preloadLiveAvatarPresenceVideo("verba_tutor", "presence-01-v1-speaking-fix")
         .catch(() => undefined);
     };
 

@@ -35,6 +35,9 @@ class AvatarAssetProfile:
 
     @property
     def presence_video_path(self) -> Path | None:
+        configured_welcome_presence_path = Path(settings.welcome_presence_video_path).resolve()
+        if self.avatar_key == "verba_tutor" and configured_welcome_presence_path.exists():
+            return configured_welcome_presence_path
         resolved = resolve_current_presence_video_path(self.presence_meta_path)
         if resolved is not None:
             return resolved

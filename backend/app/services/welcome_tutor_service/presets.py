@@ -6,7 +6,7 @@ from typing import Literal
 
 PromptKind = Literal["intro", "replay"]
 
-WELCOME_PRESET_REVISION = "welcome-presets-v1"
+WELCOME_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix"
 
 
 @dataclass(frozen=True)
@@ -23,56 +23,56 @@ WELCOME_TUTOR_PRESETS: tuple[WelcomeTutorPreset, ...] = (
         locale="ru",
         kind="intro",
         variant=0,
-        text="Привет, я Лиза. Я помогу тебе говорить по-английски естественно и уверенно. Для начала скажи: Как бы ты вежливо заказал кофе без сахара?",
+        text="Привет, я Лиза. Я помогу тебе говорить по-английски естественно и уверенно. Для начала скажи: Как бы ты вежливо заказал кофе без сахара на английском языке?",
         filename="ru-intro-1.mp4",
     ),
     WelcomeTutorPreset(
         locale="ru",
         kind="intro",
         variant=1,
-        text="Привет, я Лиза, и мы будем учиться через реальные ситуации. Представь, что ты в кафе: Как бы ты вежливо заказал кофе без сахара?",
+        text="Привет, я Лиза, и мы будем учиться через реальные ситуации. Представь, что ты в кафе: Как бы ты вежливо заказал кофе без сахара на английском языке?",
         filename="ru-intro-2.mp4",
     ),
     WelcomeTutorPreset(
         locale="ru",
         kind="intro",
         variant=2,
-        text="Привет, я Лиза. Здесь мы тренируем не отдельные слова, а живую речь. Первая ситуация: Как бы ты вежливо заказал кофе без сахара?",
+        text="Привет, я Лиза. Здесь мы тренируем не отдельные слова, а живую речь. Первая ситуация: Как бы ты вежливо заказал кофе без сахара на английском языке?",
         filename="ru-intro-3.mp4",
     ),
     WelcomeTutorPreset(
         locale="ru",
         kind="replay",
         variant=0,
-        text="Как бы ты вежливо заказал кофе без сахара?",
+        text="Как бы ты вежливо заказал кофе без сахара на английском языке?",
         filename="ru-replay.mp4",
     ),
     WelcomeTutorPreset(
         locale="en",
         kind="intro",
         variant=0,
-        text="Hi, I am Liza. I will help you speak English naturally and confidently. To begin, tell me: How would you politely order a coffee without sugar?",
+        text="Hi, I am Liza. I will help you speak English naturally and confidently. To begin, tell me: How would you politely order a coffee without sugar in English?",
         filename="en-intro-1.mp4",
     ),
     WelcomeTutorPreset(
         locale="en",
         kind="intro",
         variant=1,
-        text="Hi, I am Liza, and we will learn through real-life situations. Imagine you are in a cafe: How would you politely order a coffee without sugar?",
+        text="Hi, I am Liza, and we will learn through real-life situations. Imagine you are in a cafe: How would you politely order a coffee without sugar in English?",
         filename="en-intro-2.mp4",
     ),
     WelcomeTutorPreset(
         locale="en",
         kind="intro",
         variant=2,
-        text="Hi, I am Liza. Here we train real speech, not isolated words. First situation: How would you politely order a coffee without sugar?",
+        text="Hi, I am Liza. Here we train real speech, not isolated words. First situation: How would you politely order a coffee without sugar in English?",
         filename="en-intro-3.mp4",
     ),
     WelcomeTutorPreset(
         locale="en",
         kind="replay",
         variant=0,
-        text="How would you politely order a coffee without sugar?",
+        text="How would you politely order a coffee without sugar in English?",
         filename="en-replay.mp4",
     ),
 )

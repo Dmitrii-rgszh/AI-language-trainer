@@ -4,7 +4,7 @@
   "masters": [
     {
       "presence_id": "presence_master_01",
-      "video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/assets/live_avatar/verba_tutor/presence_master_01.mp4",
+      "video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/generated/live_avatar/presence_01.mp4",
       "duration_sec": 30.0,
       "fps": 25,
       "size": 1024,

@@ -1000,8 +1000,7 @@ a {
 
 .proof-lesson-tutor-card--speaking {
   box-shadow:
-    0 26px 52px rgba(151, 168, 181, 0.14),
-    0 0 0 1px rgba(15, 118, 110, 0.025),
+    0 22px 50px rgba(151, 168, 181, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
@@ -1167,21 +1166,20 @@ a {
 }
 
 .proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell {
-  border-color: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.08);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 18px 32px rgba(151, 168, 181, 0.11),
-    0 0 0 1px rgba(15, 118, 110, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 16px 30px rgba(151, 168, 181, 0.1);
 }
 
 .proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell::before {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
-    radial-gradient(circle at 74% 82%, rgba(186, 230, 223, 0.16), transparent 28%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at 74% 82%, rgba(186, 230, 223, 0.12), transparent 28%);
 }
 
 .proof-lesson-tutor-card--speaking .proof-lesson-tutor-card__avatar-shell::after {
-  opacity: 0.56;
+  opacity: 0.42;
 }
 
 .proof-lesson-ai-avatar {
@@ -1228,8 +1226,12 @@ a {
   opacity: 0.42;
 }
 
+.proof-lesson-ai-avatar--video::before,
+.proof-lesson-ai-avatar--video::after {
+  opacity: 0;
+}
+
 .proof-lesson-ai-avatar--speaking {
-  transform: translateY(-1px);
   box-shadow:
     0 24px 44px rgba(141, 165, 176, 0.16),
     0 8px 18px rgba(255, 255, 255, 0.3) inset,
@@ -1275,9 +1277,9 @@ a {
 }
 
 .proof-lesson-ai-avatar--video .proof-lesson-ai-avatar__video.is-visible {
-  animation: proof-lesson-avatar-speaking-presence 4.6s ease-in-out infinite;
-  transform-origin: 50% 48%;
-  will-change: transform, opacity;
+  animation: none;
+  transform: none;
+  will-change: opacity;
 }
 
 .proof-lesson-ai-avatar__idle {
@@ -1299,7 +1301,7 @@ a {
 }
 
 .proof-lesson-ai-avatar__idle.is-covered {
-  opacity: 0.18;
+  opacity: 0;
 }
 
 .proof-lesson-ai-avatar__video {
@@ -1335,44 +1337,8 @@ a {
 }
 
 .proof-lesson-ai-avatar--speaking .proof-lesson-ai-avatar__ambient-ring {
-  opacity: 0.26;
-  animation: proof-lesson-avatar-breathe 3.4s ease-in-out infinite;
-}
-
-@keyframes proof-lesson-avatar-fallback-breathe {
-  0% {
-    transform: scale(1.004) translate3d(0, 0.18%, 0);
-  }
-  50% {
-    transform: scale(1.015) translate3d(0, -0.18%, 0);
-  }
-  100% {
-    transform: scale(1.004) translate3d(0, 0.18%, 0);
-  }
-}
-
-@keyframes proof-lesson-avatar-idle-breathe-subtle {
-  0% {
-    transform: scale(1.01) translate3d(0, 0.28%, 0);
-  }
-  50% {
-    transform: scale(1.028) translate3d(0, -0.3%, 0);
-  }
-  100% {
-    transform: scale(1.01) translate3d(0, 0.28%, 0);
-  }
-}
-
-@keyframes proof-lesson-avatar-speaking-presence {
-  0% {
-    transform: scale(1.004) translate3d(0, 0.08%, 0);
-  }
-  50% {
-    transform: scale(1.014) translate3d(0, -0.14%, 0);
-  }
-  100% {
-    transform: scale(1.004) translate3d(0, 0.08%, 0);
-  }
+  opacity: 0.14;
+  animation: none;
 }
 
 .proof-lesson-ai-cue__status {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import sys
@@ -325,9 +326,21 @@ class MuseTalkLiveRuntime:
         normalized_image = (image_path or "").strip()
         normalized_video = (base_video_path or "").strip()
         if normalized_video:
-            return f"video:{normalized_video}"
+            video_path = Path(normalized_video)
+            if video_path.exists():
+                stat = video_path.stat()
+                payload = f"{video_path.as_posix()}|{stat.st_size}|{stat.st_mtime_ns}"
+                digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+                return f"video:{digest}"
+            return f"video:{normalized_video}|missing"
         if normalized_image:
-            return f"image:{normalized_image}"
+            image_path = Path(normalized_image)
+            if image_path.exists():
+                stat = image_path.stat()
+                payload = f"{image_path.as_posix()}|{stat.st_size}|{stat.st_mtime_ns}"
+                digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+                return f"image:{digest}"
+            return f"image:{normalized_image}|missing"
         return "unknown"
 
     def _iter_avatar_frames(

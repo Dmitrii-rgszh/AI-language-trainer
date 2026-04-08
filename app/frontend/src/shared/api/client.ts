@@ -93,6 +93,7 @@ const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v5-idle-motion-signature";
 const liveAvatarPresenceVideoCache = new Map<string, Promise<Blob>>();
 const welcomeReplayAudioCache = new Map<string, Promise<Blob>>();
 const welcomeTutorPresetClipCache = new Map<string, Promise<Blob>>();
+const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v5-presence-01-speaking-fix";
 
 function buildWelcomeTutorClipCacheKey(payload: {
   text: string;
@@ -418,11 +419,13 @@ export const apiClient = {
     locale: "ru" | "en";
     kind: "intro" | "replay";
     variant?: number;
+    revision?: string;
   }) => {
     const searchParams = new URLSearchParams({
       locale: payload.locale,
       kind: payload.kind,
       variant: String(payload.variant ?? 0),
+      rev: payload.revision?.trim() || WELCOME_TUTOR_PRESET_CACHE_SCHEMA,
     });
     return `/api/welcome/ai-tutor/preset-video?${searchParams.toString()}`;
   },
@@ -430,18 +433,31 @@ export const apiClient = {
     locale: "ru" | "en";
     kind: "intro" | "replay";
     variant?: number;
+    revision?: string;
+    bypassCache?: boolean;
   }) => {
-    const cacheKey = `${payload.locale}|${payload.kind}|${payload.variant ?? 0}`;
-    const cachedRequest = welcomeTutorPresetClipCache.get(cacheKey);
+    const cacheKey = [
+      WELCOME_TUTOR_PRESET_CACHE_SCHEMA,
+      payload.locale,
+      payload.kind,
+      String(payload.variant ?? 0),
+      payload.revision?.trim() || WELCOME_TUTOR_PRESET_CACHE_SCHEMA,
+    ].join("|");
+    const cachedRequest = payload.bypassCache ? null : welcomeTutorPresetClipCache.get(cacheKey);
     if (cachedRequest) {
       return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
     }
 
-    const nextRequest = requestBlob(apiClient.getWelcomeTutorPresetClipUrl(payload)).catch((error) => {
+    const nextRequest = requestBlob(
+      apiClient.getWelcomeTutorPresetClipUrl(payload),
+      payload.bypassCache ? { cache: "reload" } : undefined,
+    ).catch((error) => {
       welcomeTutorPresetClipCache.delete(cacheKey);
       throw error;
     });
-    welcomeTutorPresetClipCache.set(cacheKey, nextRequest);
+    if (!payload.bypassCache) {
+      welcomeTutorPresetClipCache.set(cacheKey, nextRequest);
+    }
     return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
   },
   prefetchWelcomeTutorClip: async (payload: {
@@ -456,6 +472,7 @@ export const apiClient = {
     locale: "ru" | "en";
     kind: "intro" | "replay";
     variant?: number;
+    revision?: string;
   }) => {
     await apiClient.getWelcomeTutorPresetClip(payload);
   },

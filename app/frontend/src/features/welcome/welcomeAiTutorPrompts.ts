@@ -2,8 +2,8 @@ import type { AppLocale } from "../../shared/i18n/locale";
 
 export function getWelcomeAiTutorReplayPrompt(locale: AppLocale) {
   return locale === "ru"
-    ? "Как бы ты вежливо заказал кофе без сахара?"
-    : "How would you politely order a coffee without sugar?";
+    ? "Как бы ты вежливо заказал кофе без сахара на английском языке?"
+    : "How would you politely order a coffee without sugar in English?";
 }
 
 export function getWelcomeAiTutorIntroVariants(locale: AppLocale) {

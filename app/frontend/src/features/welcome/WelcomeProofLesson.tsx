@@ -239,6 +239,7 @@ export function WelcomeProofLesson({
 }: WelcomeProofLessonProps) {
   const lesson = useWelcomeProofLesson(locale);
   const [hasSituationIntroCompleted, setHasSituationIntroCompleted] = useState(false);
+  const [isSituationIntroLoading, setIsSituationIntroLoading] = useState(false);
   const [isSituationIntroPlaying, setIsSituationIntroPlaying] = useState(false);
   const situationCueRef = useRef<WelcomeAiTutorCueHandle | null>(null);
   const showsProgress = lesson.currentStep !== "intro";
@@ -354,18 +355,20 @@ export function WelcomeProofLesson({
   useEffect(() => {
     if (lesson.currentStep !== "situation") {
       setHasSituationIntroCompleted(false);
+      setIsSituationIntroLoading(false);
       setIsSituationIntroPlaying(false);
     }
   }, [lesson.currentStep, lesson.scenario.id]);
 
   async function playSituationIntro() {
-    if (!situationCueRef.current || isSituationIntroPlaying) {
+    if (!situationCueRef.current || isSituationIntroPlaying || isSituationIntroLoading) {
       return;
     }
 
-    setIsSituationIntroPlaying(true);
+    setIsSituationIntroLoading(true);
     const started = await situationCueRef.current.playIntro();
     if (!started) {
+      setIsSituationIntroLoading(false);
       setIsSituationIntroPlaying(false);
     }
   }
@@ -413,8 +416,12 @@ export function WelcomeProofLesson({
             replayCta={lesson.scenario.situation.coachReplayCta}
             showReplayAction={hasSituationIntroCompleted}
             showStaticFallback={false}
-            onIntroPlaybackStart={() => setIsSituationIntroPlaying(true)}
+            onIntroPlaybackStart={() => {
+              setIsSituationIntroLoading(false);
+              setIsSituationIntroPlaying(true);
+            }}
             onIntroPlaybackComplete={() => {
+              setIsSituationIntroLoading(false);
               setIsSituationIntroPlaying(false);
               setHasSituationIntroCompleted(true);
             }}
@@ -428,10 +435,14 @@ export function WelcomeProofLesson({
                 ? lesson.beginFirstAttempt("voice")
                 : void playSituationIntro()
             }
-            disabled={isSituationIntroPlaying}
+            disabled={isSituationIntroPlaying || isSituationIntroLoading}
             className="proof-lesson-primary-button"
           >
-            {isSituationIntroPlaying
+            {isSituationIntroLoading
+              ? locale === "ru"
+                ? "Загружаем задание..."
+                : "Loading the prompt..."
+              : isSituationIntroPlaying
               ? locale === "ru"
                 ? "Лиза говорит..."
                 : "Liza is speaking..."

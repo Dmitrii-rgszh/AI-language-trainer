@@ -13,7 +13,6 @@ import { cn } from "../../shared/utils/cn";
 import { TutorCard } from "./TutorCard";
 import {
   getWelcomeAiTutorIntroVariants,
-  getWelcomeAiTutorReplayPrompt,
 } from "./welcomeAiTutorPrompts";
 
 type WelcomeAiTutorCueProps = {
@@ -34,7 +33,8 @@ export type WelcomeAiTutorCueHandle = {
   playReplay: () => Promise<boolean>;
 };
 
-const WELCOME_PRESENCE_VIDEO_REVISION = "presence-master-01-v2-generated";
+const WELCOME_PRESENCE_VIDEO_REVISION = "presence-01-v1-speaking-fix";
+const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix";
 const INTRO_VARIANT_STORAGE_KEY = "welcome-ai-tutor-intro-variant";
 
 function getPlaybackLabels(locale: AppLocale) {
@@ -81,15 +81,10 @@ export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTu
   const [playbackHint, setPlaybackHint] = useState<string | null>(null);
   const presenceVideoRef = useRef<HTMLVideoElement | null>(null);
   const clipVideoRef = useRef<HTMLVideoElement | null>(null);
-  const introClipUrlRef = useRef<string | null>(null);
-  const replayClipUrlRef = useRef<string | null>(null);
   const activePlaybackModeRef = useRef<"intro" | "replay" | null>(null);
   const selectedIntroIndexRef = useRef(0);
-  const introClipPreloadPromiseRef = useRef<Promise<string | null> | null>(null);
-  const replayClipPreloadPromiseRef = useRef<Promise<string | null> | null>(null);
   const avatarAlt = locale === "ru" ? "Лиза" : "Liza";
   const labels = getPlaybackLabels(locale);
-  const replayPrompt = getWelcomeAiTutorReplayPrompt(locale);
   const introVariants = useMemo(
     () => getWelcomeAiTutorIntroVariants(locale),
     [locale],
@@ -103,14 +98,6 @@ export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTu
     return () => {
       presenceVideoRef.current?.pause();
       clipVideoRef.current?.pause();
-      if (introClipUrlRef.current) {
-        URL.revokeObjectURL(introClipUrlRef.current);
-        introClipUrlRef.current = null;
-      }
-      if (replayClipUrlRef.current) {
-        URL.revokeObjectURL(replayClipUrlRef.current);
-        replayClipUrlRef.current = null;
-      }
     };
   }, []);
 
@@ -128,11 +115,6 @@ export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTu
     }
 
     selectedIntroIndexRef.current = getNextIntroVariantIndex(introVariants.length);
-    if (introClipUrlRef.current) {
-      URL.revokeObjectURL(introClipUrlRef.current);
-      introClipUrlRef.current = null;
-    }
-    introClipPreloadPromiseRef.current = null;
     void apiClient
       .preloadLiveAvatarPresenceVideo("verba_tutor", WELCOME_PRESENCE_VIDEO_REVISION)
       .catch(() => undefined);
@@ -251,48 +233,33 @@ export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTu
   }));
 
   async function preloadSelectedIntroClip() {
-    if (introClipUrlRef.current) {
-      return introClipUrlRef.current;
-    }
-
-    if (!introClipPreloadPromiseRef.current) {
-      const selectedVariant = introVariants[selectedIntroIndexRef.current] ? selectedIntroIndexRef.current : 0;
-      introClipPreloadPromiseRef.current = apiClient
-        .getWelcomeTutorPresetClip({
-          locale: locale === "ru" ? "ru" : "en",
-          kind: "intro",
-          variant: selectedVariant,
-        })
-        .then((blob) => {
-          const nextUrl = URL.createObjectURL(blob);
-          introClipUrlRef.current = nextUrl;
-          return nextUrl;
-        });
-    }
-
-    return introClipPreloadPromiseRef.current;
+    const selectedVariant = introVariants[selectedIntroIndexRef.current] ? selectedIntroIndexRef.current : 0;
+    await apiClient.prefetchWelcomeTutorPresetClip({
+      locale: locale === "ru" ? "ru" : "en",
+      kind: "intro",
+      variant: selectedVariant,
+      revision: WELCOME_TUTOR_PRESET_REVISION,
+    });
   }
 
   async function preloadReplayClip() {
-    if (replayClipUrlRef.current) {
-      return replayClipUrlRef.current;
-    }
+    await apiClient.prefetchWelcomeTutorPresetClip({
+      locale: locale === "ru" ? "ru" : "en",
+      kind: "replay",
+      variant: 0,
+      revision: WELCOME_TUTOR_PRESET_REVISION,
+    });
+  }
 
-    if (!replayClipPreloadPromiseRef.current) {
-      replayClipPreloadPromiseRef.current = apiClient
-        .getWelcomeTutorPresetClip({
-          locale: locale === "ru" ? "ru" : "en",
-          kind: "replay",
-          variant: 0,
-        })
-        .then((blob) => {
-          const nextUrl = URL.createObjectURL(blob);
-          replayClipUrlRef.current = nextUrl;
-          return nextUrl;
-        });
-    }
-
-    return replayClipPreloadPromiseRef.current;
+  function getPresetClipUrl(mode: "intro" | "replay") {
+    return apiClient.getWelcomeTutorPresetClipUrl({
+      locale: locale === "ru" ? "ru" : "en",
+      kind: mode,
+      variant: mode === "intro"
+        ? (introVariants[selectedIntroIndexRef.current] ? selectedIntroIndexRef.current : 0)
+        : 0,
+      revision: WELCOME_TUTOR_PRESET_REVISION,
+    });
   }
 
   async function playPrompt(mode: "intro" | "replay"): Promise<boolean> {
@@ -307,16 +274,16 @@ export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTu
     activePlaybackModeRef.current = mode;
 
     try {
-      const nextUrl =
-        mode === "intro"
-          ? await preloadSelectedIntroClip()
-          : await preloadReplayClip();
-
-      if (!nextUrl) {
-        setPlaybackHint(labels.autoplayHint);
-        activePlaybackModeRef.current = null;
-        return false;
-      }
+      void apiClient.getWelcomeTutorPresetClip({
+        locale: locale === "ru" ? "ru" : "en",
+        kind: mode,
+        variant: mode === "intro"
+          ? (introVariants[selectedIntroIndexRef.current] ? selectedIntroIndexRef.current : 0)
+          : 0,
+        revision: WELCOME_TUTOR_PRESET_REVISION,
+        bypassCache: true,
+      }).catch(() => undefined);
+      const nextUrl = getPresetClipUrl(mode);
 
       clipVideo.pause();
       setIsClipVisible(false);

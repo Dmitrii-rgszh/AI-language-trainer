@@ -14,6 +14,7 @@ import time
 import wave
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import httpx
 import numpy as np
@@ -116,7 +117,7 @@ class CachedMuseTalkStatus:
 
 
 MUSE_TALK_STATUS_CACHE_TTL_SECONDS = 90.0
-MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v6_presence_master_welcome"
+MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v8_presence_meta_synced"
 WELCOME_TUTOR_AUDIO_SAMPLE_RATE = 24000
 WELCOME_TUTOR_AUDIO_CHANNELS = 1
 WELCOME_TUTOR_AUDIO_SAMPLE_WIDTH = 2
@@ -432,7 +433,7 @@ class WelcomeTutorService:
         preset = resolve_welcome_tutor_preset(locale=locale, kind=kind, variant=variant)
         preset_dir = Path(settings.welcome_preset_video_dir).resolve()
         target_path = build_welcome_tutor_preset_path(preset_dir, preset)
-        if target_path.exists() and self._is_valid_cached_clip(target_path):
+        if self._is_valid_cached_clip(target_path):
             return target_path
 
         source_clip_path = self.render_clip(
@@ -440,8 +441,32 @@ class WelcomeTutorService:
             language=preset.locale,
             avatar_key=avatar_key,
         )
+        source_clip_signature = self._fingerprint_file(source_clip_path.as_posix())
+        metadata_path = self._build_preset_metadata_path(target_path)
+        existing_metadata = self._read_preset_metadata(metadata_path)
+        if (
+            target_path.exists()
+            and self._is_valid_cached_clip(target_path)
+            and existing_metadata.get("source_clip_signature") == source_clip_signature
+        ):
+            return target_path
+
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_clip_path, target_path)
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "locale": preset.locale,
+                    "kind": preset.kind,
+                    "variant": preset.variant,
+                    "source_clip_path": source_clip_path.as_posix(),
+                    "source_clip_signature": source_clip_signature,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
         return target_path
 
     def _prewarm_default_clips_safe(self) -> None:
@@ -468,6 +493,20 @@ class WelcomeTutorService:
             next_lock = threading.Lock()
             self._render_locks[clip_hash] = next_lock
             return next_lock
+
+    @staticmethod
+    def _build_preset_metadata_path(preset_path: Path) -> Path:
+        return preset_path.with_suffix(f"{preset_path.suffix}.meta.json")
+
+    @staticmethod
+    def _read_preset_metadata(metadata_path: Path) -> dict[str, Any]:
+        if not metadata_path.exists():
+            return {}
+
+        try:
+            return json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
 
     def _build_command(
         self,
@@ -525,6 +564,10 @@ class WelcomeTutorService:
     ) -> None:
         avatar_path = self._runtime_config.avatar_image_paths[avatar_key]
         base_url = settings.musetalk_live_base_url.rstrip("/")
+        avatar_runtime_id = self._build_live_sidecar_avatar_id(
+            avatar_key=avatar_key,
+            base_video_path=base_video_path,
+        )
         frames_dir = target_output_path.parent / "live_frames"
         frames_dir.mkdir(parents=True, exist_ok=True)
         frame_index = 0
@@ -534,7 +577,7 @@ class WelcomeTutorService:
             prepare_response = client.post(
                 f"{base_url}/prepare-avatar",
                 json={
-                    "avatar_id": f"{avatar_key}-welcome-presence",
+                    "avatar_id": avatar_runtime_id,
                     "image_path": avatar_path.as_posix(),
                     "base_video_path": base_video_path.as_posix(),
                 },
@@ -545,7 +588,7 @@ class WelcomeTutorService:
                 "POST",
                 f"{base_url}/render-stream",
                 json={
-                    "avatar_id": f"{avatar_key}-welcome-presence",
+                    "avatar_id": avatar_runtime_id,
                     "audio_path": source_audio_path.as_posix(),
                     "fps": self._runtime_config.fps,
                 },
@@ -810,6 +853,11 @@ class WelcomeTutorService:
             )
 
         return "|".join(part for part in parts if part)
+
+    def _build_live_sidecar_avatar_id(self, *, avatar_key: str, base_video_path: Path) -> str:
+        fingerprint = self._fingerprint_file(base_video_path.as_posix())
+        digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:12]
+        return f"{avatar_key}-welcome-{digest}"
 
     @staticmethod
     def _fingerprint_file(file_path: str) -> str:

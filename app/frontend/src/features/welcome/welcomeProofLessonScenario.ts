@@ -122,7 +122,7 @@ export const welcomeProofLessonScenarios: Record<
         coachPrompt:
           "Представь, что ты в кафе. Тебе нужно вежливо заказать кофе без сахара. Ответь так, как ты бы сказал это по-английски.",
         coachSpokenPrompt:
-          "Как бы ты вежливо заказал кофе без сахара?",
+          "Как бы ты вежливо заказал кофе без сахара на английском языке?",
         coachReplayCta: "Послушать ещё раз",
         primaryCta: "Ответить голосом",
         secondaryCta: "Нет микрофона? Ответить текстом",
@@ -246,7 +246,7 @@ export const welcomeProofLessonScenarios: Record<
         coachPrompt:
           "Imagine you are in a cafe. You need to order a coffee without sugar politely. Answer the way you would say it in English.",
         coachSpokenPrompt:
-          "How would you politely order a coffee without sugar?",
+          "How would you politely order a coffee without sugar in English?",
         coachReplayCta: "Hear it again",
         primaryCta: "Answer by voice",
         secondaryCta: "No microphone? Answer by text",

@@ -36,6 +36,7 @@ def get_welcome_ai_tutor_preset_video(
     locale: str = Query(default="ru"),
     kind: str = Query(default="intro"),
     variant: int = Query(default=0, ge=0),
+    rev: str | None = Query(default=None),
 ) -> FileResponse:
     clip_path = welcome_tutor_service.ensure_preset_clip(
         locale=locale,
