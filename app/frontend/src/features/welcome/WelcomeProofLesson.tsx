@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppLocale } from "../../shared/i18n/locale";
 import { Button } from "../../shared/ui/Button";
 import { cn } from "../../shared/utils/cn";
-import { WelcomeAiTutorCue } from "./WelcomeAiTutorCue";
+import {
+  WelcomeAiTutorCue,
+  type WelcomeAiTutorCueHandle,
+} from "./WelcomeAiTutorCue";
 import { useWelcomeProofLesson } from "./useWelcomeProofLesson";
 import { WelcomeProofLessonStepLayout } from "./WelcomeProofLessonStepLayout";
 
@@ -235,6 +238,9 @@ export function WelcomeProofLesson({
   locale,
 }: WelcomeProofLessonProps) {
   const lesson = useWelcomeProofLesson(locale);
+  const [hasSituationIntroCompleted, setHasSituationIntroCompleted] = useState(false);
+  const [isSituationIntroPlaying, setIsSituationIntroPlaying] = useState(false);
+  const situationCueRef = useRef<WelcomeAiTutorCueHandle | null>(null);
   const showsProgress = lesson.currentStep !== "intro";
   const progressTotalSteps = Math.max(1, lesson.totalSteps - 1);
   const progressCurrentStep = showsProgress
@@ -340,6 +346,29 @@ export function WelcomeProofLesson({
   const situationPrompt =
     lesson.scenario.situation.coachSpokenPrompt ??
     lesson.scenario.situation.coachPrompt;
+  const situationPreviewMessage =
+    locale === "ru"
+      ? "Прослушай короткое задание от Лизы, а потом ответь, как бы ты сказал это по-английски."
+      : "Listen to Liza’s short prompt first, then answer how you would say it in English.";
+
+  useEffect(() => {
+    if (lesson.currentStep !== "situation") {
+      setHasSituationIntroCompleted(false);
+      setIsSituationIntroPlaying(false);
+    }
+  }, [lesson.currentStep, lesson.scenario.id]);
+
+  async function playSituationIntro() {
+    if (!situationCueRef.current || isSituationIntroPlaying) {
+      return;
+    }
+
+    setIsSituationIntroPlaying(true);
+    const started = await situationCueRef.current.playIntro();
+    if (!started) {
+      setIsSituationIntroPlaying(false);
+    }
+  }
 
   switch (lesson.currentStep) {
     case "intro":
@@ -368,36 +397,58 @@ export function WelcomeProofLesson({
       stepView = {
         eyebrow: lesson.scenario.situation.label,
         title: lesson.scenario.situation.title,
-        description: lesson.scenario.situation.description,
         cardClassName: "proof-lesson-card--scene",
         stepClassName: "proof-lesson-step--scene",
         contentClassName: "proof-lesson-step__content--scene",
         content: (
           <WelcomeAiTutorCue
+            ref={(value) => {
+              situationCueRef.current = value;
+            }}
             isVisible={isVisible}
             locale={locale}
             label={lesson.scenario.situation.coachLabel}
-            message={situationPrompt}
+            message={hasSituationIntroCompleted ? situationPrompt : situationPreviewMessage}
             spokenMessage={situationPrompt}
             replayCta={lesson.scenario.situation.coachReplayCta}
+            showReplayAction={hasSituationIntroCompleted}
+            showStaticFallback={false}
+            onIntroPlaybackStart={() => setIsSituationIntroPlaying(true)}
+            onIntroPlaybackComplete={() => {
+              setIsSituationIntroPlaying(false);
+              setHasSituationIntroCompleted(true);
+            }}
           />
         ),
         primaryAction: (
           <Button
             type="button"
-            onClick={() => lesson.beginFirstAttempt("voice")}
+            onClick={() =>
+              hasSituationIntroCompleted
+                ? lesson.beginFirstAttempt("voice")
+                : void playSituationIntro()
+            }
+            disabled={isSituationIntroPlaying}
             className="proof-lesson-primary-button"
           >
-            {lesson.scenario.situation.primaryCta}
+            {isSituationIntroPlaying
+              ? locale === "ru"
+                ? "Лиза говорит..."
+                : "Liza is speaking..."
+              : hasSituationIntroCompleted
+              ? lesson.scenario.situation.primaryCta
+              : locale === "ru"
+                ? "Прослушать задание"
+                : "Listen to the prompt"}
           </Button>
         ),
-        secondaryAction: (
+        secondaryAction: hasSituationIntroCompleted ? (
           <ProofLessonSecondaryAction
             onClick={() => lesson.beginFirstAttempt("text")}
           >
             {lesson.scenario.situation.secondaryCta}
           </ProofLessonSecondaryAction>
-        ),
+        ) : undefined,
       };
       break;
     case "attempt":

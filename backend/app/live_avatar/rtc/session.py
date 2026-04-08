@@ -15,6 +15,8 @@ from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from app.core.config import settings
+from app.live_avatar.avatar.avatar_profile import AvatarAssetProfile
+from app.live_avatar.avatar.motion_manager import AvatarMotionManager
 from app.live_avatar.audio.utterance_recorder import CapturedUtterance, UtteranceRecorder
 from app.live_avatar.dialogue.service import LiveAvatarDialogueService
 from app.live_avatar.rtc.ice import build_rtc_configuration
@@ -34,6 +36,7 @@ class LiveAvatarSession:
         tts_adapter: Qwen3LiveTTSAdapter,
         lipsync_engine: MuseTalkLiveEngine,
         stt_provider: BaseSTTProvider | None,
+        avatar_profile: AvatarAssetProfile,
     ) -> None:
         self.session_id = uuid4().hex
         self._websocket = websocket
@@ -43,9 +46,14 @@ class LiveAvatarSession:
         self._stt_provider = stt_provider
         self._peer_connection: RTCPeerConnection | None = None
         self._audio_track = AvatarAudioTrack(chunk_ms=settings.live_avatar_audio_chunk_ms)
+        self._motion_manager = AvatarMotionManager(
+            avatar_profile=avatar_profile,
+            return_blend_ms=settings.live_avatar_return_blend_ms,
+        )
+        self._motion_manager.warmup()
         self._video_track = AvatarVideoTrack(
-            avatar_image_path=settings.musetalk_avatar_verba_tutor_image,
-            fps=settings.live_avatar_idle_video_fps,
+            motion_manager=self._motion_manager,
+            fps=avatar_profile.idle_fps,
         )
         self._recorder = UtteranceRecorder(
             start_threshold=settings.live_avatar_vad_start_threshold,
@@ -282,6 +290,7 @@ class LiveAvatarSession:
         temp_path.write_bytes(wav_bytes)
         self._audio_track.clear()
         self._video_track.clear()
+        speaking_start_frame_index = self._video_track.start_speaking()
 
         first_frame_ready = asyncio.Event()
 
@@ -292,6 +301,7 @@ class LiveAvatarSession:
                     audio_path=temp_path.as_posix(),
                     avatar_key=voice_profile.avatar_key,
                     fps=settings.musetalk_fps,
+                    start_frame_index=speaking_start_frame_index,
                 ):
                     await self._video_track.enqueue_frame(frame_array)
                     if not first_frame_ready.is_set():
@@ -308,6 +318,7 @@ class LiveAvatarSession:
         self._audio_track.set_response_audio(wav_bytes)
         await asyncio.sleep(audio_duration_seconds + 0.25)
         await video_task
+        self._video_track.finish_speaking()
         temp_path.unlink(missing_ok=True)
 
     async def _send_status(self, status: str, detail: str) -> None:

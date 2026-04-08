@@ -5,12 +5,12 @@ import io
 import threading
 import time
 import wave
-from collections import deque
 
 import numpy as np
 from aiortc import AudioStreamTrack, VideoStreamTrack
 from av import AudioFrame, VideoFrame
-from PIL import Image
+
+from app.live_avatar.avatar.motion_manager import AvatarMotionManager
 
 
 class AvatarAudioTrack(AudioStreamTrack):
@@ -95,13 +95,10 @@ class AvatarAudioTrack(AudioStreamTrack):
 
 
 class AvatarVideoTrack(VideoStreamTrack):
-    def __init__(self, *, avatar_image_path: str, fps: int) -> None:
+    def __init__(self, *, motion_manager: AvatarMotionManager, fps: int) -> None:
         super().__init__()
-        with Image.open(avatar_image_path) as avatar_image:
-            self._idle_frame = np.array(avatar_image.convert("RGB"), dtype=np.uint8)
+        self._motion_manager = motion_manager
         self._fps = fps
-        self._frame_queue: deque[np.ndarray] = deque()
-        self._lock = threading.Lock()
 
     async def next_timestamp(self) -> tuple[int, fractions.Fraction]:
         if self.readyState != "live":
@@ -121,17 +118,20 @@ class AvatarVideoTrack(VideoStreamTrack):
 
     async def recv(self) -> VideoFrame:
         pts, time_base = await self.next_timestamp()
-        with self._lock:
-            frame_array = self._frame_queue.popleft() if self._frame_queue else self._idle_frame
+        frame_array = self._motion_manager.next_frame()
         frame = VideoFrame.from_ndarray(frame_array, format="rgb24")
         frame.pts = pts
         frame.time_base = time_base
         return frame
 
+    def start_speaking(self, *, start_idle_index: int | None = None) -> int:
+        return self._motion_manager.start_speaking(start_idle_index=start_idle_index)
+
     async def enqueue_frame(self, frame_array: np.ndarray) -> None:
-        with self._lock:
-            self._frame_queue.append(frame_array)
+        self._motion_manager.enqueue_speaking_frame(frame_array)
+
+    def finish_speaking(self) -> None:
+        self._motion_manager.finish_speaking()
 
     def clear(self) -> None:
-        with self._lock:
-            self._frame_queue.clear()
+        self._motion_manager.clear()

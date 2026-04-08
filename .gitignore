@@ -15,6 +15,7 @@ backend/.ruff_cache/
 backend/.runtime/
 backend/.venv-musetalk/
 backend/.venv-qwen/
+backend/.venv-liveportrait/
 backend/generated/
 backend/trainer.db
 /trainer.db
@@ -22,3 +23,4 @@ UX_books/
 docs/ux-books-kb/
 app/frontend/*.log
 backend/*.log
+.codex_tmp/

@@ -6,8 +6,9 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.dependencies import live_avatar_service, welcome_tutor_service
+from app.core.dependencies import live_avatar_service, voice_service, welcome_tutor_service
 from app.core.errors import AppError
+from app.services.voice_service.prompt_cache import ensure_welcome_replay_audio_cached
 
 app = FastAPI(title=settings.app_name)
 
@@ -28,6 +29,8 @@ async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
 async def prewarm_welcome_tutor() -> None:
     welcome_tutor_service.schedule_default_prewarm()
     asyncio.create_task(live_avatar_service.warmup())
+    asyncio.create_task(asyncio.to_thread(ensure_welcome_replay_audio_cached, voice_service, locale="ru"))
+    asyncio.create_task(asyncio.to_thread(ensure_welcome_replay_audio_cached, voice_service, locale="en"))
 
 
 @app.on_event("shutdown")

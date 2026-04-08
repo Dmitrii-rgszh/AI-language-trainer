@@ -6,6 +6,32 @@ from pydantic import BaseModel
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_DIR / 'trainer.db').as_posix()}"
+DEFAULT_LIVE_AVATAR_ASSET_DIR = BACKEND_DIR / "assets" / "live_avatar" / "verba_tutor"
+DEFAULT_LIVE_AVATAR_SOURCE_IMAGE = DEFAULT_LIVE_AVATAR_ASSET_DIR / "avatar_source.png"
+DEFAULT_LIVE_AVATAR_IDLE_DRIVING_VIDEO = DEFAULT_LIVE_AVATAR_ASSET_DIR / "idle_driving.mp4"
+DEFAULT_LIVE_AVATAR_IDLE_LOOP = DEFAULT_LIVE_AVATAR_ASSET_DIR / "idle_loop.mp4"
+DEFAULT_LIVE_AVATAR_PROFILE_PATH = DEFAULT_LIVE_AVATAR_ASSET_DIR / "profile.json"
+DEFAULT_LIVE_AVATAR_DRIVER_CANDIDATES_PATH = DEFAULT_LIVE_AVATAR_ASSET_DIR / "driver_candidates.json"
+DEFAULT_LIVE_AVATAR_PRESENCE_META_PATH = DEFAULT_LIVE_AVATAR_ASSET_DIR / "presence_meta.json"
+DEFAULT_LIVE_AVATAR_PRESENCE_MANIFEST_PATH = DEFAULT_LIVE_AVATAR_ASSET_DIR / "presence_candidates.json"
+DEFAULT_LIVE_AVATAR_PRESENCE_MASTER_01 = DEFAULT_LIVE_AVATAR_ASSET_DIR / "presence_master_01.mp4"
+DEFAULT_LIVE_AVATAR_GENERATED_DIR = BACKEND_DIR / "generated" / "live_avatar"
+DEFAULT_WELCOME_PRESENCE_VIDEO_RENAMED = DEFAULT_LIVE_AVATAR_GENERATED_DIR / "presence_01.mp4"
+DEFAULT_WELCOME_PRESENCE_VIDEO = (
+    DEFAULT_WELCOME_PRESENCE_VIDEO_RENAMED
+    if DEFAULT_WELCOME_PRESENCE_VIDEO_RENAMED.exists()
+    else DEFAULT_LIVE_AVATAR_GENERATED_DIR / "presence_master_01.mp4"
+)
+DEFAULT_WELCOME_AUDIO_CACHE_DIR = BACKEND_DIR / "generated" / "welcome_audio"
+DEFAULT_WELCOME_REPLAY_AUDIO_RU = DEFAULT_WELCOME_AUDIO_CACHE_DIR / "welcome_replay_ru.wav"
+DEFAULT_WELCOME_REPLAY_AUDIO_EN = DEFAULT_WELCOME_AUDIO_CACHE_DIR / "welcome_replay_en.wav"
+DEFAULT_WELCOME_PRESET_VIDEO_DIR = BACKEND_DIR / "generated" / "welcome_presets"
+if os.name == "nt":
+    DEFAULT_LIVEPORTRAIT_RUNTIME_HOME = Path(os.getenv("LOCALAPPDATA", BACKEND_DIR.as_posix())) / "CodexLivePortrait"
+else:
+    DEFAULT_LIVEPORTRAIT_RUNTIME_HOME = BACKEND_DIR / ".runtime"
+DEFAULT_LIVEPORTRAIT_PROJECT_DIR = DEFAULT_LIVEPORTRAIT_RUNTIME_HOME / "LivePortrait"
+DEFAULT_LIVEPORTRAIT_VENV_DIR = DEFAULT_LIVEPORTRAIT_RUNTIME_HOME / ".venv-liveportrait"
 
 
 def _split_env_list(value: str) -> list[str]:
@@ -74,7 +100,7 @@ class Settings(BaseModel):
     musetalk_ffmpeg_path: str = os.getenv("MUSE_TALK_FFMPEG_PATH", "ffmpeg")
     musetalk_avatar_verba_tutor_image: str = os.getenv(
         "MUSE_TALK_AVATAR_VERBA_TUTOR_IMAGE",
-        str((BACKEND_DIR / "assets" / "musetalk" / "verba_tutor.png").as_posix()),
+        str(DEFAULT_LIVE_AVATAR_SOURCE_IMAGE.as_posix()),
     )
     musetalk_version: str = os.getenv("MUSE_TALK_VERSION", "v15")
     musetalk_gpu_id: int = int(os.getenv("MUSE_TALK_GPU_ID", "0"))
@@ -94,6 +120,134 @@ class Settings(BaseModel):
     live_avatar_default_avatar_key: str = os.getenv("LIVE_AVATAR_DEFAULT_AVATAR_KEY", "verba_tutor")
     live_avatar_default_voice_profile_id: str = os.getenv("LIVE_AVATAR_DEFAULT_VOICE_PROFILE_ID", "liza-qwen-clone")
     live_avatar_default_voice_name: str = os.getenv("LIVE_AVATAR_DEFAULT_VOICE_NAME", "Liza Friendly Clone")
+    live_avatar_asset_dir: str = os.getenv(
+        "LIVE_AVATAR_ASSET_DIR",
+        str(DEFAULT_LIVE_AVATAR_ASSET_DIR.as_posix()),
+    )
+    live_avatar_source_image: str = os.getenv(
+        "LIVE_AVATAR_SOURCE_IMAGE",
+        str(DEFAULT_LIVE_AVATAR_SOURCE_IMAGE.as_posix()),
+    )
+    live_avatar_idle_driving_video: str = os.getenv(
+        "LIVE_AVATAR_IDLE_DRIVING_VIDEO",
+        str(DEFAULT_LIVE_AVATAR_IDLE_DRIVING_VIDEO.as_posix()),
+    )
+    live_avatar_idle_driver_candidates_path: str = os.getenv(
+        "LIVE_AVATAR_IDLE_DRIVER_CANDIDATES_PATH",
+        str(DEFAULT_LIVE_AVATAR_DRIVER_CANDIDATES_PATH.as_posix()),
+    )
+    live_avatar_idle_driver_autoselect: bool = os.getenv(
+        "LIVE_AVATAR_IDLE_DRIVER_AUTOSELECT",
+        "1",
+    ) == "1"
+    live_avatar_idle_loop_path: str = os.getenv(
+        "LIVE_AVATAR_IDLE_LOOP_PATH",
+        str(DEFAULT_LIVE_AVATAR_IDLE_LOOP.as_posix()),
+    )
+    live_avatar_presence_enabled: bool = os.getenv("LIVE_AVATAR_PRESENCE_ENABLED", "1") == "1"
+    live_avatar_presence_meta_path: str = os.getenv(
+        "LIVE_AVATAR_PRESENCE_META_PATH",
+        str(DEFAULT_LIVE_AVATAR_PRESENCE_META_PATH.as_posix()),
+    )
+    live_avatar_presence_manifest_path: str = os.getenv(
+        "LIVE_AVATAR_PRESENCE_MANIFEST_PATH",
+        str(DEFAULT_LIVE_AVATAR_PRESENCE_MANIFEST_PATH.as_posix()),
+    )
+    live_avatar_presence_default_master_path: str = os.getenv(
+        "LIVE_AVATAR_PRESENCE_DEFAULT_MASTER_PATH",
+        str(DEFAULT_LIVE_AVATAR_PRESENCE_MASTER_01.as_posix()),
+    )
+    welcome_presence_video_path: str = os.getenv(
+        "WELCOME_PRESENCE_VIDEO_PATH",
+        str(DEFAULT_WELCOME_PRESENCE_VIDEO.as_posix()),
+    )
+    welcome_audio_cache_dir: str = os.getenv(
+        "WELCOME_AUDIO_CACHE_DIR",
+        str(DEFAULT_WELCOME_AUDIO_CACHE_DIR.as_posix()),
+    )
+    welcome_replay_audio_ru_path: str = os.getenv(
+        "WELCOME_REPLAY_AUDIO_RU_PATH",
+        str(DEFAULT_WELCOME_REPLAY_AUDIO_RU.as_posix()),
+    )
+    welcome_replay_audio_en_path: str = os.getenv(
+        "WELCOME_REPLAY_AUDIO_EN_PATH",
+        str(DEFAULT_WELCOME_REPLAY_AUDIO_EN.as_posix()),
+    )
+    welcome_preset_video_dir: str = os.getenv(
+        "WELCOME_PRESET_VIDEO_DIR",
+        str(DEFAULT_WELCOME_PRESET_VIDEO_DIR.as_posix()),
+    )
+    live_avatar_presence_target_duration_sec: float = float(
+        os.getenv("LIVE_AVATAR_PRESENCE_TARGET_DURATION_SEC", "30.0")
+    )
+    live_avatar_presence_segment_blend_frames: int = int(
+        os.getenv("LIVE_AVATAR_PRESENCE_SEGMENT_BLEND_FRAMES", "10")
+    )
+    live_avatar_presence_expression_damping: float = float(
+        os.getenv("LIVE_AVATAR_PRESENCE_EXPRESSION_DAMPING", "0.00")
+    )
+    live_avatar_presence_brow_damping: float = float(
+        os.getenv("LIVE_AVATAR_PRESENCE_BROW_DAMPING", "0.00")
+    )
+    live_avatar_presence_lower_face_damping: float = float(
+        os.getenv("LIVE_AVATAR_PRESENCE_LOWER_FACE_DAMPING", "0.28")
+    )
+    live_avatar_presence_mouth_damping: float = float(
+        os.getenv("LIVE_AVATAR_PRESENCE_MOUTH_DAMPING", "0.92")
+    )
+    live_avatar_ffmpeg_path: str = os.getenv(
+        "LIVE_AVATAR_FFMPEG_PATH",
+        os.getenv("MUSE_TALK_FFMPEG_PATH", "ffmpeg"),
+    )
+    live_avatar_generated_dir: str = os.getenv(
+        "LIVE_AVATAR_GENERATED_DIR",
+        str(DEFAULT_LIVE_AVATAR_GENERATED_DIR.as_posix()),
+    )
+    live_avatar_profile_path: str = os.getenv(
+        "LIVE_AVATAR_PROFILE_PATH",
+        str(DEFAULT_LIVE_AVATAR_PROFILE_PATH.as_posix()),
+    )
+    live_avatar_idle_fps: int = int(os.getenv("LIVE_AVATAR_IDLE_FPS", os.getenv("MUSE_TALK_FPS", "25")))
+    live_avatar_idle_size: int = int(os.getenv("LIVE_AVATAR_IDLE_SIZE", "1024"))
+    live_avatar_idle_prebuffer_frames: int = int(os.getenv("LIVE_AVATAR_IDLE_PREBUFFER_FRAMES", "8"))
+    live_avatar_return_blend_ms: int = int(os.getenv("LIVE_AVATAR_RETURN_BLEND_MS", "220"))
+    live_avatar_idle_generation_duration_sec: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_GENERATION_DURATION_SEC", "6.0")
+    )
+    live_avatar_idle_loop_duration_sec: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_LOOP_DURATION_SEC", "4.0")
+    )
+    live_avatar_idle_loop_blend_frames: int = int(
+        os.getenv("LIVE_AVATAR_IDLE_LOOP_BLEND_FRAMES", "8")
+    )
+    live_avatar_idle_target_motion_min: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_TARGET_MOTION_MIN", "0.7")
+    )
+    live_avatar_idle_target_motion_max: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_TARGET_MOTION_MAX", "1.45")
+    )
+    live_avatar_idle_target_spike_ratio_max: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_TARGET_SPIKE_RATIO_MAX", "2.2")
+    )
+    live_avatar_idle_breathing_amplitude: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_BREATHING_AMPLITUDE", "0.026")
+    )
+    live_avatar_idle_sway_amplitude: float = float(
+        os.getenv("LIVE_AVATAR_IDLE_SWAY_AMPLITUDE", "0.018")
+    )
+    live_avatar_liveportrait_enabled: bool = os.getenv("LIVE_AVATAR_LIVEPORTRAIT_ENABLED", "1") == "1"
+    live_avatar_liveportrait_python_path: str = os.getenv(
+        "LIVE_AVATAR_LIVEPORTRAIT_PYTHON_PATH",
+        str((DEFAULT_LIVEPORTRAIT_VENV_DIR / "Scripts" / "python.exe").as_posix()),
+    )
+    live_avatar_liveportrait_project_dir: str = os.getenv(
+        "LIVE_AVATAR_LIVEPORTRAIT_PROJECT_DIR",
+        str(DEFAULT_LIVEPORTRAIT_PROJECT_DIR.as_posix()),
+    )
+    live_avatar_liveportrait_command: str = os.getenv(
+        "LIVE_AVATAR_LIVEPORTRAIT_COMMAND",
+        "",
+    )
     live_avatar_vad_start_threshold: float = float(os.getenv("LIVE_AVATAR_VAD_START_THRESHOLD", "0.015"))
     live_avatar_vad_continue_threshold: float = float(os.getenv("LIVE_AVATAR_VAD_CONTINUE_THRESHOLD", "0.01"))
     live_avatar_min_speech_ms: int = int(os.getenv("LIVE_AVATAR_MIN_SPEECH_MS", "450"))
@@ -101,7 +255,7 @@ class Settings(BaseModel):
     live_avatar_max_utterance_ms: int = int(os.getenv("LIVE_AVATAR_MAX_UTTERANCE_MS", "15000"))
     live_avatar_preroll_ms: int = int(os.getenv("LIVE_AVATAR_PREROLL_MS", "250"))
     live_avatar_audio_chunk_ms: int = int(os.getenv("LIVE_AVATAR_AUDIO_CHUNK_MS", "20"))
-    live_avatar_idle_video_fps: int = int(os.getenv("LIVE_AVATAR_IDLE_VIDEO_FPS", os.getenv("MUSE_TALK_FPS", "25")))
+    live_avatar_idle_video_fps: int = int(os.getenv("LIVE_AVATAR_IDLE_VIDEO_FPS", os.getenv("LIVE_AVATAR_IDLE_FPS", os.getenv("MUSE_TALK_FPS", "25"))))
     webrtc_stun_urls: list[str] = _split_env_list(
         os.getenv("WEBRTC_STUN_URLS", "stun:stun.l.google.com:19302")
     )

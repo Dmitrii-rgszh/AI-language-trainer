@@ -1,0 +1,16 @@
+{
+  "avatar_key": "verba_tutor",
+  "current_presence_id": "presence_master_01",
+  "masters": [
+    {
+      "presence_id": "presence_master_01",
+      "video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/assets/live_avatar/verba_tutor/presence_master_01.mp4",
+      "duration_sec": 30.0,
+      "fps": 25,
+      "size": 1024,
+      "renderer": "synthetic_calm",
+      "segments": []
+    }
+  ],
+  "generated_at_utc": "2026-04-08T09:38:10.258310+00:00"
+}

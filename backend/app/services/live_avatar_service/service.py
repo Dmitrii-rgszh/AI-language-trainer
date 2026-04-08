@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.config import settings
+from app.live_avatar.avatar.avatar_profile import AvatarAssetProfile
+from app.live_avatar.avatar.idle_generator import IdleLoopGenerator
+from app.live_avatar.avatar.motion_manager import AvatarMotionManager
+from app.live_avatar.avatar.presence_generator import PresenceAssetGenerator
 from app.live_avatar.dialogue.service import LiveAvatarDialogueService
 from app.live_avatar.lipsync.musetalk.engine import MuseTalkLiveEngine
 from app.live_avatar.rtc.session_manager import LiveAvatarSessionManager
@@ -32,16 +36,19 @@ class LiveAvatarService:
         lipsync_engine: MuseTalkLiveEngine,
         stt_provider,
         welcome_tutor_service: WelcomeTutorService,
+        avatar_profile: AvatarAssetProfile,
     ) -> None:
         self._dialogue_service = dialogue_service
         self._tts_adapter = tts_adapter
         self._lipsync_engine = lipsync_engine
         self._welcome_tutor_service = welcome_tutor_service
+        self._avatar_profile = avatar_profile
         self._session_manager = LiveAvatarSessionManager(
             dialogue_service=dialogue_service,
             tts_adapter=tts_adapter,
             lipsync_engine=lipsync_engine,
             stt_provider=stt_provider,
+            avatar_profile=avatar_profile,
         )
         self._warmup_error: str | None = None
 
@@ -51,6 +58,31 @@ class LiveAvatarService:
             return
 
         try:
+            if settings.live_avatar_presence_enabled:
+                presence_result = await asyncio.to_thread(
+                    PresenceAssetGenerator().ensure_presence_assets,
+                    self._avatar_profile,
+                )
+                logger.info(
+                    "Live avatar presence master ready: %s (%s)",
+                    presence_result.current_video_path,
+                    presence_result.current_presence_id,
+                )
+            idle_result = await asyncio.to_thread(
+                IdleLoopGenerator().ensure_idle_loop,
+                self._avatar_profile,
+            )
+            logger.info(
+                "Live avatar idle loop ready: %s (source=%s)",
+                idle_result.output_video_path,
+                "liveportrait" if idle_result.used_liveportrait else "synthetic",
+            )
+            await asyncio.to_thread(
+                AvatarMotionManager(
+                    avatar_profile=self._avatar_profile,
+                    return_blend_ms=settings.live_avatar_return_blend_ms,
+                ).warmup
+            )
             await asyncio.to_thread(self._tts_adapter.warmup)
             await self._lipsync_engine.warmup()
             self._warmup_error = None
@@ -129,6 +161,32 @@ class LiveAvatarService:
             assistant_text=assistant_text,
             clip_path=clip_path,
         )
+
+    def get_idle_loop_path(self, *, avatar_key: str | None = None) -> Path:
+        resolved_avatar_key = (avatar_key or self._avatar_profile.avatar_key).strip() or self._avatar_profile.avatar_key
+        if resolved_avatar_key != self._avatar_profile.avatar_key:
+            raise ValueError(f"Unknown live avatar key: {resolved_avatar_key}")
+
+        result = IdleLoopGenerator().ensure_idle_loop(self._avatar_profile)
+        return result.output_video_path
+
+    def get_presence_video_path(self, *, avatar_key: str | None = None) -> Path:
+        resolved_avatar_key = (avatar_key or self._avatar_profile.avatar_key).strip() or self._avatar_profile.avatar_key
+        if resolved_avatar_key != self._avatar_profile.avatar_key:
+            raise ValueError(f"Unknown live avatar key: {resolved_avatar_key}")
+
+        configured_presence_path = Path(settings.welcome_presence_video_path).resolve()
+        if resolved_avatar_key == "verba_tutor" and configured_presence_path.exists():
+            return configured_presence_path
+
+        if settings.live_avatar_presence_enabled:
+            result = PresenceAssetGenerator().ensure_presence_assets(self._avatar_profile)
+            return result.current_video_path
+
+        motion_video_path = self._avatar_profile.motion_video_path
+        if not motion_video_path.exists():
+            raise FileNotFoundError(f"Presence video was not found for avatar: {resolved_avatar_key}")
+        return motion_video_path
 
     @staticmethod
     def _build_ice_servers() -> list[LiveAvatarIceServer]:

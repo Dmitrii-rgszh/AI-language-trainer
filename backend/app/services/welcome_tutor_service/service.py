@@ -20,7 +20,15 @@ import numpy as np
 
 from app.core.config import settings
 from app.core.errors import BadGatewayError, BadRequestError, ServiceUnavailableError
+from app.live_avatar.avatar.avatar_profile import load_avatar_asset_profile_from_settings
+from app.live_avatar.avatar.idle_generator import IdleLoopGenerator
+from app.live_avatar.avatar.presence_generator import PresenceAssetGenerator
 from app.services.voice_service.service import VoiceService
+from app.services.welcome_tutor_service.presets import (
+    build_welcome_tutor_preset_path,
+    iter_welcome_tutor_presets,
+    resolve_welcome_tutor_preset,
+)
 
 
 @dataclass(frozen=True)
@@ -108,7 +116,7 @@ class CachedMuseTalkStatus:
 
 
 MUSE_TALK_STATUS_CACHE_TTL_SECONDS = 90.0
-MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v3_tts_signature"
+MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v6_presence_master_welcome"
 WELCOME_TUTOR_AUDIO_SAMPLE_RATE = 24000
 WELCOME_TUTOR_AUDIO_CHANNELS = 1
 WELCOME_TUTOR_AUDIO_SAMPLE_WIDTH = 2
@@ -116,20 +124,6 @@ WELCOME_TUTOR_SILENCE_THRESHOLD = 0.008
 WELCOME_TUTOR_SILENCE_PADDING_MS = 80
 WELCOME_TUTOR_MIN_CLIP_DURATION_SECONDS = 1.0
 WELCOME_TUTOR_CLIP_TO_AUDIO_DURATION_RATIO_FLOOR = 0.7
-WELCOME_TUTOR_PREWARM_CLIPS = (
-    {
-        "language": "ru",
-        "avatar_key": "verba_tutor",
-        "text": "Как бы ты вежливо заказал кофе без сахара?",
-    },
-    {
-        "language": "en",
-        "avatar_key": "verba_tutor",
-        "text": "How would you politely order a coffee without sugar?",
-    },
-)
-
-
 class WelcomeTutorService:
     def __init__(self, voice_service: VoiceService) -> None:
         self._voice_service = voice_service
@@ -277,6 +271,7 @@ class WelcomeTutorService:
         avatar_path = self._runtime_config.avatar_image_paths.get(avatar_key)
         if avatar_path is None:
             raise BadRequestError(f"Unknown avatar key: {avatar_key}")
+        base_video_path = self._resolve_base_video_path(avatar_key=avatar_key)
 
         clip_hash = self._build_clip_hash(
             avatar_key=avatar_key,
@@ -326,6 +321,7 @@ class WelcomeTutorService:
                     self._render_clip_with_live_sidecar(
                         source_audio_path=audio_path,
                         avatar_key=avatar_key,
+                        base_video_path=base_video_path,
                         target_output_path=normalized_output_path,
                     )
                 else:
@@ -425,17 +421,41 @@ class WelcomeTutorService:
             finally:
                 shutil.rmtree(workspace_root, ignore_errors=True)
 
+    def ensure_preset_clip(
+        self,
+        *,
+        locale: str,
+        kind: str,
+        variant: int = 0,
+        avatar_key: str = "verba_tutor",
+    ) -> Path:
+        preset = resolve_welcome_tutor_preset(locale=locale, kind=kind, variant=variant)
+        preset_dir = Path(settings.welcome_preset_video_dir).resolve()
+        target_path = build_welcome_tutor_preset_path(preset_dir, preset)
+        if target_path.exists() and self._is_valid_cached_clip(target_path):
+            return target_path
+
+        source_clip_path = self.render_clip(
+            text=preset.text,
+            language=preset.locale,
+            avatar_key=avatar_key,
+        )
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_clip_path, target_path)
+        return target_path
+
     def _prewarm_default_clips_safe(self) -> None:
         try:
             status = self.get_status()
             if not status.available:
                 return
 
-            for clip in WELCOME_TUTOR_PREWARM_CLIPS:
-                self.render_clip(
-                    text=clip["text"],
-                    language=clip["language"],
-                    avatar_key=clip["avatar_key"],
+            for preset in iter_welcome_tutor_presets():
+                self.ensure_preset_clip(
+                    locale=preset.locale,
+                    kind=preset.kind,
+                    variant=preset.variant,
+                    avatar_key="verba_tutor",
                 )
         except Exception:
             return
@@ -500,6 +520,7 @@ class WelcomeTutorService:
         *,
         source_audio_path: Path,
         avatar_key: str,
+        base_video_path: Path,
         target_output_path: Path,
     ) -> None:
         avatar_path = self._runtime_config.avatar_image_paths[avatar_key]
@@ -513,8 +534,9 @@ class WelcomeTutorService:
             prepare_response = client.post(
                 f"{base_url}/prepare-avatar",
                 json={
-                    "avatar_id": avatar_key,
+                    "avatar_id": f"{avatar_key}-welcome-presence",
                     "image_path": avatar_path.as_posix(),
+                    "base_video_path": base_video_path.as_posix(),
                 },
             )
             prepare_response.raise_for_status()
@@ -523,7 +545,7 @@ class WelcomeTutorService:
                 "POST",
                 f"{base_url}/render-stream",
                 json={
-                    "avatar_id": avatar_key,
+                    "avatar_id": f"{avatar_key}-welcome-presence",
                     "audio_path": source_audio_path.as_posix(),
                     "fps": self._runtime_config.fps,
                 },
@@ -738,18 +760,33 @@ class WelcomeTutorService:
         return frame_count / frame_rate
 
     def _build_clip_hash(self, *, avatar_key: str, text: str, language: str) -> str:
+        base_video_path = self._resolve_base_video_path(avatar_key=avatar_key)
         payload = "|".join(
-            [
-                avatar_key,
-                language,
-                text,
-                self._runtime_config.version,
-                self._runtime_config.default_speaker,
-                self._build_tts_cache_signature(),
-                MUSE_TALK_RENDER_PIPELINE_REVISION,
-            ]
-        )
+                [
+                    avatar_key,
+                    language,
+                    text,
+                    self._runtime_config.version,
+                    self._runtime_config.default_speaker,
+                    self._build_tts_cache_signature(),
+                    self._fingerprint_file(base_video_path.as_posix()),
+                    MUSE_TALK_RENDER_PIPELINE_REVISION,
+                ]
+            )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
+
+    def _resolve_base_video_path(self, *, avatar_key: str) -> Path:
+        configured_presence_path = Path(settings.welcome_presence_video_path).resolve()
+        if avatar_key == "verba_tutor" and configured_presence_path.exists():
+            return configured_presence_path
+
+        avatar_profile = load_avatar_asset_profile_from_settings(avatar_key=avatar_key)
+        if settings.live_avatar_presence_enabled:
+            presence_result = PresenceAssetGenerator().ensure_presence_assets(avatar_profile)
+            return presence_result.current_video_path
+
+        IdleLoopGenerator().ensure_idle_loop(avatar_profile)
+        return avatar_profile.idle_loop_path
 
     def _build_tts_cache_signature(self) -> str:
         provider_key = settings.tts_provider.strip().lower() or "unknown"

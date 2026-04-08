@@ -4,6 +4,7 @@ import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
 import { useLiveAvatarSession } from "../live-avatar/useLiveAvatarSession";
 import { cn } from "../../shared/utils/cn";
 import { TutorCard } from "./TutorCard";
+import { WelcomeAiTutorCue } from "./WelcomeAiTutorCue";
 
 type WelcomeStreamingAvatarCueProps = {
   isVisible: boolean;
@@ -62,6 +63,11 @@ export function WelcomeStreamingAvatarCue({
   const livePrompt = (spokenMessage || message).trim();
   const promptKey = `${locale}:${livePrompt}`;
   const language = locale === "ru" ? "ru" : "en";
+  const hasRemoteVideo = Boolean(remoteStream?.getVideoTracks().length);
+  const hasRemoteAudio = Boolean(remoteStream?.getAudioTracks().length);
+  const shouldUseFallbackPlayer =
+    !isBootstrapping &&
+    (!canConnect || (connectionState === "connection_error" && !hasRemoteVideo));
 
   async function startMediaPlayback() {
     const video = videoRef.current;
@@ -101,7 +107,7 @@ export function WelcomeStreamingAvatarCue({
   }, [canConnect, connect, connectionState, disconnect, isConnected, isVisible]);
 
   useEffect(() => {
-    if (!isVisible || !isConnected) {
+    if (!isVisible || !isConnected || !hasRemoteVideo) {
       return;
     }
     if (spokenPromptKeyRef.current === promptKey) {
@@ -110,7 +116,7 @@ export function WelcomeStreamingAvatarCue({
     spokenPromptKeyRef.current = promptKey;
     setPlaybackHint(null);
     speakText(livePrompt, language);
-  }, [isConnected, isVisible, language, livePrompt, promptKey, speakText]);
+  }, [hasRemoteVideo, isConnected, isVisible, language, livePrompt, promptKey, speakText]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -119,11 +125,12 @@ export function WelcomeStreamingAvatarCue({
       return;
     }
 
-    if (!remoteStream) {
+    if (!remoteStream || (!hasRemoteVideo && !hasRemoteAudio)) {
       video.pause();
       video.srcObject = null;
       audio.pause();
       audio.srcObject = null;
+      setIsPlaying(false);
       return;
     }
 
@@ -162,7 +169,7 @@ export function WelcomeStreamingAvatarCue({
         track.onunmute = null;
       }
     };
-  }, [labels.autoplayHint, remoteStream]);
+  }, [hasRemoteAudio, hasRemoteVideo, labels.autoplayHint, remoteStream]);
 
   const isBusy =
     isBootstrapping ||
@@ -187,6 +194,19 @@ export function WelcomeStreamingAvatarCue({
     void startMediaPlayback();
     speakText(livePrompt, language);
   };
+
+  if (shouldUseFallbackPlayer) {
+    return (
+      <WelcomeAiTutorCue
+        isVisible={isVisible}
+        locale={locale}
+        label={label}
+        message={message}
+        spokenMessage={spokenMessage}
+        replayCta={replayCta}
+      />
+    );
+  }
 
   return (
     <div className="proof-lesson-ai-cue">
@@ -221,13 +241,16 @@ export function WelcomeStreamingAvatarCue({
             className={cn(
               "proof-lesson-ai-avatar",
               (isPlaying || connectionState === "speaking") && "proof-lesson-ai-avatar--speaking",
-              remoteStream && "proof-lesson-ai-avatar--video",
+              hasRemoteVideo && "proof-lesson-ai-avatar--video",
             )}
           >
             <img
               src={avatarGirlSrc}
               alt={avatarAlt}
-              className="proof-lesson-ai-avatar__image"
+              className={cn(
+                "proof-lesson-ai-avatar__image",
+                hasRemoteVideo && "is-hidden",
+              )}
               draggable={false}
               decoding="async"
             />
@@ -239,7 +262,7 @@ export function WelcomeStreamingAvatarCue({
               muted
               className={cn(
                 "proof-lesson-ai-avatar__video",
-                remoteStream && "is-visible",
+                hasRemoteVideo && "is-visible",
               )}
             />
             <audio ref={audioRef} autoPlay preload="auto" className="sr-only" />

@@ -1,0 +1,13 @@
+{
+  "avatar_key": "verba_tutor",
+  "source_image_path": "avatar_source.png",
+  "idle_loop_path": "idle_loop.mp4",
+  "idle_fps": 25,
+  "idle_size": 1024,
+  "face_crop": {
+    "x": 0,
+    "y": 0,
+    "width": 1024,
+    "height": 1024
+  }
+}

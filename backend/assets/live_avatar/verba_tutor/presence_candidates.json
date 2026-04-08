@@ -1,0 +1,11 @@
+{
+  "avatar_key": "verba_tutor",
+  "masters": [
+    {
+      "presence_id": "presence_master_01",
+      "is_default": true,
+      "renderer": "synthetic_calm",
+      "duration_sec": 30.0
+    }
+  ]
+}

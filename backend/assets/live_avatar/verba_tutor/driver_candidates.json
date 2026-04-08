@@ -1,0 +1,68 @@
+{
+  "avatar_key": "verba_tutor",
+  "description": "Curated neutral-ish LivePortrait driving candidates for calm video-call idle motion.",
+  "candidates": [
+    {
+      "candidate_id": "d9_08_14",
+      "source_path": "assets/examples/driving/d9.mp4",
+      "start_sec": 8.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d9_10_16",
+      "source_path": "assets/examples/driving/d9.mp4",
+      "start_sec": 10.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d10_03_09",
+      "source_path": "assets/examples/driving/d10.mp4",
+      "start_sec": 3.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d11_01_07",
+      "source_path": "assets/examples/driving/d11.mp4",
+      "start_sec": 1.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d12_00_06",
+      "source_path": "assets/examples/driving/d12.mp4",
+      "start_sec": 0.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d20_00_06",
+      "source_path": "assets/examples/driving/d20.mp4",
+      "start_sec": 0.0,
+      "duration_sec": 6.0,
+      "score_bias": -3.0
+    },
+    {
+      "candidate_id": "d3_02_08",
+      "source_path": "assets/examples/driving/d3.mp4",
+      "start_sec": 2.0,
+      "duration_sec": 6.0,
+      "score_bias": 3.0
+    },
+    {
+      "candidate_id": "d6_10_16",
+      "source_path": "assets/examples/driving/d6.mp4",
+      "start_sec": 10.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d6_14_20",
+      "source_path": "assets/examples/driving/d6.mp4",
+      "start_sec": 14.0,
+      "duration_sec": 6.0
+    },
+    {
+      "candidate_id": "d14_04_10",
+      "source_path": "assets/examples/driving/d14.mp4",
+      "start_sec": 4.0,
+      "duration_sec": 6.0
+    }
+  ]
+}

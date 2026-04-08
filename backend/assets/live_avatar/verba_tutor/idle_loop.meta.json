@@ -1,0 +1,13 @@
+{
+  "avatar_key": "verba_tutor",
+  "renderer": "liveportrait",
+  "source_image_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/assets/live_avatar/verba_tutor/avatar_source.png",
+  "driving_video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/assets/live_avatar/verba_tutor/idle_driving.mp4",
+  "raw_video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/generated/live_avatar/verba_tutor/idle_loop_raw.mp4",
+  "output_video_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/assets/live_avatar/verba_tutor/idle_loop.mp4",
+  "idle_fps": 25,
+  "idle_size": 1024,
+  "selected_driver_id": "d20_00_06",
+  "selected_driver_report_path": "C:/Users/shapeless/Desktop/Тренер английского языка/backend/generated/live_avatar/verba_tutor/driver_selection/selection_report.json",
+  "created_at_utc": "2026-04-04T13:12:31.908184+00:00"
+}

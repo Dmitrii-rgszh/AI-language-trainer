@@ -1,11 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { AppLocale } from "../../shared/i18n/locale";
-import { ApiError, apiClient } from "../../shared/api/client";
-import { useAppStore } from "../../shared/store/app-store";
+import { apiClient } from "../../shared/api/client";
 import avatarGirlSrc from "../../shared/assets/ai-tutor/avatar-girl.webp";
 import { cn } from "../../shared/utils/cn";
 import { TutorCard } from "./TutorCard";
+import {
+  getWelcomeAiTutorIntroVariants,
+  getWelcomeAiTutorReplayPrompt,
+} from "./welcomeAiTutorPrompts";
 
 type WelcomeAiTutorCueProps = {
   isVisible: boolean;
@@ -14,477 +23,319 @@ type WelcomeAiTutorCueProps = {
   message: string;
   spokenMessage?: string;
   replayCta: string;
+  showReplayAction?: boolean;
+  showStaticFallback?: boolean;
+  onIntroPlaybackStart?: () => void;
+  onIntroPlaybackComplete?: () => void;
 };
 
-const AI_TUTOR_SPEAKER = "Daisy Studious";
-const WELCOME_TUTOR_VIDEO_WAIT_MS = 12000;
-const WELCOME_TUTOR_REPLAY_VIDEO_WAIT_MS = 18000;
+export type WelcomeAiTutorCueHandle = {
+  playIntro: () => Promise<boolean>;
+  playReplay: () => Promise<boolean>;
+};
+
+const WELCOME_PRESENCE_VIDEO_REVISION = "presence-master-01-v2-generated";
+const INTRO_VARIANT_STORAGE_KEY = "welcome-ai-tutor-intro-variant";
 
 function getPlaybackLabels(locale: AppLocale) {
   if (locale === "ru") {
     return {
-      autoplayHint: "Если звук не стартовал автоматически, нажми «Послушать ещё раз».",
-      loading: "Лиза готовит задание...",
-      warming: "Первый запуск прогревает видео-аватар. Это может занять несколько секунд.",
+      autoplayHint: "Если звук не стартовал автоматически, нажми «Повторить ещё раз».",
       playing: "Лиза озвучивает задание",
     };
   }
 
   return {
     autoplayHint: "If audio did not start automatically, press “Hear it again”.",
-    loading: "Liza is preparing the prompt...",
-    warming: "The first launch is warming up the avatar video. This can take a few seconds.",
     playing: "Liza is saying the prompt",
   };
 }
 
-export function WelcomeAiTutorCue({
+function getNextIntroVariantIndex(variantCount: number) {
+  try {
+    const currentValue = Number(window.sessionStorage.getItem(INTRO_VARIANT_STORAGE_KEY) || "0");
+    const normalizedCurrent = Number.isFinite(currentValue) ? currentValue : 0;
+    const nextValue = (normalizedCurrent + 1) % variantCount;
+    window.sessionStorage.setItem(INTRO_VARIANT_STORAGE_KEY, String(nextValue));
+    return normalizedCurrent % variantCount;
+  } catch {
+    return 0;
+  }
+}
+
+export const WelcomeAiTutorCue = forwardRef<WelcomeAiTutorCueHandle, WelcomeAiTutorCueProps>(function WelcomeAiTutorCue({
   isVisible,
   locale,
   label,
   message,
-  spokenMessage,
   replayCta,
-}: WelcomeAiTutorCueProps) {
+  showReplayAction = true,
+  showStaticFallback = true,
+  onIntroPlaybackStart,
+  onIntroPlaybackComplete,
+}: WelcomeAiTutorCueProps, ref) {
+  const [isVideoVisible, setIsVideoVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isClipVisible, setIsClipVisible] = useState(false);
   const [playbackHint, setPlaybackHint] = useState<string | null>(null);
-  const [renderMode, setRenderMode] = useState<"video" | "audio">("audio");
-  const [videoPlaybackKey, setVideoPlaybackKey] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const currentAudioUrlRef = useRef<string | null>(null);
-  const currentVideoUrlRef = useRef<string | null>(null);
-  const preparedAudioKeyRef = useRef<string | null>(null);
-  const preparedAudioPromiseRef = useRef<Promise<string> | null>(null);
-  const preparedVideoBlobRef = useRef<Blob | null>(null);
-  const preparedVideoKeyRef = useRef<string | null>(null);
-  const preparedVideoPromiseRef = useRef<Promise<Blob> | null>(null);
-  const autoPlayKeyRef = useRef<string | null>(null);
-  const playbackRequestRef = useRef(0);
-  const labels = getPlaybackLabels(locale);
+  const presenceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const clipVideoRef = useRef<HTMLVideoElement | null>(null);
+  const introClipUrlRef = useRef<string | null>(null);
+  const replayClipUrlRef = useRef<string | null>(null);
+  const activePlaybackModeRef = useRef<"intro" | "replay" | null>(null);
+  const selectedIntroIndexRef = useRef(0);
+  const introClipPreloadPromiseRef = useRef<Promise<string | null> | null>(null);
+  const replayClipPreloadPromiseRef = useRef<Promise<string | null> | null>(null);
   const avatarAlt = locale === "ru" ? "Лиза" : "Liza";
-  const livePrompt = (spokenMessage || message).trim();
-  const providers = useAppStore((state) => state.providers);
-  const ttsProvider = providers.find((provider) => provider.type === "tts");
-  const ttsCacheSignature = ttsProvider
-    ? `${ttsProvider.key}|${ttsProvider.details}`
-    : "tts-provider-pending";
-
-  function stopCurrentPlayback() {
-    audioRef.current?.pause();
-    videoRef.current?.pause();
-    setIsPlaying(false);
-  }
+  const labels = getPlaybackLabels(locale);
+  const replayPrompt = getWelcomeAiTutorReplayPrompt(locale);
+  const introVariants = useMemo(
+    () => getWelcomeAiTutorIntroVariants(locale),
+    [locale],
+  );
+  const presenceVideoUrl = apiClient.getLiveAvatarPresenceVideoUrl(
+    "verba_tutor",
+    WELCOME_PRESENCE_VIDEO_REVISION,
+  );
 
   useEffect(() => {
     return () => {
-      stopCurrentPlayback();
-      audioRef.current = null;
-      videoRef.current = null;
-
-      if (currentAudioUrlRef.current) {
-        URL.revokeObjectURL(currentAudioUrlRef.current);
+      presenceVideoRef.current?.pause();
+      clipVideoRef.current?.pause();
+      if (introClipUrlRef.current) {
+        URL.revokeObjectURL(introClipUrlRef.current);
+        introClipUrlRef.current = null;
       }
-      if (currentVideoUrlRef.current) {
-        URL.revokeObjectURL(currentVideoUrlRef.current);
+      if (replayClipUrlRef.current) {
+        URL.revokeObjectURL(replayClipUrlRef.current);
+        replayClipUrlRef.current = null;
       }
     };
   }, []);
 
   useEffect(() => {
-    if (isVisible) {
-      void ensureAudioSource().catch(() => undefined);
-      void ensureVideoSource().catch(() => undefined);
+    if (!isVisible) {
+      presenceVideoRef.current?.pause();
+      clipVideoRef.current?.pause();
+      setIsVideoVisible(false);
+      setIsClipVisible(false);
+      setIsPlaying(false);
+      setIsLoading(false);
+      setPlaybackHint(null);
+      activePlaybackModeRef.current = null;
       return;
     }
 
-    stopCurrentPlayback();
-    setIsLoading(false);
-    setPlaybackHint(null);
-  }, [isVisible]);
+    selectedIntroIndexRef.current = getNextIntroVariantIndex(introVariants.length);
+    if (introClipUrlRef.current) {
+      URL.revokeObjectURL(introClipUrlRef.current);
+      introClipUrlRef.current = null;
+    }
+    introClipPreloadPromiseRef.current = null;
+    void apiClient
+      .preloadLiveAvatarPresenceVideo("verba_tutor", WELCOME_PRESENCE_VIDEO_REVISION)
+      .catch(() => undefined);
+    void preloadReplayClip().catch(() => undefined);
+    void preloadSelectedIntroClip().catch(() => undefined);
+  }, [introVariants.length, isVisible]);
 
   useEffect(() => {
-    if (!isVisible) {
+    const video = presenceVideoRef.current;
+    if (!video || !isVisible) {
       return;
     }
 
-    const autoPlayKey = `${locale}:${livePrompt}:${ttsCacheSignature}`;
-    if (autoPlayKeyRef.current === autoPlayKey) {
-      return;
-    }
+    let cancelled = false;
 
-    autoPlayKeyRef.current = autoPlayKey;
-    void playTutorCue("auto");
-  }, [isVisible, locale, livePrompt, ttsCacheSignature]);
-
-  function ensureAudioElement() {
-    if (audioRef.current) {
-      return audioRef.current;
-    }
-
-    const audio = new Audio();
-    audio.preload = "auto";
-    audio.onended = () => setIsPlaying(false);
-    audio.onpause = () => setIsPlaying(false);
-    audioRef.current = audio;
-    return audio;
-  }
-
-  function buildVideoSourceKey() {
-    return `${locale}:${livePrompt}:${ttsCacheSignature}`;
-  }
-
-  async function ensureAudioSource() {
-    const sourceKey = buildVideoSourceKey();
-    if (preparedAudioKeyRef.current === sourceKey && currentAudioUrlRef.current) {
-      return currentAudioUrlRef.current;
-    }
-
-    if (preparedAudioKeyRef.current === sourceKey && preparedAudioPromiseRef.current) {
-      return preparedAudioPromiseRef.current;
-    }
-
-    if (currentAudioUrlRef.current) {
-      URL.revokeObjectURL(currentAudioUrlRef.current);
-      currentAudioUrlRef.current = null;
-    }
-
-    preparedAudioKeyRef.current = sourceKey;
-    preparedAudioPromiseRef.current = apiClient
-      .synthesizeSpeech({
-        text: livePrompt,
-        language: locale === "ru" ? "ru" : "en",
-        speaker: AI_TUTOR_SPEAKER,
-        style: "warm",
-      })
-      .then((audioBlob) => {
-        const audioUrl = URL.createObjectURL(audioBlob);
-        currentAudioUrlRef.current = audioUrl;
-        return audioUrl;
-      })
-      .finally(() => {
-        preparedAudioPromiseRef.current = null;
-      });
-
-    return preparedAudioPromiseRef.current;
-  }
-
-  async function ensureVideoSource() {
-    const sourceKey = buildVideoSourceKey();
-    if (preparedVideoKeyRef.current === sourceKey && preparedVideoBlobRef.current) {
-      return preparedVideoBlobRef.current;
-    }
-
-    if (preparedVideoKeyRef.current === sourceKey && preparedVideoPromiseRef.current) {
-      return preparedVideoPromiseRef.current;
-    }
-
-    preparedVideoBlobRef.current = null;
-
-    preparedVideoKeyRef.current = sourceKey;
-    preparedVideoPromiseRef.current = apiClient
-      .renderWelcomeTutorClip({
-        text: livePrompt,
-        language: locale === "ru" ? "ru" : "en",
-        avatarKey: "verba_tutor",
-        cacheSignature: ttsCacheSignature,
-      })
-      .then((videoBlob) => {
-        preparedVideoBlobRef.current = videoBlob;
-        return videoBlob;
-      })
-      .finally(() => {
-        preparedVideoPromiseRef.current = null;
-      });
-
-    return preparedVideoPromiseRef.current;
-  }
-
-  function isCurrentPlaybackRequest(requestId: number) {
-    return playbackRequestRef.current === requestId;
-  }
-
-  function hasPreparedVideoSource() {
-    return (
-      preparedVideoKeyRef.current === buildVideoSourceKey() &&
-      Boolean(preparedVideoBlobRef.current)
-    );
-  }
-
-  function hasPreparedAudioSource() {
-    return (
-      preparedAudioKeyRef.current === buildVideoSourceKey() &&
-      Boolean(currentAudioUrlRef.current)
-    );
-  }
-
-  function isVideoPreparingForCurrentCue() {
-    return (
-      preparedVideoKeyRef.current === buildVideoSourceKey() &&
-      Boolean(preparedVideoPromiseRef.current)
-    );
-  }
-
-  async function waitForVideoCanPlay(video: HTMLVideoElement) {
-    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      return;
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const handleReady = () => {
-        cleanup();
-        resolve();
-      };
-      const handleError = () => {
-        cleanup();
-        reject(new Error("Tutor video could not be loaded."));
-      };
-      const cleanup = () => {
-        video.removeEventListener("loadeddata", handleReady);
-        video.removeEventListener("canplay", handleReady);
-        video.removeEventListener("error", handleError);
-      };
-
-      video.addEventListener("loadeddata", handleReady, { once: true });
-      video.addEventListener("canplay", handleReady, { once: true });
-      video.addEventListener("error", handleError, { once: true });
-    });
-  }
-
-  async function resolveVideoElement(forceRemount: boolean) {
-    if (forceRemount) {
-      flushSync(() => {
-        setVideoPlaybackKey((current) => current + 1);
-      });
-      await Promise.resolve();
-    }
-
-    const video = videoRef.current;
-    if (!video) {
-      throw new Error("Tutor video element is not ready");
-    }
-
-    return video;
-  }
-
-  async function playNarration(requestId: number) {
-    const audio = ensureAudioElement();
-    const audioUrl = await ensureAudioSource();
-    if (!isCurrentPlaybackRequest(requestId)) {
-      return;
-    }
-
-    videoRef.current?.pause();
-    audio.pause();
-    if (audio.src !== audioUrl) {
-      audio.src = audioUrl;
-    }
-    try {
-      audio.currentTime = 0;
-    } catch {
-      // Ignore harmless seek errors while the element is preparing.
-    }
-    setRenderMode("audio");
-    if (!isCurrentPlaybackRequest(requestId)) {
-      return;
-    }
-    await audio.play();
-    if (isCurrentPlaybackRequest(requestId)) {
-      setIsPlaying(true);
-    }
-  }
-
-  async function loadVideoSource(
-    video: HTMLVideoElement,
-    videoUrl: string,
-    forceReload = false,
-  ) {
-    const shouldReloadSource =
-      forceReload ||
-      video.src !== videoUrl ||
-      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA;
-
-    video.pause();
-
-    if (shouldReloadSource) {
-      video.removeAttribute("src");
-      video.load();
-      video.src = videoUrl;
-      video.load();
-      await waitForVideoCanPlay(video);
-    }
-
-    try {
-      video.currentTime = 0;
-    } catch {
-      // Some browsers can briefly reject seeking before metadata is ready.
-    }
-  }
-
-  async function playMuseTalkVideo(requestId: number, forceReload = false) {
-    const video = await resolveVideoElement(forceReload);
-
-    const videoBlob = await ensureVideoSource();
-    if (!isCurrentPlaybackRequest(requestId)) {
-      return;
-    }
-
-    if (currentVideoUrlRef.current) {
-      URL.revokeObjectURL(currentVideoUrlRef.current);
-      currentVideoUrlRef.current = null;
-    }
-
-    const videoUrl = URL.createObjectURL(videoBlob);
-    currentVideoUrlRef.current = videoUrl;
-    audioRef.current?.pause();
-    await loadVideoSource(video, videoUrl, forceReload);
-    if (!isCurrentPlaybackRequest(requestId)) {
-      return;
-    }
-    video.onplaying = () => setIsPlaying(true);
-    video.onended = () => setIsPlaying(false);
-    video.onpause = () => setIsPlaying(false);
-    video.muted = false;
-    setRenderMode("video");
-    await video.play();
-    if (isCurrentPlaybackRequest(requestId)) {
-      setIsPlaying(true);
-    }
-  }
-
-  async function playMuseTalkVideoWithTimeout(
-    requestId: number,
-    timeoutMs: number,
-    forceReload = false,
-  ) {
-    await Promise.race([
-      playMuseTalkVideo(requestId, forceReload),
-      new Promise<never>((_, reject) => {
-        window.setTimeout(() => {
-          if (isCurrentPlaybackRequest(requestId)) {
-            const timeoutError = new Error("Tutor video is still warming up.");
-            timeoutError.name = "TutorVideoTimeoutError";
-            reject(timeoutError);
-          }
-        }, timeoutMs);
-      }),
-    ]);
-  }
-
-  async function playTutorCue(trigger: "auto" | "manual" = "manual") {
-    const initialRequestId = playbackRequestRef.current + 1;
-    playbackRequestRef.current = initialRequestId;
-    setPlaybackHint(null);
-    setIsLoading(true);
-    stopCurrentPlayback();
-
-    try {
-      if (trigger === "manual") {
-        if (hasPreparedAudioSource() && !hasPreparedVideoSource() && !isVideoPreparingForCurrentCue()) {
-          await playNarration(initialRequestId);
-          return;
-        }
-
-        if (hasPreparedVideoSource()) {
-          try {
-            await playMuseTalkVideo(initialRequestId, true);
-            return;
-          } catch {
-            const fallbackRequestId = playbackRequestRef.current + 1;
-            playbackRequestRef.current = fallbackRequestId;
-            await playNarration(fallbackRequestId);
-            return;
-          }
-        }
-      }
-
-      await playMuseTalkVideoWithTimeout(
-        initialRequestId,
-        trigger === "manual"
-          ? WELCOME_TUTOR_REPLAY_VIDEO_WAIT_MS
-          : WELCOME_TUTOR_VIDEO_WAIT_MS,
-        trigger === "manual",
-      );
-      return;
-    } catch (error) {
-      const blockedAutoplay =
-        error instanceof Error &&
-        (error.name === "NotAllowedError" || error.message.includes("play"));
-      const videoTimedOut =
-        error instanceof Error && error.name === "TutorVideoTimeoutError";
-
-      if (videoTimedOut) {
-        const fallbackRequestId = playbackRequestRef.current + 1;
-        playbackRequestRef.current = fallbackRequestId;
-
-        try {
-          await playNarration(fallbackRequestId);
-          return;
-        } catch (fallbackError) {
-          const fallbackBlocked =
-            fallbackError instanceof Error &&
-            (fallbackError.name === "NotAllowedError" ||
-              fallbackError.message.includes("play"));
-          if (trigger === "manual") {
-            setPlaybackHint(labels.loading);
-            setIsPlaying(false);
-            if (!fallbackBlocked) {
-              setRenderMode("audio");
-            }
-            return;
-          }
-          setPlaybackHint(labels.warming);
-          setIsPlaying(false);
-          if (!fallbackBlocked) {
-            setRenderMode("audio");
-          }
-          return;
-        }
-      }
-
-      if (!blockedAutoplay && error instanceof ApiError) {
-        try {
-          await playNarration(initialRequestId);
-          return;
-        } catch (fallbackError) {
-          const fallbackBlocked =
-            fallbackError instanceof Error &&
-            (fallbackError.name === "NotAllowedError" ||
-              fallbackError.message.includes("play"));
-          if (fallbackBlocked) {
-            setPlaybackHint(labels.autoplayHint);
-            setIsPlaying(false);
-            return;
-          }
-
-          setPlaybackHint(labels.autoplayHint);
-          setIsPlaying(false);
-          return;
-        }
-      }
-
-      if (blockedAutoplay) {
-        setPlaybackHint(labels.autoplayHint);
-        setIsPlaying(false);
+    const showVideo = () => {
+      if (cancelled) {
         return;
       }
+      setIsVideoVisible(true);
+      video.muted = true;
+      video.defaultMuted = true;
+      video.loop = true;
+      video.playsInline = true;
+      void video.play().catch(() => undefined);
+    };
 
-      try {
-        await playNarration(initialRequestId);
-      } catch (fallbackError) {
-        const fallbackBlocked =
-          fallbackError instanceof Error &&
-          (fallbackError.name === "NotAllowedError" ||
-            fallbackError.message.includes("play"));
-        setPlaybackHint(labels.autoplayHint);
-        setIsPlaying(false);
-        if (!fallbackBlocked) {
-          setRenderMode("audio");
-        }
+    const handleError = () => {
+      if (!cancelled) {
+        setIsVideoVisible(false);
       }
-    } finally {
+    };
+
+    video.addEventListener("loadeddata", showVideo, { once: true });
+    video.addEventListener("canplay", showVideo, { once: true });
+    video.addEventListener("playing", showVideo);
+    video.addEventListener("error", handleError, { once: true });
+
+    video.load();
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      showVideo();
+    }
+
+    const watchdog = window.setInterval(() => {
+      if (!cancelled && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.paused) {
+        void video.play().catch(() => undefined);
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(watchdog);
+      video.removeEventListener("loadeddata", showVideo);
+      video.removeEventListener("canplay", showVideo);
+      video.removeEventListener("playing", showVideo);
+      video.removeEventListener("error", handleError);
+    };
+  }, [isVisible, presenceVideoUrl]);
+
+  useEffect(() => {
+    const clipVideo = clipVideoRef.current;
+    if (!clipVideo) {
+      return;
+    }
+
+    const handlePlaying = () => {
+      setIsClipVisible(true);
+      setIsPlaying(true);
       setIsLoading(false);
+      if (activePlaybackModeRef.current === "intro") {
+        onIntroPlaybackStart?.();
+      }
+    };
+
+    const handleEnded = () => {
+      setIsClipVisible(false);
+      setIsPlaying(false);
+      setIsLoading(false);
+      if (activePlaybackModeRef.current === "intro") {
+        onIntroPlaybackComplete?.();
+      }
+      activePlaybackModeRef.current = null;
+    };
+
+    const handlePause = () => {
+      if (clipVideo.ended || clipVideo.currentTime <= 0) {
+        return;
+      }
+      setIsPlaying(false);
+    };
+
+    const handleError = () => {
+      setIsClipVisible(false);
+      setIsPlaying(false);
+      setIsLoading(false);
+      setPlaybackHint(labels.autoplayHint);
+      activePlaybackModeRef.current = null;
+    };
+
+    clipVideo.addEventListener("playing", handlePlaying);
+    clipVideo.addEventListener("ended", handleEnded);
+    clipVideo.addEventListener("pause", handlePause);
+    clipVideo.addEventListener("error", handleError);
+
+    return () => {
+      clipVideo.removeEventListener("playing", handlePlaying);
+      clipVideo.removeEventListener("ended", handleEnded);
+      clipVideo.removeEventListener("pause", handlePause);
+      clipVideo.removeEventListener("error", handleError);
+    };
+  }, [labels.autoplayHint]);
+
+  useImperativeHandle(ref, () => ({
+    playIntro: () => playPrompt("intro"),
+    playReplay: () => playPrompt("replay"),
+  }));
+
+  async function preloadSelectedIntroClip() {
+    if (introClipUrlRef.current) {
+      return introClipUrlRef.current;
+    }
+
+    if (!introClipPreloadPromiseRef.current) {
+      const selectedVariant = introVariants[selectedIntroIndexRef.current] ? selectedIntroIndexRef.current : 0;
+      introClipPreloadPromiseRef.current = apiClient
+        .getWelcomeTutorPresetClip({
+          locale: locale === "ru" ? "ru" : "en",
+          kind: "intro",
+          variant: selectedVariant,
+        })
+        .then((blob) => {
+          const nextUrl = URL.createObjectURL(blob);
+          introClipUrlRef.current = nextUrl;
+          return nextUrl;
+        });
+    }
+
+    return introClipPreloadPromiseRef.current;
+  }
+
+  async function preloadReplayClip() {
+    if (replayClipUrlRef.current) {
+      return replayClipUrlRef.current;
+    }
+
+    if (!replayClipPreloadPromiseRef.current) {
+      replayClipPreloadPromiseRef.current = apiClient
+        .getWelcomeTutorPresetClip({
+          locale: locale === "ru" ? "ru" : "en",
+          kind: "replay",
+          variant: 0,
+        })
+        .then((blob) => {
+          const nextUrl = URL.createObjectURL(blob);
+          replayClipUrlRef.current = nextUrl;
+          return nextUrl;
+        });
+    }
+
+    return replayClipPreloadPromiseRef.current;
+  }
+
+  async function playPrompt(mode: "intro" | "replay"): Promise<boolean> {
+    const clipVideo = clipVideoRef.current;
+    if (!clipVideo) {
+      return false;
+    }
+
+    setPlaybackHint(null);
+    setIsLoading(true);
+    setIsPlaying(false);
+    activePlaybackModeRef.current = mode;
+
+    try {
+      const nextUrl =
+        mode === "intro"
+          ? await preloadSelectedIntroClip()
+          : await preloadReplayClip();
+
+      if (!nextUrl) {
+        setPlaybackHint(labels.autoplayHint);
+        activePlaybackModeRef.current = null;
+        return false;
+      }
+
+      clipVideo.pause();
+      setIsClipVisible(false);
+      clipVideo.muted = false;
+      clipVideo.defaultMuted = false;
+      if (clipVideo.src !== nextUrl) {
+        clipVideo.src = nextUrl;
+      }
+      clipVideo.currentTime = 0;
+      clipVideo.load();
+      await clipVideo.play();
+      return true;
+    } catch {
+      setPlaybackHint(labels.autoplayHint);
+      setIsClipVisible(false);
+      setIsPlaying(false);
+      setIsLoading(false);
+      activePlaybackModeRef.current = null;
+      return false;
     }
   }
 
@@ -493,26 +344,26 @@ export function WelcomeAiTutorCue({
       <TutorCard
         label={label}
         message={message}
-        replayAction={
+        replayAction={showReplayAction ? (
           <button
             type="button"
-            onClick={() => void playTutorCue("manual")}
+            onClick={() => void playPrompt("replay")}
             className="proof-lesson-ai-cue__replay"
           >
             {replayCta}
           </button>
-        }
+        ) : undefined}
         status={
-          isLoading || isPlaying ? (
+          isPlaying ? (
             <div className="proof-lesson-ai-cue__status">
               <span
                 className={cn(
                   "proof-lesson-ai-cue__status-dot",
-                  (isLoading || isPlaying) && "proof-lesson-ai-cue__status-dot--live",
+                  isPlaying && "proof-lesson-ai-cue__status-dot--live",
                 )}
                 aria-hidden="true"
               />
-              <span>{isLoading ? labels.loading : labels.playing}</span>
+              <span>{labels.playing}</span>
             </div>
           ) : null
         }
@@ -522,27 +373,41 @@ export function WelcomeAiTutorCue({
           <div
             className={cn(
               "proof-lesson-ai-avatar",
+              isVideoVisible && "proof-lesson-ai-avatar--alive",
+              isClipVisible && "proof-lesson-ai-avatar--video",
               isPlaying && "proof-lesson-ai-avatar--speaking",
-              renderMode === "video" && "proof-lesson-ai-avatar--video",
             )}
           >
             <img
               src={avatarGirlSrc}
               alt={avatarAlt}
-              className="proof-lesson-ai-avatar__image"
+              className={cn(
+                "proof-lesson-ai-avatar__image",
+                (!showStaticFallback || isVideoVisible) && "is-hidden",
+              )}
               draggable={false}
               decoding="async"
             />
             <video
-              key={videoPlaybackKey}
-              ref={videoRef}
+              ref={presenceVideoRef}
+              src={presenceVideoUrl}
+              autoPlay
+              loop
               playsInline
               preload="auto"
-              muted={false}
+              muted
               className={cn(
-                "proof-lesson-ai-avatar__video",
-                renderMode === "video" && "is-visible",
+                "proof-lesson-ai-avatar__idle",
+                isVideoVisible && "is-visible",
+                isClipVisible && "is-covered",
               )}
+            />
+            <video
+              ref={clipVideoRef}
+              playsInline
+              preload="auto"
+              crossOrigin="anonymous"
+              className={cn("proof-lesson-ai-avatar__video", isClipVisible && "is-visible")}
             />
             <div className="proof-lesson-ai-avatar__ambient-ring" aria-hidden="true" />
           </div>
@@ -550,4 +415,4 @@ export function WelcomeAiTutorCue({
       />
     </div>
   );
-}
+});

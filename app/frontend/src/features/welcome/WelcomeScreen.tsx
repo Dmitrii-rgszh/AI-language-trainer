@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../shared/api/client";
-import { useAppStore } from "../../shared/store/app-store";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { ConvergingPathsScrollIndicator } from "../../shared/ui/ConvergingPathsScrollIndicator";
 import { Button } from "../../shared/ui/Button";
@@ -9,7 +8,10 @@ import { WelcomeProofLesson } from "./WelcomeProofLesson";
 import { WelcomePremiumHeader } from "./WelcomePremiumHeader";
 import { WelcomeSignInModal } from "./WelcomeSignInModal";
 import { useWelcomeSignIn } from "./useWelcomeSignIn";
-import { welcomeProofLessonScenarios } from "./welcomeProofLessonScenario";
+import {
+  getWelcomeAiTutorIntroVariants,
+  getWelcomeAiTutorReplayPrompt,
+} from "./welcomeAiTutorPrompts";
 import {
   welcomeScrollIndicatorConfig,
   welcomeScrollIndicatorMessages,
@@ -42,15 +44,9 @@ export function WelcomeScreen() {
   const [heroVisible, setHeroVisible] = useState(false);
   const [wizardVisible, setWizardVisible] = useState(false);
   const { locale, setLocale, tr } = useLocale();
-  const providers = useAppStore((state) => state.providers);
   const signInView = useWelcomeSignIn(locale);
-  const ttsProvider = providers.find((provider) => provider.type === "tts");
-  const ttsCacheSignature = ttsProvider
-    ? `${ttsProvider.key}|${ttsProvider.details}`
-    : "tts-provider-pending";
-  const scenario = welcomeProofLessonScenarios[locale][0];
-  const warmupPrompt =
-    scenario?.situation.coachSpokenPrompt ?? scenario?.situation.coachPrompt ?? "";
+  const introPrompts = getWelcomeAiTutorIntroVariants(locale);
+  const replayPrompt = getWelcomeAiTutorReplayPrompt(locale);
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
     { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
@@ -62,6 +58,7 @@ export function WelcomeScreen() {
   const heroWheelDebounceRef = useRef<number | null>(null);
   const heroWheelCooldownUntilRef = useRef(0);
   const welcomeTutorPreloadKeyRef = useRef<string | null>(null);
+  const welcomePresencePreloadKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => setHeroVisible(true));
@@ -69,22 +66,28 @@ export function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!heroVisible || !warmupPrompt.trim()) {
+    if (!heroVisible) {
       return;
     }
 
-    const preloadKey = `${locale}:${warmupPrompt}:${ttsCacheSignature}`;
+    const preloadKey = `${locale}:${introPrompts.join("|")}:${replayPrompt}`;
     if (welcomeTutorPreloadKeyRef.current === preloadKey) {
       return;
     }
     welcomeTutorPreloadKeyRef.current = preloadKey;
 
     const prefetchClip = () => {
-      void apiClient.prefetchWelcomeTutorClip({
-        text: warmupPrompt,
-        language: locale === "ru" ? "ru" : "en",
-        avatarKey: "verba_tutor",
-        cacheSignature: ttsCacheSignature,
+      for (const [variant] of introPrompts.entries()) {
+        void apiClient.prefetchWelcomeTutorPresetClip({
+          locale: locale === "ru" ? "ru" : "en",
+          kind: "intro",
+          variant,
+        }).catch(() => undefined);
+      }
+      void apiClient.prefetchWelcomeTutorPresetClip({
+        locale: locale === "ru" ? "ru" : "en",
+        kind: "replay",
+        variant: 0,
       }).catch(() => undefined);
     };
 
@@ -103,7 +106,41 @@ export function WelcomeScreen() {
 
     const timeoutId = window.setTimeout(prefetchClip, 300);
     return () => window.clearTimeout(timeoutId);
-  }, [heroVisible, locale, ttsCacheSignature, warmupPrompt]);
+  }, [heroVisible, introPrompts, locale, replayPrompt]);
+
+  useEffect(() => {
+    if (!heroVisible) {
+      return;
+    }
+
+    const preloadKey = "verba_tutor:presence_master_01";
+    if (welcomePresencePreloadKeyRef.current === preloadKey) {
+      return;
+    }
+    welcomePresencePreloadKeyRef.current = preloadKey;
+
+    const preloadPresenceVideo = () => {
+      void apiClient
+        .preloadLiveAvatarPresenceVideo("verba_tutor", "presence-master-01-v2-generated")
+        .catch(() => undefined);
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      const callbackId = idleWindow.requestIdleCallback(preloadPresenceVideo, { timeout: 800 });
+      return () => idleWindow.cancelIdleCallback?.(callbackId);
+    }
+
+    const timeoutId = window.setTimeout(preloadPresenceVideo, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [heroVisible]);
 
   useEffect(() => {
     const handleScroll = () => {

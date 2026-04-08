@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from app.core.app_runtime_types import AppRepositories, AppRuntime, AppRuntimeDependencies
+from app.core.config import settings
+from app.live_avatar.avatar.avatar_profile import load_avatar_asset_profile_from_settings
 from app.live_avatar.dialogue.service import LiveAvatarDialogueService
 from app.live_avatar.lipsync.musetalk.engine import MuseTalkLiveEngine
 from app.live_avatar.tts.qwen3.engine import Qwen3LiveTTSAdapter
@@ -34,6 +36,9 @@ def build_app_runtime(
     dialogue_service = LiveAvatarDialogueService(dependencies.provider_registry.llm_provider)
     live_tts_adapter = Qwen3LiveTTSAdapter()
     live_lipsync_engine = MuseTalkLiveEngine()
+    live_avatar_profile = load_avatar_asset_profile_from_settings(
+        avatar_key=settings.live_avatar_default_avatar_key,
+    )
     recommendation_service = RecommendationService(
         repositories.lesson_repository,
         repositories.mistake_repository,
@@ -70,6 +75,7 @@ def build_app_runtime(
             lipsync_engine=live_lipsync_engine,
             stt_provider=dependencies.provider_registry.stt_provider,
             welcome_tutor_service=welcome_tutor_service,
+            avatar_profile=live_avatar_profile,
         ),
         mistake_service=MistakeService(repositories.mistake_repository),
         onboarding_service=OnboardingService(

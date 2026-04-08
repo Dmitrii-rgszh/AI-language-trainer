@@ -51,6 +51,42 @@ def get_live_avatar_fallback_clip(clip_id: str) -> FileResponse:
     return FileResponse(clip_path, media_type="video/mp4", filename=clip_path.name)
 
 
+@router.get("/idle-loop")
+def get_live_avatar_idle_loop(avatar_key: str | None = None) -> FileResponse:
+    try:
+        idle_loop_path = live_avatar_service.get_idle_loop_path(avatar_key=avatar_key)
+    except ValueError as exc:
+        raise NotFoundError(str(exc)) from exc
+    if not idle_loop_path.exists():
+        raise NotFoundError(f"Idle loop was not found for avatar: {avatar_key or settings.live_avatar_default_avatar_key}")
+    return FileResponse(
+        idle_loop_path,
+        media_type="video/mp4",
+        filename=idle_loop_path.name,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
+
+
+@router.get("/presence-video")
+def get_live_avatar_presence_video(avatar_key: str | None = None) -> FileResponse:
+    try:
+        presence_video_path = live_avatar_service.get_presence_video_path(avatar_key=avatar_key)
+    except ValueError as exc:
+        raise NotFoundError(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise NotFoundError(str(exc)) from exc
+    if not presence_video_path.exists():
+        raise NotFoundError(
+            f"Presence video was not found for avatar: {avatar_key or settings.live_avatar_default_avatar_key}"
+        )
+    return FileResponse(
+        presence_video_path,
+        media_type="video/mp4",
+        filename=presence_video_path.name,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
+
+
 @router.websocket("/ws")
 async def live_avatar_signaling(websocket: WebSocket) -> None:
     session = await live_avatar_service.create_session(websocket)

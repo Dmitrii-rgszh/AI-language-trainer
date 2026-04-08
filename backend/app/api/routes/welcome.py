@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 from app.core.dependencies import welcome_tutor_service
@@ -28,4 +28,24 @@ def render_welcome_ai_tutor_video(payload: WelcomeTutorClipRequest) -> FileRespo
         clip_path,
         media_type="video/mp4",
         filename=clip_path.name,
+    )
+
+
+@router.get("/ai-tutor/preset-video")
+def get_welcome_ai_tutor_preset_video(
+    locale: str = Query(default="ru"),
+    kind: str = Query(default="intro"),
+    variant: int = Query(default=0, ge=0),
+) -> FileResponse:
+    clip_path = welcome_tutor_service.ensure_preset_clip(
+        locale=locale,
+        kind=kind,
+        variant=variant,
+        avatar_key="verba_tutor",
+    )
+    return FileResponse(
+        clip_path,
+        media_type="video/mp4",
+        filename=clip_path.name,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )

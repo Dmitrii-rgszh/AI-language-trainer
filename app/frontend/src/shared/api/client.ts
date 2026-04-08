@@ -89,7 +89,10 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
 }
 
 const welcomeTutorClipCache = new Map<string, Promise<Blob>>();
-const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v3-tts-signature";
+const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v5-idle-motion-signature";
+const liveAvatarPresenceVideoCache = new Map<string, Promise<Blob>>();
+const welcomeReplayAudioCache = new Map<string, Promise<Blob>>();
+const welcomeTutorPresetClipCache = new Map<string, Promise<Blob>>();
 
 function buildWelcomeTutorClipCacheKey(payload: {
   text: string;
@@ -298,6 +301,68 @@ export const apiClient = {
   getProviderPreferences: () => request<ProviderPreference[]>("/api/providers/preferences"),
   getLiveAvatarConfig: () => request<LiveAvatarConfig>("/api/live-avatar/config"),
   getLiveAvatarStatus: () => request<LiveAvatarStatus>("/api/live-avatar/status"),
+  getLiveAvatarIdleLoopUrl: (avatarKey?: string, revision?: string) => {
+    const searchParams = new URLSearchParams();
+    if (avatarKey) {
+      searchParams.set("avatar_key", avatarKey);
+    }
+    if (revision) {
+      searchParams.set("rev", revision);
+    }
+    const query = searchParams.toString();
+    return query ? `/api/live-avatar/idle-loop?${query}` : "/api/live-avatar/idle-loop";
+  },
+  getLiveAvatarIdleLoopBlob: (avatarKey?: string, revision?: string) => {
+    const path = apiClient.getLiveAvatarIdleLoopUrl(avatarKey, revision);
+    return requestBlob(path);
+  },
+  getLiveAvatarPresenceVideoUrl: (avatarKey?: string, revision?: string) => {
+    const searchParams = new URLSearchParams();
+    if (avatarKey) {
+      searchParams.set("avatar_key", avatarKey);
+    }
+    if (revision) {
+      searchParams.set("rev", revision);
+    }
+    const query = searchParams.toString();
+    return query ? `/api/live-avatar/presence-video?${query}` : "/api/live-avatar/presence-video";
+  },
+  getLiveAvatarPresenceVideoBlob: (avatarKey?: string, revision?: string) => {
+    const cacheKey = `${avatarKey?.trim() || "verba_tutor"}|${revision?.trim() || "current"}`;
+    const cachedRequest = liveAvatarPresenceVideoCache.get(cacheKey);
+    if (cachedRequest) {
+      return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+    }
+
+    const nextRequest = requestBlob(apiClient.getLiveAvatarPresenceVideoUrl(avatarKey, revision)).catch((error) => {
+      liveAvatarPresenceVideoCache.delete(cacheKey);
+      throw error;
+    });
+
+    liveAvatarPresenceVideoCache.set(cacheKey, nextRequest);
+    return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  },
+  preloadLiveAvatarPresenceVideo: async (avatarKey?: string, revision?: string) => {
+    await apiClient.getLiveAvatarPresenceVideoBlob(avatarKey, revision);
+  },
+  getWelcomeReplayAudioUrl: (locale: "ru" | "en") => `/api/voice/welcome-replay?locale=${locale}`,
+  getWelcomeReplayAudioBlob: (locale: "ru" | "en") => {
+    const cachedRequest = welcomeReplayAudioCache.get(locale);
+    if (cachedRequest) {
+      return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+    }
+
+    const nextRequest = requestBlob(apiClient.getWelcomeReplayAudioUrl(locale)).catch((error) => {
+      welcomeReplayAudioCache.delete(locale);
+      throw error;
+    });
+
+    welcomeReplayAudioCache.set(locale, nextRequest);
+    return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  },
+  preloadWelcomeReplayAudio: async (locale: "ru" | "en") => {
+    await apiClient.getWelcomeReplayAudioBlob(locale);
+  },
   renderLiveAvatarFallback: (payload: {
     userText: string;
     language: "ru" | "en";
@@ -349,6 +414,36 @@ export const apiClient = {
     avatarKey?: string;
     cacheSignature?: string;
   }) => getWelcomeTutorClip(payload),
+  getWelcomeTutorPresetClipUrl: (payload: {
+    locale: "ru" | "en";
+    kind: "intro" | "replay";
+    variant?: number;
+  }) => {
+    const searchParams = new URLSearchParams({
+      locale: payload.locale,
+      kind: payload.kind,
+      variant: String(payload.variant ?? 0),
+    });
+    return `/api/welcome/ai-tutor/preset-video?${searchParams.toString()}`;
+  },
+  getWelcomeTutorPresetClip: (payload: {
+    locale: "ru" | "en";
+    kind: "intro" | "replay";
+    variant?: number;
+  }) => {
+    const cacheKey = `${payload.locale}|${payload.kind}|${payload.variant ?? 0}`;
+    const cachedRequest = welcomeTutorPresetClipCache.get(cacheKey);
+    if (cachedRequest) {
+      return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+    }
+
+    const nextRequest = requestBlob(apiClient.getWelcomeTutorPresetClipUrl(payload)).catch((error) => {
+      welcomeTutorPresetClipCache.delete(cacheKey);
+      throw error;
+    });
+    welcomeTutorPresetClipCache.set(cacheKey, nextRequest);
+    return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  },
   prefetchWelcomeTutorClip: async (payload: {
     text: string;
     language: "ru" | "en";
@@ -356,5 +451,12 @@ export const apiClient = {
     cacheSignature?: string;
   }) => {
     await getWelcomeTutorClip(payload);
+  },
+  prefetchWelcomeTutorPresetClip: async (payload: {
+    locale: "ru" | "en";
+    kind: "intro" | "replay";
+    variant?: number;
+  }) => {
+    await apiClient.getWelcomeTutorPresetClip(payload);
   },
 };
