@@ -82,14 +82,9 @@ class XTTSProvider(BaseTTSProvider):
         normalized_text = re.sub(r"\.{2,}", ", ", normalized_text)
         normalized_text = re.sub(r'["“”«»]', "", normalized_text)
 
-        sentence_parts = [
-            re.sub(r"[.!?]+$", "", chunk.strip())
-            for chunk in re.split(r"(?<=[.!?])\s+", normalized_text)
-            if chunk.strip()
-        ]
+        sentence_parts = [chunk.strip() for chunk in re.split(r"(?<=[.!?])\s+", normalized_text) if chunk.strip()]
         if sentence_parts:
-            joiner = ", " if style in {"coach", "warm"} else " "
-            normalized_text = joiner.join(sentence_parts)
+            normalized_text = " ".join(sentence_parts)
 
         normalized_text = re.sub(r"\s*,\s*", ", ", normalized_text)
         normalized_text = re.sub(r"\s+", " ", normalized_text).strip(" ,")
