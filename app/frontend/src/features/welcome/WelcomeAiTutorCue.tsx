@@ -33,8 +33,8 @@ export type WelcomeAiTutorCueHandle = {
   playReplay: () => Promise<boolean>;
 };
 
-const WELCOME_PRESENCE_VIDEO_REVISION = "presence-01-v1-speaking-fix";
-const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix";
+const WELCOME_PRESENCE_VIDEO_REVISION = "presence-01-v2-forced";
+const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v6-presence-01-forced";
 const INTRO_VARIANT_STORAGE_KEY = "welcome-ai-tutor-intro-variant";
 
 function getPlaybackLabels(locale: AppLocale) {

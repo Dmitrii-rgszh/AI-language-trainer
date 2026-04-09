@@ -108,3 +108,20 @@ def test_welcome_tutor_command_targets_official_inference_script(tmp_path) -> No
     assert command[1:3] == ["-m", "scripts.inference"]
     assert "--output_vid_name" in command
     assert "clip.mp4" in command
+
+
+def test_welcome_tutor_prefers_presence_01_for_verba_tutor(tmp_path, monkeypatch) -> None:
+    config = build_runtime_config(tmp_path)
+    service = build_service(config)
+    forced_presence_path = tmp_path / "generated" / "live_avatar" / "presence_01.mp4"
+    forced_presence_path.parent.mkdir(parents=True, exist_ok=True)
+    forced_presence_path.write_text("presence", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "app.services.welcome_tutor_service.service.BACKEND_DIR",
+        tmp_path,
+    )
+
+    resolved_path = service._resolve_base_video_path(avatar_key="verba_tutor")
+
+    assert resolved_path == forced_presence_path.resolve()

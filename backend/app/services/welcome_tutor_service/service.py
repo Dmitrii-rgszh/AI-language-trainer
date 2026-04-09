@@ -19,7 +19,7 @@ from typing import Any
 import httpx
 import numpy as np
 
-from app.core.config import settings
+from app.core.config import BACKEND_DIR, settings
 from app.core.errors import BadGatewayError, BadRequestError, ServiceUnavailableError
 from app.live_avatar.avatar.avatar_profile import load_avatar_asset_profile_from_settings
 from app.live_avatar.avatar.idle_generator import IdleLoopGenerator
@@ -117,7 +117,7 @@ class CachedMuseTalkStatus:
 
 
 MUSE_TALK_STATUS_CACHE_TTL_SECONDS = 90.0
-MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v8_presence_meta_synced"
+MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v9_presence_01_forced"
 WELCOME_TUTOR_AUDIO_SAMPLE_RATE = 24000
 WELCOME_TUTOR_AUDIO_CHANNELS = 1
 WELCOME_TUTOR_AUDIO_SAMPLE_WIDTH = 2
@@ -819,6 +819,10 @@ class WelcomeTutorService:
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
 
     def _resolve_base_video_path(self, *, avatar_key: str) -> Path:
+        canonical_welcome_presence_path = (BACKEND_DIR / "generated" / "live_avatar" / "presence_01.mp4").resolve()
+        if avatar_key == "verba_tutor" and canonical_welcome_presence_path.exists():
+            return canonical_welcome_presence_path
+
         configured_presence_path = Path(settings.welcome_presence_video_path).resolve()
         if avatar_key == "verba_tutor" and configured_presence_path.exists():
             return configured_presence_path

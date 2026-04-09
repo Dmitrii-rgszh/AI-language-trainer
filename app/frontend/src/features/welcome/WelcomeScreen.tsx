@@ -28,7 +28,7 @@ const HERO_RETURN_MIN_SCROLL_Y = 84;
 const HERO_RETURN_TOP_TOLERANCE = 112;
 const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
 const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
-const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix";
+const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v6-presence-01-forced";
 
 const heroPrimaryCtaLabel = {
   ru: "Просто попробовать урок",

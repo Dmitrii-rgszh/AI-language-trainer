@@ -6,7 +6,7 @@ from typing import Literal
 
 PromptKind = Literal["intro", "replay"]
 
-WELCOME_PRESET_REVISION = "welcome-presets-v5-presence-01-speaking-fix"
+WELCOME_PRESET_REVISION = "welcome-presets-v6-presence-01-forced"
 
 
 @dataclass(frozen=True)

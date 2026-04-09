@@ -93,7 +93,7 @@ const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v5-idle-motion-signature";
 const liveAvatarPresenceVideoCache = new Map<string, Promise<Blob>>();
 const welcomeReplayAudioCache = new Map<string, Promise<Blob>>();
 const welcomeTutorPresetClipCache = new Map<string, Promise<Blob>>();
-const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v5-presence-01-speaking-fix";
+const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v6-presence-01-forced";
 
 function buildWelcomeTutorClipCacheKey(payload: {
   text: string;
