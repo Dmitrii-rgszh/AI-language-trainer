@@ -14,32 +14,32 @@ class STTService:
     def __init__(self, provider: BaseSTTProvider | None) -> None:
         self._provider = provider
 
-    def transcribe_path(self, audio_path: str) -> str:
-        details = self.transcribe_path_detailed(audio_path)
+    def transcribe_path(self, audio_path: str, language: str | None = None) -> str:
+        details = self.transcribe_path_detailed(audio_path, language=language)
         transcript = str(details.get("transcript") or "").strip()
         if not transcript:
             raise BadGatewayError("Speech transcription returned an empty transcript.")
         return transcript
 
-    def transcribe_path_detailed(self, audio_path: str) -> dict[str, object]:
+    def transcribe_path_detailed(self, audio_path: str, language: str | None = None) -> dict[str, object]:
         if self._provider is None:
             raise ServiceUnavailableError("STT provider is not configured.")
 
         try:
-            return self._provider.transcribe_detailed(audio_path)
+            return self._provider.transcribe_detailed(audio_path, language=language)
         except AppError:
             raise
         except Exception as exc:
             raise BadGatewayError(f"Speech transcription failed: {exc}") from exc
 
-    async def transcribe_upload(self, upload: UploadFile) -> str:
-        details = await self.transcribe_upload_detailed(upload)
+    async def transcribe_upload(self, upload: UploadFile, language: str | None = None) -> str:
+        details = await self.transcribe_upload_detailed(upload, language=language)
         transcript = str(details.get("transcript") or "").strip()
         if not transcript:
             raise BadGatewayError("Speech transcription returned an empty transcript.")
         return transcript
 
-    async def transcribe_upload_detailed(self, upload: UploadFile) -> dict[str, object]:
+    async def transcribe_upload_detailed(self, upload: UploadFile, language: str | None = None) -> dict[str, object]:
         suffix = Path(upload.filename or "audio.webm").suffix or ".webm"
         temp_path: str | None = None
         try:
@@ -51,7 +51,7 @@ class STTService:
                         break
                     temporary_file.write(chunk)
 
-            return self.transcribe_path_detailed(temp_path)
+            return self.transcribe_path_detailed(temp_path, language=language)
         except AppError:
             raise
         finally:

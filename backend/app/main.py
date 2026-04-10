@@ -8,7 +8,11 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.dependencies import live_avatar_service, voice_service, welcome_tutor_service
 from app.core.errors import AppError
-from app.services.voice_service.prompt_cache import ensure_welcome_replay_audio_cached
+from app.services.voice_service.prompt_cache import (
+    ensure_welcome_proof_lesson_cue_audio_cached,
+    ensure_welcome_replay_audio_cached,
+    iter_welcome_proof_lesson_cues,
+)
 
 app = FastAPI(title=settings.app_name)
 
@@ -31,6 +35,16 @@ async def prewarm_welcome_tutor() -> None:
     asyncio.create_task(live_avatar_service.warmup())
     asyncio.create_task(asyncio.to_thread(ensure_welcome_replay_audio_cached, voice_service, locale="ru"))
     asyncio.create_task(asyncio.to_thread(ensure_welcome_replay_audio_cached, voice_service, locale="en"))
+    for locale in ("ru", "en"):
+        for cue in iter_welcome_proof_lesson_cues():
+            asyncio.create_task(
+                asyncio.to_thread(
+                    ensure_welcome_proof_lesson_cue_audio_cached,
+                    voice_service,
+                    locale=locale,
+                    cue=cue,
+                )
+            )
 
 
 @app.on_event("shutdown")

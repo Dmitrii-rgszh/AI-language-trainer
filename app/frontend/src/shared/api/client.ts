@@ -92,6 +92,7 @@ const welcomeTutorClipCache = new Map<string, Promise<Blob>>();
 const WELCOME_TUTOR_CLIP_CACHE_SCHEMA = "v5-idle-motion-signature";
 const liveAvatarPresenceVideoCache = new Map<string, Promise<Blob>>();
 const welcomeReplayAudioCache = new Map<string, Promise<Blob>>();
+const welcomeProofLessonCueAudioCache = new Map<string, Promise<Blob>>();
 const welcomeTutorPresetClipCache = new Map<string, Promise<Blob>>();
 const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v6-presence-01-forced";
 
@@ -270,7 +271,13 @@ export const apiClient = {
   getPronunciationDrills: () => request<PronunciationDrill[]>("/api/pronunciation/drills"),
   getPronunciationAttempts: () => request<PronunciationAttempt[]>("/api/pronunciation/attempts"),
   getPronunciationTrends: () => request<PronunciationTrend>("/api/pronunciation/trends"),
-  assessPronunciation: (payload: { targetText: string; audio: Blob; drillId?: string; soundFocus?: string }) => {
+  assessPronunciation: (payload: {
+    targetText: string;
+    audio: Blob;
+    drillId?: string;
+    soundFocus?: string;
+    language?: "ru" | "en";
+  }) => {
     const formData = new FormData();
     formData.append("target_text", payload.targetText);
     if (payload.drillId) {
@@ -279,12 +286,36 @@ export const apiClient = {
     if (payload.soundFocus) {
       formData.append("sound_focus", payload.soundFocus);
     }
+    if (payload.language) {
+      formData.append("language", payload.language);
+    }
     formData.append("audio", payload.audio, "pronunciation.webm");
 
     return request<PronunciationAssessment>("/api/pronunciation/assess", {
       method: "POST",
       body: formData,
     });
+  },
+  assessWelcomePronunciation: (payload: {
+    targetText: string;
+    audio: Blob;
+    language?: "ru" | "en";
+  }) => {
+    const formData = new FormData();
+    formData.append("target_text", payload.targetText);
+    if (payload.language) {
+      formData.append("language", payload.language);
+    }
+    formData.append("audio", payload.audio, "welcome-proof-lesson.webm");
+
+    return request<PronunciationAssessment>(
+      "/api/welcome/pronunciation-assess",
+      {
+        method: "POST",
+        body: formData,
+      },
+      false,
+    );
   },
   getWritingTask: () => request<WritingTask>("/api/writing/task"),
   getWritingAttempts: () => request<WritingAttempt[]>("/api/writing/attempts"),
@@ -364,6 +395,34 @@ export const apiClient = {
   preloadWelcomeReplayAudio: async (locale: "ru" | "en") => {
     await apiClient.getWelcomeReplayAudioBlob(locale);
   },
+  getWelcomeProofLessonCueAudioUrl: (
+    locale: "ru" | "en",
+    cue: "feedback" | "clarity" | "retry" | "result",
+  ) => `/api/voice/welcome-proof-lesson-cue?locale=${locale}&cue=${cue}`,
+  getWelcomeProofLessonCueAudioBlob: (
+    locale: "ru" | "en",
+    cue: "feedback" | "clarity" | "retry" | "result",
+  ) => {
+    const cacheKey = `${locale}:${cue}`;
+    const cachedRequest = welcomeProofLessonCueAudioCache.get(cacheKey);
+    if (cachedRequest) {
+      return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+    }
+
+    const nextRequest = requestBlob(apiClient.getWelcomeProofLessonCueAudioUrl(locale, cue)).catch((error) => {
+      welcomeProofLessonCueAudioCache.delete(cacheKey);
+      throw error;
+    });
+
+    welcomeProofLessonCueAudioCache.set(cacheKey, nextRequest);
+    return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  },
+  preloadWelcomeProofLessonCueAudio: async (
+    locale: "ru" | "en",
+    cue: "feedback" | "clarity" | "retry" | "result",
+  ) => {
+    await apiClient.getWelcomeProofLessonCueAudioBlob(locale, cue);
+  },
   renderLiveAvatarFallback: (payload: {
     userText: string;
     language: "ru" | "en";
@@ -400,9 +459,12 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
-  transcribeSpeech: (audio: Blob) => {
+  transcribeSpeech: (audio: Blob, language?: "ru" | "en") => {
     const formData = new FormData();
     formData.append("audio", audio, "welcome-proof-lesson.webm");
+    if (language) {
+      formData.append("language", language);
+    }
 
     return request<{ transcript: string }>("/api/voice/transcribe", {
       method: "POST",

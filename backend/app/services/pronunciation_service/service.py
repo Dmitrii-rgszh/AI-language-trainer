@@ -40,11 +40,13 @@ class PronunciationService:
     async def assess_upload(
         self,
         *,
-        user_id: str,
+        user_id: str | None,
         target_text: str,
         audio: UploadFile,
         drill_id: str | None = None,
         sound_focus: str | None = None,
+        language: str | None = None,
+        persist_attempt: bool = True,
     ) -> PronunciationAssessment:
         suffix = Path(audio.filename or "pronunciation.webm").suffix or ".webm"
         temp_path: str | None = None
@@ -57,7 +59,10 @@ class PronunciationService:
                         break
                     temporary_file.write(chunk)
 
-            transcription = self._stt_service.transcribe_path_detailed(temp_path)
+            transcription = self._stt_service.transcribe_path_detailed(
+                temp_path,
+                language=language,
+            )
             transcript = str(transcription.get("transcript") or "").strip()
             scoring = self._scoring_provider.score_pronunciation(
                 target_text,
@@ -75,17 +80,18 @@ class PronunciationService:
                 word_assessments=list(scoring["word_assessments"]),
                 focus_assessments=list(scoring["focus_assessments"]),
             )
-            self._attempt_repository.create_attempt(
-                user_id=user_id,
-                drill_id=drill_id,
-                target_text=target_text,
-                sound_focus=sound_focus,
-                transcript=assessment.transcript,
-                score=assessment.score,
-                feedback=assessment.feedback,
-                weakest_words=assessment.weakest_words,
-                focus_issues=[item.focus for item in assessment.focus_assessments if item.status != "stable"],
-            )
+            if persist_attempt and user_id:
+                self._attempt_repository.create_attempt(
+                    user_id=user_id,
+                    drill_id=drill_id,
+                    target_text=target_text,
+                    sound_focus=sound_focus,
+                    transcript=assessment.transcript,
+                    score=assessment.score,
+                    feedback=assessment.feedback,
+                    weakest_words=assessment.weakest_words,
+                    focus_issues=[item.focus for item in assessment.focus_assessments if item.status != "stable"],
+                )
             return assessment
         except AppError:
             raise

@@ -28,6 +28,7 @@ async def assess_pronunciation(
     target_text: str = Form(...),
     drill_id: str | None = Form(None),
     sound_focus: str | None = Form(None),
+    language: str | None = Form(default=None),
     audio: UploadFile = File(...),
 ) -> PronunciationAssessment:
     return await pronunciation_service.assess_upload(
@@ -35,5 +36,6 @@ async def assess_pronunciation(
         target_text=target_text,
         drill_id=drill_id,
         sound_focus=sound_focus,
+        language=language,
         audio=audio,
     )

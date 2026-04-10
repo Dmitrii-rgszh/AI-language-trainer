@@ -20,21 +20,23 @@ class FasterWhisperProvider(BaseSTTProvider):
         self._compute_type = compute_type or settings.faster_whisper_compute_type
         self._model: Any | None = None
 
-    def transcribe(self, audio_path: str) -> str:
-        details = self.transcribe_detailed(audio_path)
+    def transcribe(self, audio_path: str, language: str | None = None) -> str:
+        details = self.transcribe_detailed(audio_path, language=language)
         transcript = str(details.get("transcript") or "").strip()
         if not transcript:
             raise RuntimeError("No speech was recognized in the uploaded audio.")
         return transcript
 
-    def transcribe_detailed(self, audio_path: str) -> dict[str, object]:
+    def transcribe_detailed(self, audio_path: str, language: str | None = None) -> dict[str, object]:
         model = self._get_model()
+        normalized_language = (language or "").strip().lower() or None
         segments, _ = model.transcribe(
             audio=audio_path,
             beam_size=5,
             vad_filter=True,
             condition_on_previous_text=False,
             word_timestamps=True,
+            language=normalized_language,
         )
         segment_list = list(segments)
         transcript = " ".join(segment.text.strip() for segment in segment_list).strip()

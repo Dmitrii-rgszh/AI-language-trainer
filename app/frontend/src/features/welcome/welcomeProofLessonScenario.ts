@@ -198,10 +198,9 @@ export const welcomeProofLessonScenarios: Record<
       result: {
         title: "За 2 минуты ты уже:",
         points: [
-          "заменил прямую фразу на более естественную;",
-          "освоил шаблон I’d like...",
-          "использовал его в двух реальных фразах;",
-          "увидел, как Verba одновременно помогает с речью, грамматикой и словами.",
+          "сделал фразу вежливее и естественнее",
+          "запомнил шаблон I’d like + drink + detail",
+          "сразу перенёс его в новую фразу",
         ],
         comparisonTitle: "До / После",
         beforeLabel: "До",
@@ -209,9 +208,9 @@ export const welcomeProofLessonScenarios: Record<
         afterLabel: "После",
         afterValue: "I’d like a coffee without sugar.",
         comment: "Звучит мягче, естественнее и увереннее.",
-        primaryCta: "Собрать следующий урок под мою цель",
-        secondaryCta: "Ещё один короткий пример",
-        note: "В Verba каждая живая фраза превращается в мини-урок.",
+        primaryCta: "Собрать урок под мою цель",
+        secondaryCta: "Показать ещё один пример",
+        note: "Можно перейти в урок под свою цель или посмотреть ещё один короткий кейс.",
       },
       errors: {
         micUnavailable: "Микрофон сейчас недоступен. Можно продолжить текстом.",
@@ -322,10 +321,9 @@ export const welcomeProofLessonScenarios: Record<
       result: {
         title: "In 2 minutes you already:",
         points: [
-          "replaced a direct phrase with a more natural one;",
-          "learned the I’d like... pattern;",
-          "used it in two real phrases;",
-          "saw how Verba helps with speaking, grammar, and words at the same time.",
+          "made the phrase sound more natural and polite",
+          "learned the I’d like + drink + detail pattern",
+          "used it right away in a new phrase",
         ],
         comparisonTitle: "Before / After",
         beforeLabel: "Before",
@@ -333,9 +331,9 @@ export const welcomeProofLessonScenarios: Record<
         afterLabel: "After",
         afterValue: "I’d like a coffee without sugar.",
         comment: "It sounds softer, more natural, and more confident.",
-        primaryCta: "Build the next lesson for my goal",
-        secondaryCta: "One more short example",
-        note: "In Verba each live phrase becomes a mini-lesson.",
+        primaryCta: "Build a lesson for my goal",
+        secondaryCta: "Show another example",
+        note: "You can move into a goal-based lesson or open one more short example.",
       },
       errors: {
         micUnavailable: "The microphone is not available right now. You can continue by text.",

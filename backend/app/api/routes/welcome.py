@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 
-from app.core.dependencies import welcome_tutor_service
+from app.core.dependencies import pronunciation_service, welcome_tutor_service
 from app.schemas.avatar_lipsync import WelcomeTutorClipRequest, WelcomeTutorStatusResponse
+from app.schemas.pronunciation import PronunciationAssessment
 
 router = APIRouter(prefix="/welcome", tags=["welcome"])
 
@@ -49,4 +50,19 @@ def get_welcome_ai_tutor_preset_video(
         media_type="video/mp4",
         filename=clip_path.name,
         headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@router.post("/pronunciation-assess", response_model=PronunciationAssessment)
+async def assess_welcome_pronunciation(
+    target_text: str = Form(...),
+    language: str | None = Form(default=None),
+    audio: UploadFile = File(...),
+) -> PronunciationAssessment:
+    return await pronunciation_service.assess_upload(
+        user_id=None,
+        target_text=target_text,
+        language=language,
+        audio=audio,
+        persist_attempt=False,
     )

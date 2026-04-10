@@ -10,6 +10,7 @@ import { WelcomeSignInModal } from "./WelcomeSignInModal";
 import { useWelcomeSignIn } from "./useWelcomeSignIn";
 import {
   getWelcomeAiTutorIntroVariants,
+  getWelcomeProofLessonCoachCues,
   getWelcomeAiTutorReplayPrompt,
 } from "./welcomeAiTutorPrompts";
 import {
@@ -47,6 +48,7 @@ export function WelcomeScreen() {
   const { locale, setLocale, tr } = useLocale();
   const signInView = useWelcomeSignIn(locale);
   const introPrompts = getWelcomeAiTutorIntroVariants(locale);
+  const proofLessonCoachCues = getWelcomeProofLessonCoachCues();
   const replayPrompt = getWelcomeAiTutorReplayPrompt(locale);
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
@@ -92,6 +94,11 @@ export function WelcomeScreen() {
         variant: 0,
         revision: WELCOME_TUTOR_PRESET_REVISION,
       }).catch(() => undefined);
+      for (const cue of proofLessonCoachCues) {
+        void apiClient
+          .preloadWelcomeProofLessonCueAudio(locale === "ru" ? "ru" : "en", cue)
+          .catch(() => undefined);
+      }
     };
 
     const idleWindow = window as Window & {
@@ -109,7 +116,7 @@ export function WelcomeScreen() {
 
     const timeoutId = window.setTimeout(prefetchClip, 300);
     return () => window.clearTimeout(timeoutId);
-  }, [heroVisible, introPrompts, locale, replayPrompt]);
+  }, [heroVisible, introPrompts, locale, proofLessonCoachCues, replayPrompt]);
 
   useEffect(() => {
     if (!heroVisible) {

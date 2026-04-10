@@ -6,8 +6,13 @@ import {
   WelcomeAiTutorCue,
   type WelcomeAiTutorCueHandle,
 } from "./WelcomeAiTutorCue";
+import { WelcomeProofLessonCoachDock } from "./WelcomeProofLessonCoachDock";
 import { useWelcomeProofLesson } from "./useWelcomeProofLesson";
 import { WelcomeProofLessonStepLayout } from "./WelcomeProofLessonStepLayout";
+import {
+  getWelcomeProofLessonCoachPrompt,
+  type WelcomeProofLessonCoachCue,
+} from "./welcomeAiTutorPrompts";
 
 type WelcomeProofLessonProps = {
   isVisible: boolean;
@@ -48,6 +53,12 @@ type ProofLessonVoiceComposerProps = {
   isProcessing: boolean;
   statusLabel: string;
   previewLabel: string;
+  autoStopLabel?: string | null;
+  autoStopProgress?: number | null;
+};
+
+type ProofLessonAdviceListProps = {
+  items: string[];
 };
 
 const proofLessonStepCopy = {
@@ -64,9 +75,9 @@ const proofLessonStepCopy = {
     retryDescription:
       "Сразу перенеси тот же паттерн в новую фразу, чтобы он закрепился как рабочий инструмент.",
     retryTaskLabel: "Новая задача",
-    resultEyebrow: "Итог mini-proof-lesson",
+    resultEyebrow: "Итог",
     resultDescription:
-      "Одна живая ситуация уже превратилась в понятный speaking pattern, который можно переносить дальше.",
+      "Одна живая ситуация уже превратилась в понятный речевой шаблон, который можно переносить дальше.",
   },
   en: {
     introEyebrow: "Quick start in Verba",
@@ -183,6 +194,8 @@ function ProofLessonVoiceComposer({
   isProcessing,
   statusLabel,
   previewLabel,
+  autoStopLabel,
+  autoStopProgress,
 }: ProofLessonVoiceComposerProps) {
   return (
     <div className="proof-lesson-composer">
@@ -197,20 +210,23 @@ function ProofLessonVoiceComposer({
           />
           <span>{statusLabel}</span>
         </div>
+        {autoStopLabel ? (
+          <div className="proof-lesson-voice-autostop">
+            <div className="proof-lesson-voice-autostop__label">{autoStopLabel}</div>
+            <div className="proof-lesson-voice-autostop__track" aria-hidden="true">
+              <div
+                className="proof-lesson-voice-autostop__bar"
+                style={{ width: `${Math.max(0, Math.min(100, (autoStopProgress ?? 0) * 100))}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
       </ProofLessonSurface>
 
       {value.trim() ? (
         <ProofLessonSurface tone="warm">
           <ProofLessonSectionLabel>{previewLabel}</ProofLessonSectionLabel>
           <div className="proof-lesson-preview-text">{value.trim()}</div>
-        </ProofLessonSurface>
-      ) : null}
-
-      {isProcessing ? (
-        <ProofLessonSurface tone="warm">
-          <div className="proof-lesson-supporting-copy">
-            {statusLabel}
-          </div>
         </ProofLessonSurface>
       ) : null}
     </div>
@@ -229,6 +245,21 @@ function ProofLessonTrustBadge({ children }: { children: ReactNode }) {
         </svg>
       </span>
       <span>{children}</span>
+    </div>
+  );
+}
+
+function ProofLessonAdviceList({ items }: ProofLessonAdviceListProps) {
+  return (
+    <div className="proof-lesson-advice-list" role="list">
+      {items.slice(0, 3).map((item, index) => (
+        <div key={`${index}-${item}`} className="proof-lesson-advice-list__item" role="listitem">
+          <span className="proof-lesson-advice-list__index" aria-hidden="true">
+            {index + 1}
+          </span>
+          <p className="proof-lesson-advice-list__text">{item}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -254,7 +285,13 @@ export function WelcomeProofLesson({
     : "";
   const copy = proofLessonStepCopy[locale];
   const voiceProcessingLabel =
-    locale === "ru" ? "Распознаём твою фразу..." : "Recognizing your phrase...";
+    locale === "ru" ? "Распознаём и разбираем твою фразу..." : "Recognizing and analyzing your phrase...";
+  const voiceListeningLabel =
+    locale === "ru" ? "Слушаю. Начни говорить..." : "Listening. Start speaking...";
+  const voiceDetectedLabel =
+    locale === "ru"
+      ? "Фразу услышала. Остановлю запись после 3 секунд тишины..."
+      : "I heard the phrase. I will stop after 3 seconds of silence...";
   const naturalMatchDescription =
     locale === "ru"
       ? "Ты уже сказал именно ту фразу, которая звучит естественно и вежливо. Ниже коротко закрепим, почему она хороша."
@@ -263,6 +300,45 @@ export function WelcomeProofLesson({
     locale === "ru" ? "Отлично, это уже хороший вариант" : "Great, this is already a strong version";
   const naturalMatchHint =
     locale === "ru" ? "Совпадает с рекомендуемой формулировкой." : "It matches the recommended phrasing.";
+  const coachReplayCta =
+    locale === "ru" ? "Послушать ещё раз" : "Hear it again";
+  const manualStopLabel =
+    locale === "ru" ? "Остановить вручную" : "Stop manually";
+  const autoStopHelperText =
+    locale === "ru"
+      ? "После фразы запись остановится сама, когда услышит паузу."
+      : "After your phrase, the recording stops on its own when it hears a pause.";
+  const feedbackAdviceItems = [
+    lesson.feedback.explanationPrimary,
+    lesson.feedback.explanationSecondary,
+  ].filter(Boolean);
+  const trailingSilenceSeconds =
+    lesson.voiceTrailingSilenceRemainingMs !== null
+      ? Math.max(0.3, Math.ceil(lesson.voiceTrailingSilenceRemainingMs / 100) / 10)
+      : null;
+  const trailingSilenceProgress =
+    lesson.voiceTrailingSilenceRemainingMs !== null
+      ? lesson.voiceTrailingSilenceRemainingMs / 3000
+      : null;
+  const autoStopLabel =
+    trailingSilenceSeconds !== null
+      ? locale === "ru"
+        ? `Автостоп через ${trailingSilenceSeconds.toFixed(1)} с`
+        : `Auto-stop in ${trailingSilenceSeconds.toFixed(1)}s`
+      : null;
+
+  function buildCoachDock(cue: WelcomeProofLessonCoachCue) {
+    return (
+      <WelcomeProofLessonCoachDock
+        isVisible={isVisible}
+        locale={locale}
+        cue={cue}
+        message={getWelcomeProofLessonCoachPrompt(locale, cue)}
+        replayCta={coachReplayCta}
+        playKey={`${lesson.scenario.id}:${lesson.currentStep}:${cue}`}
+      />
+    );
+  }
 
   const attemptContent =
     lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
@@ -278,10 +354,18 @@ export function WelcomeProofLesson({
             lesson.isVoiceProcessing
               ? voiceProcessingLabel
               : lesson.isVoiceRecording
-                ? lesson.scenario.firstAttempt.voiceRecordingCta
+                ? lesson.voiceActivityState === "speech_detected"
+                  ? voiceDetectedLabel
+                  : voiceListeningLabel
                 : lesson.scenario.firstAttempt.voiceStartCta
           }
           previewLabel={lesson.scenario.firstAttempt.saidLabel}
+          autoStopLabel={
+            lesson.isVoiceRecording && lesson.voiceActivityState === "speech_detected"
+              ? autoStopLabel
+              : null
+          }
+          autoStopProgress={trailingSilenceProgress}
         />
       </div>
     ) : (
@@ -302,6 +386,8 @@ export function WelcomeProofLesson({
 
   const retryContent = (
     <div className="proof-lesson-stack">
+      {buildCoachDock("retry")}
+
       <ProofLessonSurface tone="accent">
         <ProofLessonSectionLabel accent>
           {copy.retryTaskLabel}
@@ -322,10 +408,18 @@ export function WelcomeProofLesson({
             lesson.isVoiceProcessing
               ? voiceProcessingLabel
               : lesson.isVoiceRecording
-                ? lesson.scenario.retry.voiceRecordingCta
+                ? lesson.voiceActivityState === "speech_detected"
+                  ? voiceDetectedLabel
+                  : voiceListeningLabel
                 : lesson.scenario.retry.voiceStartCta
           }
           previewLabel={lesson.scenario.retry.saidLabel}
+          autoStopLabel={
+            lesson.isVoiceRecording && lesson.voiceActivityState === "speech_detected"
+              ? autoStopLabel
+              : null
+          }
+          autoStopProgress={trailingSilenceProgress}
         />
       ) : null}
 
@@ -414,99 +508,109 @@ export function WelcomeProofLesson({
         stepClassName: "proof-lesson-step--scene",
         contentClassName: "proof-lesson-step__content--scene",
         content: (
-          <WelcomeAiTutorCue
-            ref={(value) => {
-              situationCueRef.current = value;
-            }}
-            isVisible={isVisible}
-            locale={locale}
-            label={lesson.scenario.situation.coachLabel}
-            message={hasSituationIntroCompleted ? situationPrompt : situationPreviewMessage}
-            spokenMessage={situationPrompt}
-            replayCta={lesson.scenario.situation.coachReplayCta}
-            showReplayAction={hasSituationIntroCompleted}
-            showStaticFallback={false}
-            onIntroPlaybackStart={() => {
-              setIsSituationIntroLoading(false);
-              setIsSituationIntroPlaying(true);
-            }}
-            onIntroPlaybackComplete={() => {
-              setIsSituationIntroLoading(false);
-              setIsSituationIntroPlaying(false);
-              setHasSituationIntroCompleted(true);
-            }}
-          />
+          <div className="proof-lesson-stack">
+            <WelcomeAiTutorCue
+              ref={(value) => {
+                situationCueRef.current = value;
+              }}
+              isVisible={isVisible}
+              locale={locale}
+              label={lesson.scenario.situation.coachLabel}
+              message={hasSituationIntroCompleted ? situationPrompt : situationPreviewMessage}
+              spokenMessage={situationPrompt}
+              replayCta={lesson.scenario.situation.coachReplayCta}
+              showReplayAction={hasSituationIntroCompleted}
+              showStaticFallback={false}
+              onIntroPlaybackStart={() => {
+                setIsSituationIntroLoading(false);
+                setIsSituationIntroPlaying(true);
+              }}
+              onIntroPlaybackComplete={() => {
+                setIsSituationIntroLoading(false);
+                setIsSituationIntroPlaying(false);
+                setHasSituationIntroCompleted(true);
+              }}
+            />
+
+            {lesson.isAttemptActive ? attemptContent : null}
+          </div>
         ),
         primaryAction: (
-          <Button
-            type="button"
-            onClick={() =>
-              hasSituationIntroCompleted
-                ? lesson.beginFirstAttempt("voice")
-                : void playSituationIntro()
-            }
-            disabled={isSituationIntroPlaying || isSituationIntroLoading}
-            className="proof-lesson-primary-button"
-          >
-            {isSituationIntroLoading
-              ? locale === "ru"
-                ? "Загружаем задание..."
-                : "Loading the prompt..."
-              : isSituationIntroPlaying
-              ? locale === "ru"
-                ? "Лиза говорит..."
-                : "Liza is speaking..."
-              : hasSituationIntroCompleted
-              ? lesson.scenario.situation.primaryCta
-              : locale === "ru"
-                ? "Прослушать задание"
-                : "Listen to the prompt"}
-          </Button>
+          !hasSituationIntroCompleted ? (
+            <Button
+              type="button"
+              onClick={() => void playSituationIntro()}
+              disabled={isSituationIntroPlaying || isSituationIntroLoading}
+              className="proof-lesson-primary-button"
+            >
+              {isSituationIntroLoading
+                ? locale === "ru"
+                  ? "Загружаем задание..."
+                  : "Loading the prompt..."
+                : isSituationIntroPlaying
+                ? locale === "ru"
+                  ? "Лиза говорит..."
+                  : "Liza is speaking..."
+                : locale === "ru"
+                  ? "Прослушать задание"
+                  : "Listen to the prompt"}
+            </Button>
+          ) : lesson.isAttemptActive &&
+            lesson.attemptInputMode === "voice" &&
+            lesson.voiceInputEnabled &&
+            !lesson.isVoiceRecording &&
+            !lesson.isVoiceProcessing ? (
+            <Button
+              type="button"
+              onClick={() => void lesson.startVoiceRecording("attempt")}
+              className="proof-lesson-primary-button"
+            >
+              {lesson.scenario.firstAttempt.voiceStartCta}
+            </Button>
+          ) : !lesson.isAttemptActive ? (
+            <Button
+              type="button"
+              onClick={() => void lesson.beginVoiceFirstAttempt()}
+              className="proof-lesson-primary-button"
+            >
+              {lesson.scenario.situation.primaryCta}
+            </Button>
+          ) : undefined
         ),
-        secondaryAction: hasSituationIntroCompleted ? (
+        secondaryAction: !hasSituationIntroCompleted ? undefined : !lesson.isAttemptActive ? (
           <ProofLessonSecondaryAction
             onClick={() => lesson.beginFirstAttempt("text")}
           >
             {lesson.scenario.situation.secondaryCta}
           </ProofLessonSecondaryAction>
+        ) : lesson.attemptInputMode === "voice" &&
+          lesson.voiceInputEnabled &&
+          lesson.isVoiceRecording ? (
+          <ProofLessonSecondaryAction
+            onClick={() => void lesson.stopVoiceRecording()}
+          >
+            {manualStopLabel}
+          </ProofLessonSecondaryAction>
+        ) : lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
+          <ProofLessonSecondaryAction
+            onClick={() => lesson.beginFirstAttempt("text")}
+          >
+            {lesson.scenario.firstAttempt.fallbackCta}
+          </ProofLessonSecondaryAction>
+        ) : lesson.attemptInputMode === "text" && lesson.voiceInputEnabled ? (
+          <ProofLessonSecondaryAction
+            onClick={() => void lesson.beginVoiceFirstAttempt()}
+          >
+            {lesson.scenario.situation.primaryCta}
+          </ProofLessonSecondaryAction>
         ) : undefined,
-      };
-      break;
-    case "attempt":
-      stepView = {
-        eyebrow: copy.attemptEyebrow,
-        title: lesson.scenario.firstAttempt.title,
-        description: copy.attemptDescription,
-        content: attemptContent,
-        primaryAction:
-          lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
-            <Button
-              type="button"
-              onClick={() =>
-                void (lesson.isVoiceRecording
-                  ? lesson.stopVoiceRecording()
-                  : lesson.startVoiceRecording("attempt"))
-              }
-              disabled={lesson.isVoiceProcessing}
-              className="proof-lesson-primary-button"
-            >
-              {lesson.isVoiceProcessing
-                ? locale === "ru"
-                  ? "Обрабатываем..."
-                  : "Processing..."
-                : lesson.isVoiceRecording
-                  ? lesson.scenario.firstAttempt.voiceDoneCta
-                  : lesson.scenario.firstAttempt.voiceStartCta}
-            </Button>
-          ) : undefined,
-        secondaryAction:
-          lesson.attemptInputMode === "voice" && lesson.voiceInputEnabled ? (
-            <ProofLessonSecondaryAction
-              onClick={() => lesson.beginFirstAttempt("text")}
-            >
-              {lesson.scenario.firstAttempt.fallbackCta}
-            </ProofLessonSecondaryAction>
-          ) : undefined,
+        helperText:
+          lesson.isAttemptActive &&
+          lesson.attemptInputMode === "voice" &&
+          lesson.voiceInputEnabled &&
+          lesson.isVoiceRecording
+            ? autoStopHelperText
+            : undefined,
       };
       break;
     case "feedback":
@@ -518,6 +622,8 @@ export function WelcomeProofLesson({
           : copy.feedbackDescription,
         content: (
           <div className="proof-lesson-stack">
+            {buildCoachDock("feedback")}
+
             {lesson.feedback.isAlreadyNatural ? (
               <ProofLessonSurface tone="accent">
                 <ProofLessonSectionLabel accent>
@@ -553,14 +659,7 @@ export function WelcomeProofLesson({
             )}
 
             <ProofLessonSurface tone="warm">
-              <div className="proof-lesson-stack-sm">
-                <p className="proof-lesson-supporting-copy">
-                  {lesson.feedback.explanationPrimary}
-                </p>
-                <p className="proof-lesson-supporting-copy">
-                  {lesson.feedback.explanationSecondary}
-                </p>
-              </div>
+              <ProofLessonAdviceList items={feedbackAdviceItems} />
             </ProofLessonSurface>
 
             <ProofLessonSurface>
@@ -602,6 +701,8 @@ export function WelcomeProofLesson({
         description: lesson.scenario.clarity.subtitle,
         content: (
           <div className="proof-lesson-stack">
+            {buildCoachDock("clarity")}
+
             <ProofLessonSurface tone="accent" className="max-w-[24rem]">
               <div className="proof-lesson-key-text">
                 {lesson.clarityStatusLabel}
@@ -612,12 +713,8 @@ export function WelcomeProofLesson({
               <ProofLessonSectionLabel>
                 {lesson.scenario.clarity.hintsTitle}
               </ProofLessonSectionLabel>
-              <div className="mt-4 grid gap-3">
-                {lesson.clarityHints.map((hint) => (
-                  <div key={hint} className="proof-lesson-list-item">
-                    {hint}
-                  </div>
-                ))}
+              <div className="mt-4">
+                <ProofLessonAdviceList items={lesson.clarityHints} />
               </div>
             </ProofLessonSurface>
           </div>
@@ -648,24 +745,16 @@ export function WelcomeProofLesson({
             >
               {lesson.scenario.retry.primaryCta}
             </Button>
-          ) : lesson.retryInputMode === "voice" && lesson.voiceInputEnabled ? (
+          ) : lesson.retryInputMode === "voice" &&
+            lesson.voiceInputEnabled &&
+            !lesson.isVoiceRecording &&
+            !lesson.isVoiceProcessing ? (
             <Button
               type="button"
-              onClick={() =>
-                void (lesson.isVoiceRecording
-                  ? lesson.stopVoiceRecording()
-                  : lesson.startVoiceRecording("retry"))
-              }
-              disabled={lesson.isVoiceProcessing}
+              onClick={() => void lesson.startVoiceRecording("retry")}
               className="proof-lesson-primary-button"
             >
-              {lesson.isVoiceProcessing
-                ? locale === "ru"
-                  ? "Обрабатываем..."
-                  : "Processing..."
-                : lesson.isVoiceRecording
-                  ? lesson.scenario.retry.voiceDoneCta
-                  : lesson.scenario.retry.voiceStartCta}
+              {lesson.scenario.retry.voiceStartCta}
             </Button>
           ) : undefined,
         secondaryAction:
@@ -675,6 +764,14 @@ export function WelcomeProofLesson({
             >
               {lesson.scenario.retry.secondaryCta}
             </ProofLessonSecondaryAction>
+          ) : lesson.retryInputMode === "voice" &&
+            lesson.voiceInputEnabled &&
+            lesson.isVoiceRecording ? (
+            <ProofLessonSecondaryAction
+              onClick={() => void lesson.stopVoiceRecording()}
+            >
+              {manualStopLabel}
+            </ProofLessonSecondaryAction>
           ) : lesson.retryInputMode === "voice" && lesson.voiceInputEnabled ? (
             <ProofLessonSecondaryAction
               onClick={() => lesson.beginRetry("text")}
@@ -682,6 +779,12 @@ export function WelcomeProofLesson({
               {lesson.scenario.retry.fallbackCta}
             </ProofLessonSecondaryAction>
           ) : undefined,
+        helperText:
+          lesson.retryInputMode === "voice" &&
+          lesson.voiceInputEnabled &&
+          lesson.isVoiceRecording
+            ? autoStopHelperText
+            : undefined,
       };
       break;
     case "result":
@@ -692,19 +795,12 @@ export function WelcomeProofLesson({
         description: copy.resultDescription,
         content: (
           <div className="proof-lesson-stack">
-            <div className="grid gap-3">
-              {lesson.scenario.result.points.map((point) => (
-                <div key={point} className="proof-lesson-list-item">
-                  {point}
-                </div>
-              ))}
-            </div>
+            {buildCoachDock("result")}
+
+            <ProofLessonAdviceList items={lesson.scenario.result.points} />
 
             <ProofLessonSurface>
-              <ProofLessonSectionLabel>
-                {lesson.scenario.result.comparisonTitle}
-              </ProofLessonSectionLabel>
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-2">
                 <div>
                   <ProofLessonSectionLabel>
                     {lesson.scenario.result.beforeLabel}
@@ -720,11 +816,11 @@ export function WelcomeProofLesson({
                   <div className="proof-lesson-key-text">
                     {lesson.scenario.result.afterValue}
                   </div>
+                  <p className="proof-lesson-supporting-copy mt-3">
+                    {lesson.scenario.result.comment}
+                  </p>
                 </div>
               </div>
-              <p className="proof-lesson-supporting-copy mt-5">
-                {lesson.scenario.result.comment}
-              </p>
             </ProofLessonSurface>
           </div>
         ),
