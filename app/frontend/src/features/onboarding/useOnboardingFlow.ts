@@ -18,6 +18,10 @@ import {
   type OnboardingOption,
 } from "../../shared/profile/profile-form-config";
 import { applyGuestIntentToProfile, consumeGuestIntent } from "../../shared/profile/guest-intent";
+import {
+  clearWelcomeProofLessonHandoff,
+  readWelcomeProofLessonHandoff,
+} from "../../shared/profile/welcome-proof-handoff";
 import { useAppStore } from "../../shared/store/app-store";
 import type { ProfessionTrackCard } from "../../shared/types/app-data";
 import { useAccountAvailability } from "./useAccountAvailability";
@@ -48,6 +52,7 @@ export function useOnboardingFlow() {
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [welcomeHandoff] = useState(() => readWelcomeProofLessonHandoff());
   const { loginCheck, emailCheck, emailIsValid } = useAccountAvailability(account);
 
   useEffect(() => {
@@ -105,12 +110,31 @@ export function useOnboardingFlow() {
   const steps: OnboardingStepDefinition[] = useMemo(
     () => [
       {
-        title: tr("User account"),
-        description: tr(
-          "Pick a login and email so we can create a private learner workspace and save onboarding answers under the right person.",
-        ),
+        title:
+          locale === "ru"
+            ? welcomeHandoff
+              ? "Сохраним твой старт"
+              : "Аккаунт"
+            : welcomeHandoff
+              ? "Save your start"
+              : "Account",
+        description:
+          locale === "ru"
+            ? welcomeHandoff
+              ? "Создай логин и укажи email, чтобы сохранить результат пробного урока и продолжить уже в личном пространстве обучения."
+              : "Выбери логин и email, чтобы мы создали личное учебное пространство и сохранили ответы за правильным пользователем."
+            : welcomeHandoff
+              ? "Create your login and email so we can save the proof-lesson result and continue inside your personal learning space."
+              : "Choose a login and email so we can create a private learner workspace and save onboarding answers under the right person.",
         ready: accountReady,
-        helper: tr("Add a valid login and email first."),
+        helper:
+          locale === "ru"
+            ? welcomeHandoff
+              ? "Укажи логин и email, и мы сразу привяжем к ним твой стартовый результат."
+              : "Сначала добавь корректный логин и email."
+            : welcomeHandoff
+              ? "Add your login and email first so we can attach your starter result to the new workspace."
+              : "Add a valid login and email first.",
       },
       {
         title: tr("Basics"),
@@ -151,7 +175,16 @@ export function useOnboardingFlow() {
         helper: tr("Review the setup and create the workspace."),
       },
     ],
-    [accountReady, basicsReady, goalsReady, skillsReady, styleReady, tr],
+    [
+      accountReady,
+      basicsReady,
+      goalsReady,
+      locale,
+      skillsReady,
+      styleReady,
+      tr,
+      welcomeHandoff,
+    ],
   );
 
   const activeStep = steps[step];
@@ -260,6 +293,7 @@ export function useOnboardingFlow() {
           onboardingAnswers: cloneAnswers(form.onboardingAnswers),
         },
       });
+      clearWelcomeProofLessonHandoff();
       navigate(routes.dashboard);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -299,6 +333,7 @@ export function useOnboardingFlow() {
     updateAnswer,
     updateField,
     updateLearningContext,
+    welcomeHandoff,
     toggleAnswer,
   };
 }

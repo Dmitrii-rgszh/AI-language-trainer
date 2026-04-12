@@ -1,13 +1,19 @@
+import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../shared/api/client";
+import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import type { PronunciationAssessment, PronunciationAttempt, PronunciationTrend } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
+import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function PronunciationScreen() {
-  const { tr, formatDateTime } = useLocale();
+  const { locale, tr, formatDateTime } = useLocale();
   const drills = useAppStore((state) => state.pronunciationDrills);
   const providers = useAppStore((state) => state.providers);
   const [activePhrase, setActivePhrase] = useState<string | null>(null);
@@ -27,6 +33,10 @@ export function PronunciationScreen() {
   const recordedChunksRef = useRef<Blob[]>([]);
   const ttsProvider = providers.find((provider) => provider.type === "tts");
   const scoringProvider = providers.find((provider) => provider.type === "scoring");
+  const featuredDrill = drills[0] ?? null;
+  const featuredPhrase = featuredDrill?.phrases[0] ?? null;
+  const dominantWeakSound = trends?.weakestSounds[0]?.label ?? null;
+  const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
 
   async function loadPronunciationHistory() {
     try {
@@ -44,6 +54,39 @@ export function PronunciationScreen() {
   useEffect(() => {
     void loadPronunciationHistory();
   }, []);
+
+  const coachMessage =
+    locale === "ru"
+      ? assessment
+        ? `Сейчас важнее не просто смотреть на score ${assessment.score}, а сразу вернуть слабое место в повтор. Я бы снова взяла фразу «${assessment.targetText}» и закрепила её до более слитного, естественного звучания.`
+        : dominantWeakSound
+          ? `По истории видно, что звук ${dominantWeakSound} ещё проседает. Значит pronunciation здесь должен быть не отдельным lab ради балла, а прямой подготовкой к более естественной живой речи.`
+          : "Pronunciation здесь должен работать как мост к более естественной речи: сначала модель, потом повтор, потом точечная фиксация звука, ритма и связок."
+      : assessment
+        ? `The score ${assessment.score} matters less than what you repeat next. I would take ${assessment.targetText} again and stabilize it until it sounds more connected and natural.`
+        : dominantWeakSound
+          ? `Your recent history shows that ${dominantWeakSound} is still unstable. That means this lab should not exist for scores alone. It should prepare more natural real speech.`
+          : "Pronunciation should act as a bridge to more natural speech: model first, then repeat, then fix the exact sound, rhythm, and linking issue.";
+  const coachSpokenMessage =
+    locale === "ru"
+      ? assessment
+        ? `У тебя уже есть конкретная pronunciation-диагностика. Теперь важно не просто увидеть балл, а сразу повторить фразу и стабилизировать слабое место.`
+        : dominantWeakSound
+          ? `Сейчас лучше всего сфокусироваться на звуке ${dominantWeakSound} и вернуть его в живую фразу, а не тренировать абстрактно.`
+          : "Я помогу превратить pronunciation из отдельной проверки в часть более естественной речи."
+      : assessment
+        ? "You already have a concrete pronunciation diagnostic. Now the important part is not the score itself, but repeating the phrase and stabilizing the weak spot."
+        : dominantWeakSound
+          ? `The best focus right now is the sound ${dominantWeakSound}, but only inside a real phrase, not in isolation.`
+          : "I will help turn pronunciation from an isolated check into part of more natural speech.";
+  const coachSupportingText =
+    locale === "ru"
+      ? dominantWeakSound
+        ? `Слабый звук ${dominantWeakSound} должен связываться со speaking, а не жить отдельно. Именно поэтому следующий шаг после lab — перенос в более живую реплику.`
+        : "Лиза здесь должна объяснять не только что плохо, но и что именно повторить дальше, чтобы pronunciation реально поднимал speaking и общую уверенность."
+      : dominantWeakSound
+        ? `The weak sound ${dominantWeakSound} should connect back into speaking rather than living alone. That is why the next move after the lab should be transfer into a more alive phrase.`
+        : "Liza should not only explain what is weak here, but also what to repeat next so pronunciation actually lifts speaking and confidence.";
 
   async function playPhrase(phrase: string) {
     setPlaybackError(null);
@@ -149,6 +192,33 @@ export function PronunciationScreen() {
         title={tr("Pronunciation Lab")}
         description={tr("Теперь lab хранит историю попыток и показывает повторяющиеся слабые звуки и слова, а не только последний verdict.")}
       />
+
+      <LivingDepthSection id={livingDepthSectionIds.pronunciationCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`pronunciation:${dominantWeakSound ?? "stable"}:${assessment?.targetText ?? "none"}:${trends?.recentAttempts ?? 0}`}
+          title={locale === "ru" ? "Liza Pronunciation Layer" : "Liza Pronunciation Layer"}
+          message={coachMessage}
+          spokenMessage={coachSpokenMessage}
+          spokenLanguage={locale}
+          replayCta={replayCta}
+          primaryAction={featuredPhrase ? (
+            <Button
+              type="button"
+              onClick={() => void playPhrase(featuredPhrase)}
+              className="proof-lesson-primary-button"
+            >
+              {locale === "ru" ? "Послушать модельную фразу" : "Hear the model phrase"}
+            </Button>
+          ) : undefined}
+          secondaryAction={(
+            <Link to={routes.speaking} className="proof-lesson-secondary-action">
+              {locale === "ru" ? "Перенести в speaking" : "Move it into speaking"}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
 
       {playbackError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

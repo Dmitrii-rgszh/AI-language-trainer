@@ -29,9 +29,86 @@ export function DashboardAdaptiveLoopSection({
     return null;
   }
 
+  const dailyLoopSteps = [
+    {
+      id: "daily-loop-lesson",
+      index: 1,
+      title: tr("Core lesson"),
+      description: tr(studyLoop.recommendation.title),
+      detail: tr("Start with the central lesson so the rest of the session has a clear anchor."),
+      route: studyLoop.moduleRotation[0]?.route ?? routes.activity,
+    },
+    {
+      id: "daily-loop-weakspot",
+      index: 2,
+      title: tr("Weak spot repair"),
+      description: studyLoop.weakSpots[0]?.title ?? tr("No urgent weak spot"),
+      detail: studyLoop.weakSpots[0]
+        ? tr("Fix the most repeated weak point while the lesson context is still fresh.")
+        : tr("Your weakest signal looks stable enough to keep the loop balanced today."),
+      route: studyLoop.moduleRotation[0]?.route ?? routes.activity,
+    },
+    {
+      id: "daily-loop-vocab",
+      index: 3,
+      title: tr("Vocabulary reinforcement"),
+      description:
+        studyLoop.dueVocabulary[0]?.word ??
+        `${studyLoop.vocabularySummary.dueCount} ${tr("due cards")}`,
+      detail: tr("Return one due word or phrase to active memory before finishing the session."),
+      route: routes.vocabulary,
+    },
+    {
+      id: "daily-loop-close",
+      index: 4,
+      title: tr("Close the loop"),
+      description:
+        studyLoop.nextSteps[0]?.title ??
+        (studyLoop.listeningFocus ? tt(studyLoop.listeningFocus) : tr("Stabilize the next skill signal")),
+      detail: tr("Finish with one targeted reinforcement step so the session lands as one connected system."),
+      route: studyLoop.nextSteps[0]?.route ?? routes.activity,
+    },
+  ];
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+    <div className="space-y-4">
       <Card className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">
+              {tr("Today’s connected learning loop")}
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-ink">
+              {tr("One session, not separate modules")}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-sand/80 px-4 py-2 text-sm font-semibold text-ink">
+            {dailyLoopSteps.length} {tr("steps")}
+          </div>
+        </div>
+        <div className="text-sm leading-6 text-slate-600">
+          {tr(
+            "This is the first visible shape of the daily learning loop: one connected session that ties lesson work, weak spot repair, vocabulary memory, and the next reinforcement move together.",
+          )}
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {dailyLoopSteps.map((step) => (
+            <Link key={step.id} to={step.route} className="rounded-2xl bg-white/70 p-4 transition hover:bg-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+                  {step.index}
+                </div>
+                <div className="text-sm font-semibold text-ink">{step.title}</div>
+              </div>
+              <div className="mt-4 text-sm font-semibold text-slate-700">{step.description}</div>
+              <div className="mt-2 text-sm leading-6 text-slate-600">{step.detail}</div>
+            </Link>
+          ))}
+        </div>
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <Card className="space-y-4">
         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">
           {tr("Adaptive study loop")}
         </div>
@@ -96,7 +173,7 @@ export function DashboardAdaptiveLoopSection({
         </div>
       </Card>
 
-      <Card className="space-y-3">
+        <Card className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-lg font-semibold text-ink">{tr("Vocabulary due now")}</div>
           <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
@@ -146,7 +223,8 @@ export function DashboardAdaptiveLoopSection({
             </div>
           ))
         )}
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

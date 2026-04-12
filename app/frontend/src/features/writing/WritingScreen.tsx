@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
+import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import type { AITextFeedback, WritingAttempt } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
+import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function WritingScreen() {
-  const { tr, formatDateTime } = useLocale();
+  const { locale, tr, formatDateTime } = useLocale();
   const writingTask = useAppStore((state) => state.writingTask);
   const [draft, setDraft] = useState(
     "Hello team, I am writing to share that our onboarding workshop was helpful and people feels more confident after the session.",
@@ -30,6 +36,32 @@ export function WritingScreen() {
   }
 
   const activeTask = writingTask;
+  const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
+  const latestAttempt = attempts[0] ?? null;
+  const coachMessage =
+    locale === "ru"
+      ? feedback
+        ? "Сейчас не нужно переписывать всё заново. Возьми одну самую важную правку из review, усили формулировку и собери вторую, более чистую версию."
+        : `Сначала собери короткий, живой draft под задачу «${tr(activeTask.title)}». Потом я помогу превратить его в более естественный и уверенный текст без перегруза правилами.`
+      : feedback
+        ? "You do not need to rewrite everything from scratch now. Take the most important correction from the review, strengthen the wording, and build a cleaner second version."
+        : `Start with one short living draft for ${tr(activeTask.title)}. Then I will help turn it into a more natural and confident version without overwhelming grammar.`;
+  const coachSpokenMessage =
+    locale === "ru"
+      ? feedback
+        ? "У тебя уже есть review. Теперь давай превратим его в более сильную вторую версию, а не просто прочитаем замечания."
+        : `Сначала напиши короткий draft для задачи ${tr(activeTask.title)}, а потом я помогу быстро усилить его по смыслу, языку и тону.`
+      : feedback
+        ? "You already have the review. Now let us turn it into a stronger second version instead of just reading the notes."
+        : `Write a short draft for ${tr(activeTask.title)} first, then I will help strengthen it in meaning, language, and tone.`;
+  const coachSupportingText =
+    locale === "ru"
+      ? latestAttempt
+        ? `Последняя сохранённая версия уже показывает рабочий цикл: draft -> review -> stronger version. Следующий шаг — сделать writing частью общей стратегии, а не отдельной проверки текста.`
+        : "Writing здесь должен работать как поддерживающий коучинг: легко начать, легко понять правку, легко собрать более сильную вторую версию и передать это в общий learning loop."
+      : latestAttempt
+        ? "Your latest saved version already shows the working loop: draft -> review -> stronger version. The next step is to make writing part of one learning strategy, not an isolated text check."
+        : "Writing here should feel like supportive coaching: easy to start, easy to understand the correction, easy to build a stronger second version, and easy to feed back into the shared learning loop.";
 
   async function loadAttempts() {
     setIsHistoryLoading(true);
@@ -115,6 +147,42 @@ export function WritingScreen() {
         title={tr(activeTask.title)}
         description={tr("Draft, revise, and reuse stronger versions while the app keeps track of recurring writing issues.")}
       />
+
+      <LivingDepthSection id={livingDepthSectionIds.writingCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`writing:${activeTask.id}:${feedback ? "reviewed" : "draft"}:${attempts.length}`}
+          title={locale === "ru" ? "Liza Writing Layer" : "Liza Writing Layer"}
+          message={coachMessage}
+          spokenMessage={coachSpokenMessage}
+          spokenLanguage={locale}
+          replayCta={replayCta}
+          primaryAction={(
+            <Button
+              type="button"
+              onClick={() => void requestReview()}
+              disabled={isLoading || draft.trim().length === 0}
+              className="proof-lesson-primary-button"
+            >
+              {isLoading
+                ? tr("Reviewing...")
+                : feedback
+                  ? locale === "ru"
+                    ? "Получить следующий review"
+                    : "Get the next review"
+                  : locale === "ru"
+                    ? "Отправить draft на review"
+                    : "Send the draft for review"}
+            </Button>
+          )}
+          secondaryAction={(
+            <Link to={routes.grammar} className="proof-lesson-secondary-action">
+              {locale === "ru" ? "Открыть grammar support" : "Open grammar support"}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
 
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>

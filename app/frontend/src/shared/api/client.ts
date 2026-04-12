@@ -94,7 +94,7 @@ const liveAvatarPresenceVideoCache = new Map<string, Promise<Blob>>();
 const welcomeReplayAudioCache = new Map<string, Promise<Blob>>();
 const welcomeProofLessonCueAudioCache = new Map<string, Promise<Blob>>();
 const welcomeTutorPresetClipCache = new Map<string, Promise<Blob>>();
-const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v6-presence-01-forced";
+const WELCOME_TUTOR_PRESET_CACHE_SCHEMA = "welcome-presets-v7-stable-coach";
 
 function buildWelcomeTutorClipCacheKey(payload: {
   text: string;
@@ -423,6 +423,29 @@ export const apiClient = {
   ) => {
     await apiClient.getWelcomeProofLessonCueAudioBlob(locale, cue);
   },
+  getWelcomeProofLessonModelAudioBlob: (locale: "ru" | "en") => {
+    const cacheKey = `model:${locale}`;
+    const cachedRequest = welcomeProofLessonCueAudioCache.get(cacheKey);
+    if (cachedRequest) {
+      return cachedRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+    }
+
+    const nextRequest = apiClient.synthesizeSpeech({
+      text: "I'd like a coffee without sugar.",
+      language: "en",
+      speaker: "Daisy Studious",
+      style: "warm",
+    }).catch((error) => {
+      welcomeProofLessonCueAudioCache.delete(cacheKey);
+      throw error;
+    });
+
+    welcomeProofLessonCueAudioCache.set(cacheKey, nextRequest);
+    return nextRequest.then((blob) => blob.slice(0, blob.size, blob.type));
+  },
+  preloadWelcomeProofLessonModelAudio: async (locale: "ru" | "en") => {
+    await apiClient.getWelcomeProofLessonModelAudioBlob(locale);
+  },
   renderLiveAvatarFallback: (payload: {
     userText: string;
     language: "ru" | "en";
@@ -479,7 +502,7 @@ export const apiClient = {
   }) => getWelcomeTutorClip(payload),
   getWelcomeTutorPresetClipUrl: (payload: {
     locale: "ru" | "en";
-    kind: "intro" | "replay";
+    kind: "intro" | "replay" | "clarity_intro" | "clarity_model";
     variant?: number;
     revision?: string;
   }) => {
@@ -493,7 +516,7 @@ export const apiClient = {
   },
   getWelcomeTutorPresetClip: (payload: {
     locale: "ru" | "en";
-    kind: "intro" | "replay";
+    kind: "intro" | "replay" | "clarity_intro" | "clarity_model";
     variant?: number;
     revision?: string;
     bypassCache?: boolean;
@@ -532,7 +555,7 @@ export const apiClient = {
   },
   prefetchWelcomeTutorPresetClip: async (payload: {
     locale: "ru" | "en";
-    kind: "intro" | "replay";
+    kind: "intro" | "replay" | "clarity_intro" | "clarity_model";
     variant?: number;
     revision?: string;
   }) => {

@@ -118,6 +118,7 @@ class CachedMuseTalkStatus:
 
 MUSE_TALK_STATUS_CACHE_TTL_SECONDS = 90.0
 MUSE_TALK_RENDER_PIPELINE_REVISION = "muxed_audio_v9_presence_01_forced"
+WELCOME_TUTOR_VOICE_SIGNATURE = "coach-v1-stable"
 WELCOME_TUTOR_AUDIO_SAMPLE_RATE = 24000
 WELCOME_TUTOR_AUDIO_CHANNELS = 1
 WELCOME_TUTOR_AUDIO_SAMPLE_WIDTH = 2
@@ -305,7 +306,7 @@ class WelcomeTutorService:
                     text=normalized_text,
                     language=language,
                     speaker=self._runtime_config.default_speaker,
-                    style="warm",
+                    style="coach",
                 )
                 normalized_audio_bytes = self._trim_wav_silence(audio_bytes)
                 shutil.copy2(avatar_path, avatar_workspace_path)
@@ -438,7 +439,7 @@ class WelcomeTutorService:
 
         source_clip_path = self.render_clip(
             text=preset.text,
-            language=preset.locale,
+            language=preset.render_language,
             avatar_key=avatar_key,
         )
         source_clip_signature = self._fingerprint_file(source_clip_path.as_posix())
@@ -457,8 +458,10 @@ class WelcomeTutorService:
             json.dumps(
                 {
                     "locale": preset.locale,
+                    "render_language": preset.render_language,
                     "kind": preset.kind,
                     "variant": preset.variant,
+                    "revision": preset.revision,
                     "source_clip_path": source_clip_path.as_posix(),
                     "source_clip_signature": source_clip_signature,
                 },
@@ -837,7 +840,7 @@ class WelcomeTutorService:
 
     def _build_tts_cache_signature(self) -> str:
         provider_key = settings.tts_provider.strip().lower() or "unknown"
-        parts = [f"provider={provider_key}"]
+        parts = [f"provider={provider_key}", f"welcome_tutor_voice={WELCOME_TUTOR_VOICE_SIGNATURE}"]
 
         if provider_key == "qwen3_tts":
             parts.extend(

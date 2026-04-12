@@ -6,17 +6,25 @@ import {
   WelcomeAiTutorCue,
   type WelcomeAiTutorCueHandle,
 } from "./WelcomeAiTutorCue";
-import { WelcomeProofLessonCoachDock } from "./WelcomeProofLessonCoachDock";
 import { useWelcomeProofLesson } from "./useWelcomeProofLesson";
 import { WelcomeProofLessonStepLayout } from "./WelcomeProofLessonStepLayout";
 import {
   getWelcomeProofLessonCoachPrompt,
   type WelcomeProofLessonCoachCue,
 } from "./welcomeAiTutorPrompts";
+import {
+  LizaCoachPanel,
+  type LizaCoachPlaybackSegment,
+} from "../../widgets/liza/LizaCoachPanel";
+import type { WelcomeProofLessonRuntime } from "./useWelcomeProofLessonRuntime";
+
+const WELCOME_TUTOR_CLARITY_PRESET_REVISION = "welcome-presets-v7-stable-coach";
 
 type WelcomeProofLessonProps = {
   isVisible: boolean;
   locale: AppLocale;
+  runtime: WelcomeProofLessonRuntime;
+  onRetryRuntime: () => void;
 };
 
 type WelcomeProofLessonStepView = {
@@ -77,7 +85,7 @@ const proofLessonStepCopy = {
     retryTaskLabel: "Новая задача",
     resultEyebrow: "Итог",
     resultDescription:
-      "Одна живая ситуация уже превратилась в понятный речевой шаблон, который можно переносить дальше.",
+      "Одна живая ситуация уже превратилась в рабочий шаблон. Дальше сохраним этот старт в твоём профиле и соберём личный трек.",
   },
   en: {
     introEyebrow: "Quick start in Verba",
@@ -92,9 +100,9 @@ const proofLessonStepCopy = {
     retryDescription:
       "Move the same pattern into a new phrase right away so it starts to feel usable, not theoretical.",
     retryTaskLabel: "New task",
-    resultEyebrow: "Mini-proof-lesson result",
+    resultEyebrow: "Result",
     resultDescription:
-      "One live situation already became a clearer speaking pattern you can transfer into the next phrase.",
+      "One live situation already became a working pattern. Next we save this start in your profile and build a personal track around it.",
   },
 } as const;
 
@@ -267,6 +275,8 @@ function ProofLessonAdviceList({ items }: ProofLessonAdviceListProps) {
 export function WelcomeProofLesson({
   isVisible,
   locale,
+  runtime,
+  onRetryRuntime,
 }: WelcomeProofLessonProps) {
   const lesson = useWelcomeProofLesson(locale);
   const [hasSituationIntroCompleted, setHasSituationIntroCompleted] = useState(false);
@@ -326,17 +336,64 @@ export function WelcomeProofLesson({
         ? `Автостоп через ${trailingSilenceSeconds.toFixed(1)} с`
         : `Auto-stop in ${trailingSilenceSeconds.toFixed(1)}s`
       : null;
+  const clarityModelPhrase = lesson.scenario.languageTargets.firstAttemptImproved;
+  const clarityCoachMessage =
+    locale === "ru"
+      ? `Слушай, как Лиза произносит фразу: ${clarityModelPhrase}`
+      : `Listen to how Liza says the phrase: ${clarityModelPhrase}`;
+  const clarityCoachReplayCta =
+    locale === "ru" ? "Послушать фразу ещё раз" : "Hear the phrase again";
+  const clarityCoachSpeakingLabel =
+    locale === "ru" ? "Лиза произносит фразу" : "Liza is saying the phrase";
+  const resultCoachMessage =
+    locale === "ru"
+      ? "Ты уже почувствовал, как Verba превращает живую фразу в понятный навык. Теперь сохраним этот старт в твоём профиле и соберём личный трек."
+      : "You already felt how Verba turns one live phrase into a usable skill. Next we save this start in your profile and build a personal track around it.";
+  const resultJourneyTitle =
+    locale === "ru" ? "Что будет дальше" : "What happens next";
+  const resultJourneySteps =
+    locale === "ru"
+      ? [
+          "Создадим твой аккаунт и сохраним этот первый результат",
+          "Лиза уточнит твою цель, уровень и желаемый формат обучения",
+          "Сразу соберём личный стартовый трек вместо общего курса",
+        ]
+      : [
+          "We create your account and save this first result",
+          "Liza clarifies your goal, level, and preferred learning format",
+          "Right away, we build a personal starter track instead of a generic course",
+        ];
 
-  function buildCoachDock(cue: WelcomeProofLessonCoachCue) {
+  function buildCoachDock(
+    cue: WelcomeProofLessonCoachCue,
+    overrides?: {
+      message?: string;
+      replayCta?: string;
+      autoplaySegments?: LizaCoachPlaybackSegment[];
+      replaySegments?: LizaCoachPlaybackSegment[];
+      playbackText?: string;
+      playbackLanguage?: "ru" | "en";
+      speakingLabelOverride?: string;
+      idleLabelOverride?: string;
+    },
+  ) {
     return (
-      <WelcomeProofLessonCoachDock
-        isVisible={isVisible}
-        locale={locale}
-        cue={cue}
-        message={getWelcomeProofLessonCoachPrompt(locale, cue)}
-        replayCta={coachReplayCta}
-        playKey={`${lesson.scenario.id}:${lesson.currentStep}:${cue}`}
-      />
+      <div className="proof-lesson-coach-dock-row">
+        <LizaCoachPanel
+          isVisible={isVisible}
+          locale={locale}
+          message={overrides?.message ?? getWelcomeProofLessonCoachPrompt(locale, cue)}
+          spokenMessage={overrides?.playbackText}
+          spokenLanguage={overrides?.playbackLanguage}
+          replayCta={overrides?.replayCta ?? coachReplayCta}
+          playKey={`${lesson.scenario.id}:${lesson.currentStep}:${cue}`}
+          autoplaySegments={overrides?.autoplaySegments}
+          replaySegments={overrides?.replaySegments}
+          speakingLabelOverride={overrides?.speakingLabelOverride}
+          idleLabelOverride={overrides?.idleLabelOverride}
+          allowAudioFallback={false}
+        />
+      </div>
     );
   }
 
@@ -485,18 +542,49 @@ export function WelcomeProofLesson({
         description: lesson.scenario.intro.description,
         cardClassName: "proof-lesson-card--intro",
         content: (
-          <ProofLessonTrustBadge>
-            {lesson.scenario.intro.microCopy}
-          </ProofLessonTrustBadge>
+          <div className="proof-lesson-stack">
+            <ProofLessonTrustBadge>
+              {lesson.scenario.intro.microCopy}
+            </ProofLessonTrustBadge>
+
+            <ProofLessonSurface tone={runtime.phase === "ready" ? "accent" : "warm"}>
+              <ProofLessonSectionLabel accent>
+                {runtime.title}
+              </ProofLessonSectionLabel>
+              <p className="proof-lesson-supporting-copy mt-4">
+                {runtime.description}
+              </p>
+              {runtime.detail ? (
+                <p className="proof-lesson-supporting-copy mt-3 text-coral">
+                  {runtime.detail}
+                </p>
+              ) : null}
+            </ProofLessonSurface>
+          </div>
         ),
         primaryAction: (
-          <Button
-            type="button"
-            onClick={lesson.startLesson}
-            className="proof-lesson-primary-button"
-          >
-            {lesson.scenario.intro.cta}
-          </Button>
+          runtime.phase === "error" ? (
+            <Button
+              type="button"
+              onClick={onRetryRuntime}
+              className="proof-lesson-primary-button"
+            >
+              {locale === "ru" ? "Подготовить живой урок ещё раз" : "Prepare the live lesson again"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={lesson.startLesson}
+              disabled={!runtime.canStart}
+              className="proof-lesson-primary-button"
+            >
+              {runtime.phase === "preparing"
+                ? locale === "ru"
+                  ? "Лиза подготавливает урок..."
+                  : "Liza is preparing the lesson..."
+                : lesson.scenario.intro.cta}
+            </Button>
+          )
         ),
       };
       break;
@@ -701,7 +789,33 @@ export function WelcomeProofLesson({
         description: lesson.scenario.clarity.subtitle,
         content: (
           <div className="proof-lesson-stack">
-            {buildCoachDock("clarity")}
+            {buildCoachDock("clarity", {
+              message: clarityCoachMessage,
+              replayCta: clarityCoachReplayCta,
+              autoplaySegments: [
+                {
+                  source: "preset",
+                  locale: locale === "ru" ? "ru" : "en",
+                  kind: "clarity_intro",
+                  revision: WELCOME_TUTOR_CLARITY_PRESET_REVISION,
+                },
+                {
+                  source: "preset",
+                  locale: locale === "ru" ? "ru" : "en",
+                  kind: "clarity_model",
+                  revision: WELCOME_TUTOR_CLARITY_PRESET_REVISION,
+                },
+              ],
+              replaySegments: [
+                {
+                  source: "preset",
+                  locale: locale === "ru" ? "ru" : "en",
+                  kind: "clarity_model",
+                  revision: WELCOME_TUTOR_CLARITY_PRESET_REVISION,
+                },
+              ],
+              speakingLabelOverride: clarityCoachSpeakingLabel,
+            })}
 
             <ProofLessonSurface tone="accent" className="max-w-[24rem]">
               <div className="proof-lesson-key-text">
@@ -795,7 +909,9 @@ export function WelcomeProofLesson({
         description: copy.resultDescription,
         content: (
           <div className="proof-lesson-stack">
-            {buildCoachDock("result")}
+            {buildCoachDock("result", {
+              message: resultCoachMessage,
+            })}
 
             <ProofLessonAdviceList items={lesson.scenario.result.points} />
 
@@ -820,6 +936,15 @@ export function WelcomeProofLesson({
                     {lesson.scenario.result.comment}
                   </p>
                 </div>
+              </div>
+            </ProofLessonSurface>
+
+            <ProofLessonSurface tone="warm">
+              <ProofLessonSectionLabel accent>
+                {resultJourneyTitle}
+              </ProofLessonSectionLabel>
+              <div className="mt-4">
+                <ProofLessonAdviceList items={resultJourneySteps} />
               </div>
             </ProofLessonSurface>
           </div>

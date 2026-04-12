@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import type { AppLocale } from "../../shared/i18n/locale";
 import type { PronunciationAssessment } from "../../shared/types/app-data";
 import { routes } from "../../shared/constants/routes";
+import { writeWelcomeProofLessonHandoff } from "../../shared/profile/welcome-proof-handoff";
 import { writeGuestIntent } from "./guest-intent";
 import type {
   WelcomeProofLessonClarityStatusKey,
@@ -747,6 +748,16 @@ export function useWelcomeProofLesson(locale: AppLocale) {
       directions: scenario.guestIntentDirections,
       painPoint: scenario.id,
       lessonTone: "proof_first",
+    });
+    writeWelcomeProofLessonHandoff({
+      locale,
+      scenarioId: scenario.id,
+      beforePhrase: feedback.userVersion,
+      afterPhrase: feedback.improvedVersion,
+      clarityStatusLabel,
+      directions: scenario.guestIntentDirections,
+      wins: scenario.result.points,
+      createdAt: new Date().toISOString(),
     });
     navigate(WELCOME_PROOF_LESSON_NEXT_ROUTE);
   }

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { apiClient } from "../../shared/api/client";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { ConvergingPathsScrollIndicator } from "../../shared/ui/ConvergingPathsScrollIndicator";
 import { Button } from "../../shared/ui/Button";
@@ -9,14 +8,10 @@ import { WelcomePremiumHeader } from "./WelcomePremiumHeader";
 import { WelcomeSignInModal } from "./WelcomeSignInModal";
 import { useWelcomeSignIn } from "./useWelcomeSignIn";
 import {
-  getWelcomeAiTutorIntroVariants,
-  getWelcomeProofLessonCoachCues,
-  getWelcomeAiTutorReplayPrompt,
-} from "./welcomeAiTutorPrompts";
-import {
   welcomeScrollIndicatorConfig,
   welcomeScrollIndicatorMessages,
 } from "./welcomeScrollIndicator";
+import { useWelcomeProofLessonRuntime } from "./useWelcomeProofLessonRuntime";
 
 const HERO_PRIMARY_SCROLL_TARGET_ID = "welcome-mini-onboarding";
 const HERO_WHEEL_TRIGGER_THRESHOLD = 72;
@@ -29,7 +24,6 @@ const HERO_RETURN_MIN_SCROLL_Y = 84;
 const HERO_RETURN_TOP_TOLERANCE = 112;
 const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
 const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
-const WELCOME_TUTOR_PRESET_REVISION = "welcome-presets-v6-presence-01-forced";
 
 const heroPrimaryCtaLabel = {
   ru: "Просто попробовать урок",
@@ -47,9 +41,7 @@ export function WelcomeScreen() {
   const [wizardVisible, setWizardVisible] = useState(false);
   const { locale, setLocale, tr } = useLocale();
   const signInView = useWelcomeSignIn(locale);
-  const introPrompts = getWelcomeAiTutorIntroVariants(locale);
-  const proofLessonCoachCues = getWelcomeProofLessonCoachCues();
-  const replayPrompt = getWelcomeAiTutorReplayPrompt(locale);
+  const proofLessonRuntime = useWelcomeProofLessonRuntime(locale, heroVisible);
   const localeOptions = [
     { value: "ru" as const, label: "RU", flagClass: "locale-flag--ru" },
     { value: "en" as const, label: "EN", flagClass: "locale-flag--en" },
@@ -60,97 +52,11 @@ export function WelcomeScreen() {
   const heroWheelDirectionRef = useRef<1 | -1 | 0>(0);
   const heroWheelDebounceRef = useRef<number | null>(null);
   const heroWheelCooldownUntilRef = useRef(0);
-  const welcomeTutorPreloadKeyRef = useRef<string | null>(null);
-  const welcomePresencePreloadKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => setHeroVisible(true));
     return () => window.cancelAnimationFrame(animationFrame);
   }, []);
-
-  useEffect(() => {
-    if (!heroVisible) {
-      return;
-    }
-
-    const preloadKey = `${locale}:${introPrompts.join("|")}:${replayPrompt}`;
-    if (welcomeTutorPreloadKeyRef.current === preloadKey) {
-      return;
-    }
-    welcomeTutorPreloadKeyRef.current = preloadKey;
-
-    const prefetchClip = () => {
-      for (const [variant] of introPrompts.entries()) {
-        void apiClient.prefetchWelcomeTutorPresetClip({
-          locale: locale === "ru" ? "ru" : "en",
-          kind: "intro",
-          variant,
-          revision: WELCOME_TUTOR_PRESET_REVISION,
-        }).catch(() => undefined);
-      }
-      void apiClient.prefetchWelcomeTutorPresetClip({
-        locale: locale === "ru" ? "ru" : "en",
-        kind: "replay",
-        variant: 0,
-        revision: WELCOME_TUTOR_PRESET_REVISION,
-      }).catch(() => undefined);
-      for (const cue of proofLessonCoachCues) {
-        void apiClient
-          .preloadWelcomeProofLessonCueAudio(locale === "ru" ? "ru" : "en", cue)
-          .catch(() => undefined);
-      }
-    };
-
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (
-        callback: IdleRequestCallback,
-        options?: IdleRequestOptions,
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-
-    if (idleWindow.requestIdleCallback) {
-      const callbackId = idleWindow.requestIdleCallback(prefetchClip, { timeout: 1200 });
-      return () => idleWindow.cancelIdleCallback?.(callbackId);
-    }
-
-    const timeoutId = window.setTimeout(prefetchClip, 300);
-    return () => window.clearTimeout(timeoutId);
-  }, [heroVisible, introPrompts, locale, proofLessonCoachCues, replayPrompt]);
-
-  useEffect(() => {
-    if (!heroVisible) {
-      return;
-    }
-
-    const preloadKey = "verba_tutor:presence_01";
-    if (welcomePresencePreloadKeyRef.current === preloadKey) {
-      return;
-    }
-    welcomePresencePreloadKeyRef.current = preloadKey;
-
-    const preloadPresenceVideo = () => {
-      void apiClient
-        .preloadLiveAvatarPresenceVideo("verba_tutor", "presence-01-v1-speaking-fix")
-        .catch(() => undefined);
-    };
-
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (
-        callback: IdleRequestCallback,
-        options?: IdleRequestOptions,
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-
-    if (idleWindow.requestIdleCallback) {
-      const callbackId = idleWindow.requestIdleCallback(preloadPresenceVideo, { timeout: 800 });
-      return () => idleWindow.cancelIdleCallback?.(callbackId);
-    }
-
-    const timeoutId = window.setTimeout(preloadPresenceVideo, 120);
-    return () => window.clearTimeout(timeoutId);
-  }, [heroVisible]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -467,7 +373,12 @@ export function WelcomeScreen() {
         className="welcome-shell welcome-screen welcome-screen--secondary relative px-6 py-10 lg:px-8 lg:py-12"
       >
         <div className="welcome-shell__noise" />
-        <WelcomeProofLesson isVisible={wizardVisible} locale={locale} />
+        <WelcomeProofLesson
+          isVisible={wizardVisible}
+          locale={locale}
+          runtime={proofLessonRuntime.runtime}
+          onRetryRuntime={proofLessonRuntime.retry}
+        />
       </section>
     </div>
   );

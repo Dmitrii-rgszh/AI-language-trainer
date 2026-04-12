@@ -3,11 +3,18 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+from app.services.welcome_tutor_service.presets import resolve_welcome_tutor_preset
 from app.services.welcome_tutor_service.service import MuseTalkRuntimeConfig, WelcomeTutorService
 
 
 class FakeVoiceService:
-    def synthesize(self, text: str, language: str, speaker: str | None = None) -> bytes:
+    def synthesize(
+        self,
+        text: str,
+        language: str,
+        speaker: str | None = None,
+        style: str | None = None,
+    ) -> bytes:
         return b"fake-wave"
 
 
@@ -125,3 +132,15 @@ def test_welcome_tutor_prefers_presence_01_for_verba_tutor(tmp_path, monkeypatch
     resolved_path = service._resolve_base_video_path(avatar_key="verba_tutor")
 
     assert resolved_path == forced_presence_path.resolve()
+
+
+def test_welcome_clarity_presets_keep_english_model_voice() -> None:
+    ru_intro = resolve_welcome_tutor_preset(locale="ru", kind="clarity_intro", variant=0)
+    ru_model = resolve_welcome_tutor_preset(locale="ru", kind="clarity_model", variant=0)
+    intro_prompt = resolve_welcome_tutor_preset(locale="ru", kind="intro", variant=2)
+
+    assert ru_intro.render_language == "ru"
+    assert ru_model.render_language == "en"
+    assert intro_prompt.revision == "welcome-presets-v6-presence-01-forced"
+    assert ru_intro.revision == "welcome-presets-v7-stable-coach"
+    assert "I'd like a coffee without sugar." in ru_model.text

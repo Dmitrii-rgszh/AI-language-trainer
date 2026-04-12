@@ -10,6 +10,7 @@ from app.core.dependencies import stt_service, voice_service
 from app.schemas.voice import SynthesizeSpeechRequest, TranscribeSpeechResponse
 from app.services.voice_service.prompt_cache import (
     ensure_welcome_proof_lesson_cue_audio_cached,
+    ensure_welcome_proof_lesson_model_audio_cached,
     ensure_welcome_replay_audio_cached,
 )
 
@@ -51,6 +52,20 @@ def get_welcome_proof_lesson_cue_audio(
         voice_service,
         locale=locale,
         cue=cue,
+    )
+    return FileResponse(
+        audio_path,
+        media_type="audio/wav",
+        filename=audio_path.name,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
+
+
+@router.get("/welcome-proof-lesson-model")
+def get_welcome_proof_lesson_model_audio(locale: str = "ru") -> FileResponse:
+    audio_path = ensure_welcome_proof_lesson_model_audio_cached(
+        voice_service,
+        locale=locale,
     )
     return FileResponse(
         audio_path,

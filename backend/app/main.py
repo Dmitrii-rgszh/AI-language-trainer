@@ -10,6 +10,7 @@ from app.core.dependencies import live_avatar_service, voice_service, welcome_tu
 from app.core.errors import AppError
 from app.services.voice_service.prompt_cache import (
     ensure_welcome_proof_lesson_cue_audio_cached,
+    ensure_welcome_proof_lesson_model_audio_cached,
     ensure_welcome_replay_audio_cached,
     iter_welcome_proof_lesson_cues,
 )
@@ -45,6 +46,13 @@ async def prewarm_welcome_tutor() -> None:
                     cue=cue,
                 )
             )
+        asyncio.create_task(
+            asyncio.to_thread(
+                ensure_welcome_proof_lesson_model_audio_cached,
+                voice_service,
+                locale=locale,
+            )
+        )
 
 
 @app.on_event("shutdown")

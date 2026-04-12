@@ -17,6 +17,7 @@ export type DashboardActivityEvent = {
 
 export function useDashboardScreen() {
   const {
+    locale,
     tr,
     tt,
     tl,
@@ -227,6 +228,7 @@ export function useDashboardScreen() {
     handleStartLesson,
     handleStartRecoveryLesson,
     handleVocabularyReview,
+    locale,
     openLessonRunner,
     pronunciationTrend,
     providers,

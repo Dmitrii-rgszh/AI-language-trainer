@@ -208,9 +208,9 @@ export const welcomeProofLessonScenarios: Record<
         afterLabel: "После",
         afterValue: "I’d like a coffee without sugar.",
         comment: "Звучит мягче, естественнее и увереннее.",
-        primaryCta: "Собрать урок под мою цель",
+        primaryCta: "Сохранить результат и создать профиль",
         secondaryCta: "Показать ещё один пример",
-        note: "Можно перейти в урок под свою цель или посмотреть ещё один короткий кейс.",
+        note: "Дальше за пару минут создадим аккаунт, подхватим этот результат и соберём личный трек.",
       },
       errors: {
         micUnavailable: "Микрофон сейчас недоступен. Можно продолжить текстом.",
@@ -331,9 +331,9 @@ export const welcomeProofLessonScenarios: Record<
         afterLabel: "After",
         afterValue: "I’d like a coffee without sugar.",
         comment: "It sounds softer, more natural, and more confident.",
-        primaryCta: "Build a lesson for my goal",
+        primaryCta: "Save this result and create my profile",
         secondaryCta: "Show another example",
-        note: "You can move into a goal-based lesson or open one more short example.",
+        note: "Next we create your account, carry this result forward, and build your personal track.",
       },
       errors: {
         micUnavailable: "The microphone is not available right now. You can continue by text.",

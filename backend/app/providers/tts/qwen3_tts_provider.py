@@ -61,6 +61,7 @@ class Qwen3TTSProvider(BaseTTSProvider):
 
         reference_wav = self._resolve_reference_wav()
         reference_text, x_vector_only_mode = self._resolve_reference_prompt()
+        sampling = self._resolve_sampling_params(style)
         payload = {
             "text": normalized_text,
             "language": self._map_language(language),
@@ -68,10 +69,10 @@ class Qwen3TTSProvider(BaseTTSProvider):
             "ref_text": reference_text,
             "x_vector_only_mode": x_vector_only_mode,
             "cache_key": self._build_cache_key(reference_wav=reference_wav, reference_text=reference_text),
-            "temperature": settings.qwen_tts_temperature,
-            "top_p": settings.qwen_tts_top_p,
-            "top_k": settings.qwen_tts_top_k,
-            "repetition_penalty": settings.qwen_tts_repetition_penalty,
+            "temperature": sampling["temperature"],
+            "top_p": sampling["top_p"],
+            "top_k": sampling["top_k"],
+            "repetition_penalty": sampling["repetition_penalty"],
             "max_new_tokens": settings.qwen_tts_max_new_tokens,
         }
 
@@ -215,6 +216,30 @@ class Qwen3TTSProvider(BaseTTSProvider):
             normalized_text = " ".join(sentence_parts)
 
         return normalized_text.strip(" ,")
+
+    @staticmethod
+    def _resolve_sampling_params(style: str | None) -> dict[str, float | int]:
+        normalized_style = (style or "").strip().lower()
+        if normalized_style == "coach":
+            return {
+                "temperature": 0.12,
+                "top_p": 0.55,
+                "top_k": 8,
+                "repetition_penalty": 1.02,
+            }
+        if normalized_style == "neutral":
+            return {
+                "temperature": 0.2,
+                "top_p": 0.65,
+                "top_k": 12,
+                "repetition_penalty": 1.03,
+            }
+        return {
+            "temperature": settings.qwen_tts_temperature,
+            "top_p": settings.qwen_tts_top_p,
+            "top_k": settings.qwen_tts_top_k,
+            "repetition_penalty": settings.qwen_tts_repetition_penalty,
+        }
 
     @staticmethod
     def _build_cache_key(*, reference_wav: str, reference_text: str) -> str:

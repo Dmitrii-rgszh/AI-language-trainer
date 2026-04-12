@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
+import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import type { VocabularyHub } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function VocabularyScreen() {
-  const { tr, tt } = useLocale();
+  const { locale, tr, tt } = useLocale();
   const bootstrap = useAppStore((state) => state.bootstrap);
   const [hub, setHub] = useState<VocabularyHub | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -37,6 +42,36 @@ export function VocabularyScreen() {
     }
   };
 
+  const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
+  const coachTitle = locale === "ru" ? "Liza Vocabulary Layer" : "Liza Vocabulary Layer";
+  const dueCount = hub?.summary.dueCount ?? 0;
+  const weakestCategory = hub?.summary.weakestCategory ? tt(hub.summary.weakestCategory) : null;
+  const firstDueWord = hub?.dueItems[0]?.word ?? null;
+  const coachMessage =
+    locale === "ru"
+      ? dueCount > 0
+        ? `Словарь сейчас лучше тренировать не случайными списками, а через живую память. У тебя уже ${dueCount} слов в due-очереди${firstDueWord ? `, и я бы начала со слова ${firstDueWord}` : ""}, потому что именно так vocabulary начинает работать в речи и письме.`
+        : "Словарь здесь должен жить не как список слов, а как живая память фраз, ошибок и выражений, которые реально возвращаются в твою речь."
+      : dueCount > 0
+        ? `Vocabulary works better through live memory than random lists. You already have ${dueCount} due items${firstDueWord ? `, and I would begin with ${firstDueWord}` : ""} so the words start working in speaking and writing.`
+        : "Vocabulary here should not feel like a static word list. It should become a living memory of phrases, mistakes, and expressions that return to your real language.";
+  const coachSpokenMessage =
+    locale === "ru"
+      ? dueCount > 0
+        ? `Сейчас словарь лучше закрепить через due-очередь. Давай возьмём ${firstDueWord ?? "первое слово"} и сразу вернём его в живой контекст.`
+        : "Я помогу превратить словарь в живую систему памяти, а не в набор случайных слов."
+      : dueCount > 0
+        ? `The best vocabulary move right now is your due queue. Let us take ${firstDueWord ?? "the first word"} and move it back into real context right away.`
+        : "I will help turn vocabulary into a living memory system instead of a random list of words.";
+  const coachSupportingText =
+    locale === "ru"
+      ? weakestCategory
+        ? `Сейчас самая нагруженная категория — ${weakestCategory}. Это хороший сигнал для умной vocabulary-стратегии: не расширять всё сразу, а удерживать слабые зоны до реальной автоматизации.`
+        : "Лиза здесь должна связывать словарь с ошибками, writing, speaking и повторением, чтобы пользователь чувствовал не review queue, а умную языковую память."
+      : weakestCategory
+        ? `${weakestCategory} is the most loaded category right now. That is a good signal for a smarter vocabulary strategy: do not expand everything at once, stabilize the weakest zone first.`
+        : "Liza should connect vocabulary with mistakes, writing, speaking, and review so the user feels a smart language memory rather than a queue.";
+
   return (
     <div className="space-y-4">
       <SectionHeading
@@ -46,6 +81,29 @@ export function VocabularyScreen() {
           "Лёгкий центр словаря: due queue, недавние ревью, баланс между new/active/mastered и теперь ещё видимый источник каждого item.",
         )}
       />
+
+      <LivingDepthSection id={livingDepthSectionIds.vocabularyCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`vocabulary:${dueCount}:${firstDueWord ?? "none"}:${weakestCategory ?? "balanced"}`}
+          title={coachTitle}
+          message={coachMessage}
+          spokenMessage={coachSpokenMessage}
+          spokenLanguage={locale}
+          replayCta={replayCta}
+          primaryAction={(
+            <Link to={routes.speaking} className="proof-lesson-primary-button">
+              {locale === "ru" ? "Перенести слова в speaking" : "Move words into speaking"}
+            </Link>
+          )}
+          secondaryAction={(
+            <Link to={routes.writing} className="proof-lesson-secondary-action">
+              {locale === "ru" ? "Использовать в writing" : "Use them in writing"}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
 
       {loadingError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{loadingError}</div>
