@@ -11,6 +11,7 @@
 - dashboard собирает recommendation, diagnostic roadmap, adaptive loop, quick actions, daily loop plan и resume/recovery lesson state;
 - dashboard теперь также отдаёт `journey_state`, чтобы ключевые экраны могли объяснять текущую стратегию и next-best-action из одного источника;
 - `journey_state.strategy_snapshot` теперь также хранит `sessionSummary`, `tomorrowPreview` и completed-lesson signal после завершения daily loop;
+- `journey_state.strategy_snapshot` теперь также может хранить `skillTrajectory`, то есть короткую multi-day memory по skill-verticals из последних progress snapshots;
 - grammar, vocabulary, speaking, pronunciation, writing, profession, progress, activity и settings работают как отдельные продуктовые поверхности поверх общей persistence-модели;
 - `Liza layer` уже покрывает `dashboard`, `daily loop`, `grammar`, `vocabulary`, `pronunciation`, `writing`, `speaking`, `progress`, `activity`, `settings`, `lesson results`;
 - на ключевых экранах появились interactive explain-actions: `объясни проще`, `почему это важно`, `что важнее всего`, `следующий лучший шаг`;
@@ -57,6 +58,15 @@
 - `activity` и `progress` теперь тоже перестают быть competing entry points: их главный CTA и guidance сначала возвращают в `today's route`, если она уже собрана, и только потом ведут в recovery/checkpoint.
 - recommended `daily loop` теперь стартует через guided-route template overlay: сами lesson blocks получают `routeContext`, `why now`, `preferred mode`, active skill focus и weaker signals прямо внутри run-а, а не только на окружающих экранах.
 - guided route теперь влияет и на сам block composition: route может добавить support `vocab` / `listening` blocks и перевести response в `writing_block` для `text_first`, если это лучше соответствует текущему маршруту.
+- adaptive rotation теперь учитывает `active_skill_focus`, `preferred_mode` и `route seed source`, поэтому guided route уже может поднимать `grammar / writing / pronunciation / profession` не как случайные модули, а как часть текущей learner strategy.
+- поверх этого появился явный `practice mix`: маршрут теперь взвешивает `speaking / writing / grammar / vocabulary / listening / pronunciation / profession`, а lesson composition использует эти веса для вставки, перестановки и усиления блоков.
+- post-lesson `sessionSummary` теперь умеет оценивать сам `practice mix` по block-level scores, поэтому `strategy shift` и tomorrow-state начинают опираться не только на общий результат, но и на то, какой тип практики реально удержал маршрут, а какой просел.
+- continuity UI теперь тоже показывает этот `practice shift`: dashboard, daily loop, lesson results, route intelligence и shell re-entry reminder начинают объяснять не только общий итог, но и какой practice-type повёл маршрут дальше.
+- `practice shift` теперь влияет и на реальный next-day route seed: headline/summary/why-now/steps у `daily_loop_plan` и guided prompts внутри lesson blocks начинают подстраиваться под то, какая практика вчера удержалась лучше, а какая всё ещё требует опоры.
+- learner model inside `progress snapshots` теперь обновляется точнее по skill-verticals из block-level scores: `grammar`, `speaking`, `writing`, `pronunciation`, `listening` и `profession` больше не получают одинаковый generic growth после каждого урока.
+- recommendation engine и adaptive loop теперь тоже начинают использовать живой learner model: при ослаблении recovery pressure и в non-recovery сценариях свежий `progress snapshot` может смещать `focus area` и strategy alignment в сторону реально проседающего skill.
+- adaptive surfaces теперь начали показывать этот progress-aware signal явно: dashboard и activity loop объясняют не только `recommended module`, но и `live learner signal`, который подтолкнул систему к текущему фокусу.
+- поверх live signal теперь начинает работать и multi-day strategy memory: система собирает `skillTrajectory` из последних progress snapshots, сохраняет её в `journey_state`, использует в adaptive alignment и guided route, а UI уже показывает не только моментальный слабый сигнал, но и более длинную траекторию по skill-verticals.
 
 ## Keep As Is
 
@@ -267,4 +277,4 @@
 4. Показать пользователю, как меняется его следующий шаг после каждой сессии.
 5. Добавить лёгкий retention layer: resume session, next best action, мягкое напоминание о незавершённой траектории.
 
-Статус на `2026-04-14`: retention slice уже перешёл из purely explainable в partially behavioral. `dashboard`, `AppShell`, `activity` и `progress` умеют возвращать пользователя в маршрут, завершённая session формирует persisted `sessionSummary` и richer `tomorrowPreview`, новый день уже может строить `daily_loop_plan` из этого continuity seed, recommended lesson run запускается через guided-route overlay, а сам route уже начал влиять на block composition; следующий шаг здесь сделать adaptive rotation и content mix ещё точнее согласованными с learner strategy уже не на уровне нескольких эвристик, а как более цельный composition engine.
+Статус на `2026-04-14`: retention slice уже перешёл из purely explainable в partially behavioral. `dashboard`, `AppShell`, `activity` и `progress` умеют возвращать пользователя в маршрут, завершённая session формирует persisted `sessionSummary` и richer `tomorrowPreview`, новый день уже может строить `daily_loop_plan` из этого continuity seed, recommended lesson run запускается через guided-route overlay, а сам route уже начал влиять на block composition и strategy-aware module rotation; следующий шаг здесь сделать content mix ещё точнее согласованными с learner strategy уже не на уровне нескольких усиленных эвристик, а как более цельный composition engine.

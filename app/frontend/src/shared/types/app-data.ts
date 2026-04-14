@@ -80,6 +80,36 @@ export interface JourneyCompletedLessonSignal {
   completedAt?: string | null;
 }
 
+export interface JourneyPracticeMixEvaluation {
+  leadPracticeKey?: string | null;
+  leadPracticeTitle?: string | null;
+  leadOutcome?: string | null;
+  leadAverageScore?: number | null;
+  strongestPracticeKey?: string | null;
+  strongestPracticeTitle?: string | null;
+  strongestPracticeScore?: number | null;
+  weakestPracticeKey?: string | null;
+  weakestPracticeTitle?: string | null;
+  weakestPracticeScore?: number | null;
+  summaryLine?: string | null;
+}
+
+export interface SkillTrajectorySignal {
+  skill: string;
+  direction: string;
+  deltaScore: number;
+  currentScore: number;
+  summary: string;
+}
+
+export interface SkillTrajectoryMemory {
+  focusSkill: string;
+  direction: string;
+  summary: string;
+  observedSnapshots: number;
+  signals: SkillTrajectorySignal[];
+}
+
 export interface JourneySessionSummary {
   outcomeBand: string;
   headline: string;
@@ -92,6 +122,7 @@ export interface JourneySessionSummary {
   weakSpotTitle?: string | null;
   strongestSignalLabel?: string | null;
   weakestSignalLabel?: string | null;
+  practiceMixEvaluation?: JourneyPracticeMixEvaluation | null;
 }
 
 export interface JourneyActivePlanSeed {
@@ -114,6 +145,7 @@ export interface JourneyStrategySnapshot {
   tomorrowPreview?: JourneyTomorrowPreview | null;
   completedLesson?: JourneyCompletedLessonSignal | null;
   sessionSummary?: JourneySessionSummary | null;
+  skillTrajectory?: SkillTrajectoryMemory | null;
   activePlanSeed?: JourneyActivePlanSeed | null;
 }
 
@@ -188,6 +220,10 @@ export interface AdaptiveStrategyAlignment {
   watchSignalLabel?: string | null;
   recommendedModuleKey?: string | null;
   recommendedModuleReason?: string | null;
+  liveProgressFocus?: string | null;
+  liveProgressScore?: number | null;
+  liveProgressReason?: string | null;
+  skillTrajectory?: SkillTrajectoryMemory | null;
 }
 
 export interface AdaptiveStudyLoop {

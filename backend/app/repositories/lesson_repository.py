@@ -270,8 +270,20 @@ class LessonRepository:
             for item in route_context.get("moduleRotationKeys", [])
             if isinstance(item, str) and item
         }
+        practice_mix = cls._build_practice_mix_map(route_context)
+        lead_module = cls._resolve_guided_route_lead_module(route_context, practice_mix)
+        elevated_modules = {
+            module_key
+            for module_key, item in practice_mix.items()
+            if isinstance(item, dict)
+            and (
+                item.get("emphasis") in {"lead", "support"}
+                or (isinstance(item.get("share"), int) and item["share"] >= 14)
+            )
+        }
+        target_support_modules = module_rotation_keys | elevated_modules
 
-        if "vocabulary" in module_rotation_keys and due_vocabulary and not any(
+        if "vocabulary" in target_support_modules and due_vocabulary and not any(
             spec["block_type"] == "vocab_block" for spec in specs
         ):
             insert_at = next(
@@ -280,7 +292,20 @@ class LessonRepository:
             )
             specs.insert(insert_at, cls._build_guided_vocab_support_block(route_context, due_vocabulary))
 
-        if "listening" in module_rotation_keys and not any(
+        if "grammar" in target_support_modules and not any(
+            spec["block_type"] == "grammar_block" for spec in specs
+        ):
+            insert_at = next(
+                (
+                    index + 1
+                    for index, spec in enumerate(specs)
+                    if spec["block_type"] in {"review_block", "vocab_block"}
+                ),
+                0,
+            )
+            specs.insert(insert_at, cls._build_guided_grammar_support_block(route_context))
+
+        if "listening" in target_support_modules and not any(
             spec["block_type"] == "listening_block" for spec in specs
         ):
             insert_before = next(
@@ -293,10 +318,37 @@ class LessonRepository:
             )
             specs.insert(insert_before, cls._build_guided_listening_support_block(route_context))
 
+        if "profession" in target_support_modules and not any(
+            spec["block_type"] == "profession_block" for spec in specs
+        ):
+            insert_before = next(
+                (
+                    index
+                    for index, spec in enumerate(specs)
+                    if spec["block_type"] == "summary_block"
+                ),
+                len(specs),
+            )
+            specs.insert(insert_before, cls._build_guided_profession_support_block(route_context))
+
+        if "pronunciation" in target_support_modules and not any(
+            spec["block_type"] == "pronunciation_block" for spec in specs
+        ):
+            insert_before = next(
+                (
+                    index
+                    for index, spec in enumerate(specs)
+                    if spec["block_type"] == "summary_block"
+                ),
+                len(specs),
+            )
+            specs.insert(insert_before, cls._build_guided_pronunciation_support_block(route_context))
+
         if route_context.get("preferredMode") == "text_first":
             specs = cls._prefer_text_first_response(specs, route_context)
 
-        return specs
+        specs = cls._rebalance_guided_route_sequence(specs, lead_module=lead_module)
+        return cls._rebalance_guided_route_block_minutes(specs, practice_mix=practice_mix)
 
     @staticmethod
     def _build_guided_vocab_support_block(
@@ -357,6 +409,73 @@ class LessonRepository:
                 ],
                 "answer_key": [str(focus_area), str(watch_signal)],
                 "slow_mode_allowed": True,
+            },
+        }
+
+    @staticmethod
+    def _build_guided_grammar_support_block(route_context: dict) -> dict:
+        focus_area = route_context.get("focusArea") or "today's route"
+        primary_goal = route_context.get("primaryGoal") or "your main goal"
+        watch_signal = route_context.get("watchSignalLabel") or focus_area
+        weak_spot_categories = [
+            str(item)
+            for item in route_context.get("weakSpotCategories", [])
+            if isinstance(item, str) and item
+        ][:3]
+        return {
+            "block_type": "grammar_block",
+            "title": "Grammar route anchor",
+            "instructions": f"Lock in the grammar move that today's {focus_area} route depends on before you widen the response.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "payload": {
+                "topic_id": "guided-route-grammar-support",
+                "focus_points": [str(focus_area), str(watch_signal)],
+                "prompts": [
+                    f"Write one sentence that keeps {focus_area} clear and useful for {primary_goal}.",
+                    f"Rewrite one sentence so {watch_signal} does not slip back in.",
+                ],
+                "target_error_types": weak_spot_categories,
+            },
+        }
+
+    @staticmethod
+    def _build_guided_profession_support_block(route_context: dict) -> dict:
+        focus_area = route_context.get("focusArea") or "today's route"
+        profession_track = route_context.get("professionTrack") or "general"
+        primary_goal = route_context.get("primaryGoal") or "your main goal"
+        return {
+            "block_type": "profession_block",
+            "title": "Professional route framing",
+            "instructions": f"Keep {focus_area} grounded in a real-world scenario so the route stays useful, not generic.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.IMMEDIATE,
+            "payload": {
+                "domain": profession_track,
+                "topicId": "guided-route-profession-support",
+                "scenario": f"Short work scenario aligned with {primary_goal}",
+                "targetTerms": [str(focus_area), "next step", "clear update"],
+            },
+        }
+
+    @staticmethod
+    def _build_guided_pronunciation_support_block(route_context: dict) -> dict:
+        focus_area = route_context.get("focusArea") or "today's route"
+        carry_over = route_context.get("carryOverSignalLabel") or focus_area
+        return {
+            "block_type": "pronunciation_block",
+            "title": "Pronunciation route control",
+            "instructions": f"Say the route phrases out loud and keep {carry_over} stable while the session is still fresh.",
+            "estimated_minutes": 3,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "payload": {
+                "sound_focus": ["sentence stress", "clarity"],
+                "phrase_drills": [
+                    f"I have kept today's route focused on {focus_area}.",
+                    f"Could you help me with the next step for {carry_over}?",
+                ],
+                "minimal_pairs": ["focus/focused", "step/steps"],
+                "shadowing_script": f"I have kept today's route focused on {focus_area}.",
             },
         }
 
@@ -688,9 +807,54 @@ class LessonRepository:
             for item in route_context.get("moduleRotationKeys", [])
             if isinstance(item, str) and item
         ][:3]
+        module_rotation_titles = [
+            str(item)
+            for item in route_context.get("moduleRotationTitles", [])
+            if isinstance(item, str) and item
+        ][:3]
+        practice_mix = [
+            item
+            for item in route_context.get("practiceMix", [])
+            if isinstance(item, dict) and item.get("moduleKey")
+        ][:5]
+        weak_spot_categories = [
+            str(item)
+            for item in route_context.get("weakSpotCategories", [])
+            if isinstance(item, str) and item
+        ][:3]
         preferred_mode = route_context.get("preferredMode")
         primary_goal = route_context.get("primaryGoal")
         focus_area = route_context.get("focusArea")
+        practice_shift_summary = (
+            str(route_context.get("practiceShiftSummary"))
+            if route_context.get("practiceShiftSummary")
+            else None
+        )
+        lead_practice_title = (
+            str(route_context.get("leadPracticeTitle"))
+            if route_context.get("leadPracticeTitle")
+            else None
+        )
+        weakest_practice_title = (
+            str(route_context.get("weakestPracticeTitle"))
+            if route_context.get("weakestPracticeTitle")
+            else None
+        )
+        skill_trajectory_summary = (
+            str(route_context.get("skillTrajectorySummary"))
+            if route_context.get("skillTrajectorySummary")
+            else None
+        )
+        skill_trajectory_focus = (
+            str(route_context.get("skillTrajectoryFocus"))
+            if route_context.get("skillTrajectoryFocus")
+            else None
+        )
+        skill_trajectory_direction = (
+            str(route_context.get("skillTrajectoryDirection"))
+            if route_context.get("skillTrajectoryDirection")
+            else None
+        )
 
         enriched_payload["routeContext"] = {
             "focusArea": focus_area,
@@ -704,8 +868,18 @@ class LessonRepository:
             "inputLane": route_context.get("inputLane"),
             "outputLane": route_context.get("outputLane"),
             "moduleRotationKeys": module_rotation_keys,
+            "moduleRotationTitles": module_rotation_titles,
+            "practiceMix": practice_mix,
+            "skillTrajectory": route_context.get("skillTrajectory"),
+            "skillTrajectorySummary": skill_trajectory_summary,
+            "skillTrajectoryFocus": skill_trajectory_focus,
+            "skillTrajectoryDirection": skill_trajectory_direction,
+            "practiceShiftSummary": practice_shift_summary,
+            "leadPracticeTitle": lead_practice_title,
+            "weakestPracticeTitle": weakest_practice_title,
             "activeSkillFocus": active_skill_focus,
             "weakSpotTitles": weak_spot_titles,
+            "weakSpotCategories": weak_spot_categories,
             "dueVocabularyWords": due_words,
             "carryOverSignalLabel": (
                 continuity_seed.get("carryOverSignalLabel") if continuity_seed else None
@@ -732,6 +906,11 @@ class LessonRepository:
                 keys=("reviewItems", "review_items"),
                 additions=[*weak_spot_titles[:2], *due_words[:2]],
             )
+            cls._merge_payload_list(
+                enriched_payload,
+                keys=("reviewItems", "review_items"),
+                additions=[practice_shift_summary] if practice_shift_summary else [],
+            )
 
         if block_type == "grammar_block":
             cls._merge_payload_list(
@@ -746,6 +925,16 @@ class LessonRepository:
                     f"Keep the grammar move useful for {primary_goal}." if primary_goal else "",
                     f"Protect this weak signal while answering: {weak_spot_titles[0]}." if weak_spot_titles else "",
                     f"Reuse this active word if you can: {due_words[0]}." if due_words else "",
+                    (
+                        f"Yesterday {weakest_practice_title} stayed weaker, so use this block to support it before the route widens."
+                        if weakest_practice_title
+                        else ""
+                    ),
+                    (
+                        f"Multi-day memory says {skill_trajectory_focus} has been {skill_trajectory_direction}, so keep this block steadier there."
+                        if skill_trajectory_focus and skill_trajectory_direction in {"slipping", "stable"}
+                        else ""
+                    ),
                 ],
             )
             cls._merge_payload_list(
@@ -767,6 +956,16 @@ class LessonRepository:
                     ),
                     f"Keep the route focused on {focus_area}." if focus_area else "",
                     f"Try to reuse this active word: {due_words[0]}." if due_words else "",
+                    (
+                        f"Yesterday {lead_practice_title} carried the route best, so let this response inherit that stability."
+                        if lead_practice_title
+                        else ""
+                    ),
+                    (
+                        skill_trajectory_summary
+                        if skill_trajectory_summary and skill_trajectory_direction in {"slipping", "stable"}
+                        else ""
+                    ),
                 ],
             )
             cls._merge_payload_list(
@@ -786,6 +985,10 @@ class LessonRepository:
                 if focus_area
                 else enriched_payload.get("routeFocusHint")
             )
+            if practice_shift_summary:
+                enriched_payload["routePracticeShift"] = practice_shift_summary
+            if skill_trajectory_summary:
+                enriched_payload["routeTrajectory"] = skill_trajectory_summary
 
         if block_type == "profession_block":
             cls._merge_payload_list(
@@ -805,6 +1008,12 @@ class LessonRepository:
                 additions=[
                     f"What part of today's route felt most useful for {primary_goal}?" if primary_goal else "",
                     f"What should stay active around {focus_area} tomorrow?" if focus_area else "",
+                    (
+                        f"Did the route do a better job supporting {weakest_practice_title} this time?"
+                        if weakest_practice_title
+                        else ""
+                    ),
+                    skill_trajectory_summary or "",
                 ],
             )
             next_best_action = route_context.get("nextBestAction")
@@ -815,6 +1024,139 @@ class LessonRepository:
                     enriched_payload["next_step"] = next_best_action
 
         return enriched_payload
+
+    @staticmethod
+    def _build_practice_mix_map(route_context: dict) -> dict[str, dict]:
+        practice_mix_map: dict[str, dict] = {}
+        for item in route_context.get("practiceMix", []):
+            if not isinstance(item, dict):
+                continue
+            module_key = item.get("moduleKey")
+            if not isinstance(module_key, str) or not module_key:
+                continue
+            practice_mix_map[module_key] = item
+        return practice_mix_map
+
+    @classmethod
+    def _resolve_guided_route_lead_module(
+        cls,
+        route_context: dict,
+        practice_mix: dict[str, dict],
+    ) -> str | None:
+        lead_item = next(
+            (
+                item
+                for item in route_context.get("practiceMix", [])
+                if isinstance(item, dict) and item.get("emphasis") == "lead" and item.get("moduleKey")
+            ),
+            None,
+        )
+        if isinstance(lead_item, dict) and isinstance(lead_item.get("moduleKey"), str):
+            return lead_item["moduleKey"]
+        module_rotation = route_context.get("moduleRotationKeys", [])
+        if isinstance(module_rotation, list) and module_rotation:
+            first_key = module_rotation[0]
+            if isinstance(first_key, str) and first_key:
+                return first_key
+        if practice_mix:
+            return next(iter(practice_mix))
+        return None
+
+    @classmethod
+    def _rebalance_guided_route_sequence(
+        cls,
+        specs: list[dict],
+        *,
+        lead_module: str | None,
+    ) -> list[dict]:
+        if not lead_module:
+            return specs
+
+        if lead_module == "grammar":
+            return cls._move_block_before_types(specs, "grammar_block", {"listening_block", "speaking_block", "writing_block", "profession_block"})
+        if lead_module == "listening":
+            return cls._move_block_before_types(specs, "listening_block", {"speaking_block", "writing_block", "profession_block"})
+        if lead_module == "profession":
+            return cls._move_block_before_types(specs, "profession_block", {"speaking_block", "writing_block", "summary_block"})
+        if lead_module == "pronunciation":
+            return cls._move_block_before_types(specs, "pronunciation_block", {"speaking_block", "writing_block", "summary_block"})
+        if lead_module == "vocabulary":
+            return cls._move_block_before_types(specs, "vocab_block", {"grammar_block", "listening_block", "speaking_block", "writing_block"})
+        return specs
+
+    @staticmethod
+    def _move_block_before_types(
+        specs: list[dict],
+        block_type: str,
+        target_types: set[str],
+    ) -> list[dict]:
+        source_index = next((index for index, spec in enumerate(specs) if spec["block_type"] == block_type), None)
+        if source_index is None:
+            return specs
+        target_index = next((index for index, spec in enumerate(specs) if spec["block_type"] in target_types), None)
+        if target_index is None or source_index < target_index:
+            return specs
+
+        reordered = list(specs)
+        block = reordered.pop(source_index)
+        reordered.insert(target_index, block)
+        return reordered
+
+    @classmethod
+    def _rebalance_guided_route_block_minutes(
+        cls,
+        specs: list[dict],
+        *,
+        practice_mix: dict[str, dict],
+    ) -> list[dict]:
+        rebalanced: list[dict] = []
+        lead_module = next(
+            (
+                module_key
+                for module_key, item in practice_mix.items()
+                if isinstance(item, dict) and item.get("emphasis") == "lead"
+            ),
+            None,
+        )
+
+        for spec in specs:
+            module_key = cls._map_block_type_to_module_key(spec["block_type"])
+            item = practice_mix.get(module_key, {})
+            share = item.get("share") if isinstance(item, dict) else None
+            emphasis = item.get("emphasis") if isinstance(item, dict) else None
+            minutes = int(spec["estimated_minutes"])
+
+            if emphasis == "lead" and module_key not in {"lesson"}:
+                minutes += 2 if minutes <= 4 else 1
+            elif emphasis == "support":
+                minutes += 1 if minutes <= 3 else 0
+            elif share is not None and isinstance(share, int) and share <= 8 and module_key not in {"lesson"}:
+                minutes = max(2, minutes - 1)
+
+            if spec["block_type"] == "summary_block" and lead_module and lead_module != "lesson":
+                minutes = max(minutes, 4)
+
+            rebalanced.append(
+                {
+                    **spec,
+                    "estimated_minutes": minutes,
+                }
+            )
+        return rebalanced
+
+    @staticmethod
+    def _map_block_type_to_module_key(block_type: str) -> str:
+        return {
+            "review_block": "lesson",
+            "summary_block": "lesson",
+            "vocab_block": "vocabulary",
+            "grammar_block": "grammar",
+            "listening_block": "listening",
+            "speaking_block": "speaking",
+            "writing_block": "writing",
+            "profession_block": "profession",
+            "pronunciation_block": "pronunciation",
+        }.get(block_type, "lesson")
 
     @staticmethod
     def _merge_payload_list(

@@ -61,6 +61,22 @@ class ModuleRotationItem(ApiModel):
     priority: int
 
 
+class SkillTrajectorySignal(ApiModel):
+    skill: str
+    direction: str
+    delta_score: int
+    current_score: int
+    summary: str
+
+
+class SkillTrajectoryMemory(ApiModel):
+    focus_skill: str
+    direction: str
+    summary: str
+    observed_snapshots: int
+    signals: list[SkillTrajectorySignal]
+
+
 class AdaptiveStrategyAlignment(ApiModel):
     focus_area: str
     route_title: str
@@ -72,6 +88,10 @@ class AdaptiveStrategyAlignment(ApiModel):
     watch_signal_label: str | None = None
     recommended_module_key: str | None = None
     recommended_module_reason: str | None = None
+    live_progress_focus: str | None = None
+    live_progress_score: int | None = None
+    live_progress_reason: str | None = None
+    skill_trajectory: SkillTrajectoryMemory | None = None
 
 
 class AdaptiveStudyLoop(ApiModel):

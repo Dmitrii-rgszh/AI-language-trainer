@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.mistake_repository import MistakeRepository
+from app.repositories.progress_repository import ProgressRepository
 from app.repositories.vocabulary_repository import VocabularyRepository
 from app.schemas.lesson import LessonRecommendation
 from app.schemas.profile import UserProfile
+from app.services.adaptive_study_service.loop_heuristics import detect_progress_focus
 from app.services.recommendation_service.goal_copy import (
+    append_progress_focus_context,
     append_weak_spot_context,
     build_recovery_completed_goal,
     build_recovery_goal,
@@ -19,14 +22,25 @@ def build_next_recommendation(
     lesson_repository: LessonRepository,
     mistake_repository: MistakeRepository,
     vocabulary_repository: VocabularyRepository,
+    progress_repository: ProgressRepository | None = None,
 ) -> LessonRecommendation | None:
     weak_spots = mistake_repository.list_weak_spots(profile.id, limit=2)
     mistakes = mistake_repository.list_mistakes(profile.id)
     due_vocabulary = vocabulary_repository.list_due_items(profile.id, limit=3)
     vocabulary_backlinks = vocabulary_repository.list_mistake_backlinks(profile.id, limit=6)
+    progress = progress_repository.get_latest_snapshot(profile.id) if progress_repository else None
     latest_completed = lesson_repository.list_recent_completed_lessons(profile.id, limit=1)
     latest_lesson_type = latest_completed[0].lesson_type if latest_completed else None
     resolution_map = build_resolution_map(mistakes, vocabulary_backlinks)
+    progress_focus = detect_progress_focus(progress, profile.onboarding_answers.active_skill_focus)
+    progress_score_map = {
+        "grammar": progress.grammar_score if progress else 0,
+        "speaking": progress.speaking_score if progress else 0,
+        "listening": progress.listening_score if progress else 0,
+        "pronunciation": progress.pronunciation_score if progress else 0,
+        "writing": progress.writing_score if progress else 0,
+        "profession": progress.profession_score if progress else 0,
+    }
 
     if latest_lesson_type == "recovery":
         recommendation = lesson_repository.get_recommendation(profile.profession_track)
@@ -58,6 +72,14 @@ def build_next_recommendation(
             due_vocabulary_count=len(due_vocabulary),
             latest_lesson_type=latest_lesson_type,
         )
+        if progress_focus:
+            recommendation.focus_area = progress_focus
+            recommendation.goal = append_progress_focus_context(
+                recommendation.goal,
+                focus_area=progress_focus,
+                score=progress_score_map.get(progress_focus, 0),
+                active_skill_focus=profile.onboarding_answers.active_skill_focus,
+            )
         return recommendation
 
     if weak_spots or due_vocabulary:
@@ -90,6 +112,14 @@ def build_next_recommendation(
             weak_spots=weak_spots,
             resolution_map=resolution_map,
             due_vocabulary_count=len(due_vocabulary),
+        )
+    elif progress_focus:
+        recommendation.focus_area = progress_focus
+        recommendation.goal = append_progress_focus_context(
+            recommendation.goal,
+            focus_area=progress_focus,
+            score=progress_score_map.get(progress_focus, 0),
+            active_skill_focus=profile.onboarding_answers.active_skill_focus,
         )
 
     return recommendation

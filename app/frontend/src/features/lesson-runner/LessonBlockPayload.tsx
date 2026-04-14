@@ -15,8 +15,36 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
           inputLane?: string;
           outputLane?: string;
           moduleRotationKeys?: string[];
+          moduleRotationTitles?: string[];
+          practiceMix?: Array<{
+            moduleKey?: string;
+            title?: string;
+            share?: number;
+            emphasis?: string;
+            reason?: string;
+          }>;
+          skillTrajectory?: {
+            focusSkill?: string;
+            direction?: string;
+            summary?: string;
+            observedSnapshots?: number;
+            signals?: Array<{
+              skill?: string;
+              direction?: string;
+              deltaScore?: number;
+              currentScore?: number;
+              summary?: string;
+            }>;
+          };
+          skillTrajectorySummary?: string;
+          skillTrajectoryFocus?: string;
+          skillTrajectoryDirection?: string;
+          practiceShiftSummary?: string;
+          leadPracticeTitle?: string;
+          weakestPracticeTitle?: string;
           activeSkillFocus?: string[];
           weakSpotTitles?: string[];
+          weakSpotCategories?: string[];
           dueVocabularyWords?: string[];
           carryOverSignalLabel?: string;
           watchSignalLabel?: string;
@@ -77,7 +105,60 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
           </div>
           {routeContext.moduleRotationKeys?.length ? (
             <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
-              <span className="font-semibold text-ink">module rotation:</span> {routeContext.moduleRotationKeys.join(", ")}
+              <span className="font-semibold text-ink">module rotation:</span>{" "}
+              {(routeContext.moduleRotationTitles?.length
+                ? routeContext.moduleRotationTitles
+                : routeContext.moduleRotationKeys
+              ).join(", ")}
+            </div>
+          ) : null}
+          {routeContext.practiceMix?.length ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">practice mix:</span>{" "}
+                {routeContext.practiceMix
+                  .slice(0, 4)
+                  .map((item) =>
+                    `${item.title ?? item.moduleKey ?? "module"} ${typeof item.share === "number" ? `${item.share}%` : ""}`.trim(),
+                  )
+                  .join(", ")}
+              </div>
+              <div className="mt-3 grid gap-2">
+                {routeContext.practiceMix.slice(0, 3).map((item, index) => (
+                  <div key={`${item.moduleKey ?? "practice"}-${index}`} className="rounded-2xl bg-coral/6 p-3">
+                    <div className="text-sm font-semibold text-ink">
+                      {item.title ?? item.moduleKey ?? "Route module"}
+                      {typeof item.share === "number" ? ` · ${item.share}%` : ""}
+                    </div>
+                    {item.reason ? <div className="mt-1 text-sm leading-6 text-slate-700">{item.reason}</div> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {routeContext.skillTrajectorySummary ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">multi-day memory:</span> {routeContext.skillTrajectorySummary}
+              </div>
+              {routeContext.skillTrajectory?.signals?.length ? (
+                <div className="mt-3 grid gap-2">
+                  {routeContext.skillTrajectory.signals.slice(0, 3).map((signal, index) => (
+                    <div key={`${signal.skill ?? "signal"}-${index}`} className="rounded-2xl bg-coral/6 p-3">
+                      <div className="text-sm font-semibold text-ink">
+                        {signal.skill ?? "skill"}
+                        {typeof signal.currentScore === "number" ? ` · ${signal.currentScore}/100` : ""}
+                      </div>
+                      <div className="mt-1 text-sm leading-6 text-slate-700">{signal.summary}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.practiceShiftSummary ? (
+            <div className="mt-3 rounded-2xl bg-coral/6 p-3 text-sm text-slate-700">
+              <span className="font-semibold text-ink">practice shift:</span> {routeContext.practiceShiftSummary}
             </div>
           ) : null}
           {routeContext.activeSkillFocus?.length ? (

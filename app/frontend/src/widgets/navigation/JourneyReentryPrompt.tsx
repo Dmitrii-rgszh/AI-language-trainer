@@ -76,11 +76,12 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
   }
 
   if (dailyLoopPlan?.completedAt && tomorrowPreview) {
+    const practiceShift = sessionSummary?.practiceMixEvaluation?.summaryLine;
     return {
       id: `tomorrow:${dailyLoopPlan.id}:${journeyState?.updatedAt ?? "stable"}`,
       title: tr("Today's route is complete"),
       description: sessionSummary?.headline ?? tomorrowPreview.headline,
-      detail: sessionSummary?.strategyShift ?? tomorrowPreview.nextStepHint,
+      detail: practiceShift ?? sessionSummary?.strategyShift ?? tomorrowPreview.nextStepHint,
       primaryActionKind: "open_dashboard",
       primaryLabel: tr("Review tomorrow’s route"),
       secondaryHref: routes.activity,

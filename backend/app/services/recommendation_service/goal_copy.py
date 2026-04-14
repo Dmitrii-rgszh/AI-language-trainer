@@ -137,6 +137,26 @@ def append_weak_spot_context(
     return f"{base_goal} {suffix}"
 
 
+def append_progress_focus_context(
+    base_goal: str,
+    *,
+    focus_area: str,
+    score: int,
+    active_skill_focus: Sequence[str],
+) -> str:
+    suffix = pick_variant(
+        [
+            f"Live progress now points to {focus_area} as the weakest active skill ({score}/100), so let the next route support it directly.",
+            f"The current learner model shows {focus_area} under more pressure ({score}/100), so the next lesson should quietly rebalance around it.",
+            f"Right now {focus_area} needs the clearest support ({score}/100), so the main lesson track should lean toward that signal.",
+        ],
+        focus_area,
+        score,
+        ",".join(active_skill_focus),
+    )
+    return f"{base_goal} {suffix}"
+
+
 def pick_variant(variants: Sequence[str], *seed_parts: object) -> str:
     if not variants:
         return ""

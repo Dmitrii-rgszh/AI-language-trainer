@@ -48,6 +48,22 @@ def build_area_score_map(lesson_run: LessonRunState) -> dict[SkillArea, int]:
     return {area: round(sum(scores) / len(scores)) for area, scores in bucket.items()}
 
 
+def build_area_attempt_count_map(lesson_run: LessonRunState) -> dict[SkillArea, int]:
+    block_type_by_id = {block.id: block.block_type for block in lesson_run.lesson.blocks}
+    bucket: dict[SkillArea, int] = {}
+    for block_run in lesson_run.block_runs:
+        block_type = block_type_by_id.get(block_run.block_id)
+        if not block_type:
+            continue
+        area = BLOCK_TYPE_TO_SKILL_AREA.get(block_type)
+        if not area:
+            continue
+        if block_run.score is None and block_run.status != "completed":
+            continue
+        bucket[area] = bucket.get(area, 0) + 1
+    return bucket
+
+
 def apply_diagnostic_delta(previous_score: int, previous_confidence: int, checkpoint_score: int) -> tuple[int, int]:
     if checkpoint_score >= 80:
         return min(100, previous_score + 5), min(100, previous_confidence + 8)
@@ -56,6 +72,44 @@ def apply_diagnostic_delta(previous_score: int, previous_confidence: int, checkp
     if checkpoint_score >= 50:
         return max(0, previous_score - 1), max(0, previous_confidence - 2)
     return max(0, previous_score - 3), max(0, previous_confidence - 5)
+
+
+def apply_guided_delta(
+    previous_score: int,
+    previous_confidence: int,
+    area_score: int,
+    *,
+    signal_count: int = 1,
+) -> tuple[int, int]:
+    clamped_signal_count = max(1, signal_count)
+    score_gap = area_score - previous_score
+
+    if area_score >= 85:
+        score_delta = 4 if score_gap >= 0 else 1
+        confidence_delta = 6
+    elif area_score >= 72:
+        score_delta = 3 if score_gap >= 8 else 2 if score_gap >= 0 else 1
+        confidence_delta = 5
+    elif area_score >= 60:
+        score_delta = 2 if score_gap >= 6 else 1 if score_gap >= 0 else 0
+        confidence_delta = 3
+    elif area_score >= 48:
+        score_delta = 0 if score_gap >= -4 else -1
+        confidence_delta = 1 if score_gap >= 0 else -1
+    else:
+        score_delta = -2 if previous_score > 0 else 0
+        confidence_delta = -3
+
+    if clamped_signal_count >= 2 and score_delta > 0:
+        score_delta += 1
+    if clamped_signal_count >= 2 and confidence_delta > 0:
+        confidence_delta += 1
+    if clamped_signal_count >= 3 and confidence_delta > 0:
+        confidence_delta += 1
+
+    updated_score = max(0, min(100, previous_score + score_delta))
+    updated_confidence = max(0, min(100, previous_confidence + confidence_delta))
+    return updated_score, updated_confidence
 
 
 def build_progress_snapshot_model(
@@ -70,7 +124,7 @@ def build_progress_snapshot_model(
         if (area := BLOCK_TYPE_TO_SKILL_AREA.get(block_type)) is not None
     }
     area_score_map = build_area_score_map(lesson_run)
-    score_delta = max(2, round((lesson_run.score or 70) / 18))
+    area_attempt_count_map = build_area_attempt_count_map(lesson_run)
     snapshot_date = date.today()
 
     previous_scores: dict[SkillArea, tuple[int, int]] = {}
@@ -108,8 +162,12 @@ def build_progress_snapshot_model(
                     area_score_map.get(area, lesson_run.score or 70),
                 )
             else:
-                updated_score = min(100, previous_score + score_delta)
-                updated_confidence = min(100, previous_confidence + 5)
+                updated_score, updated_confidence = apply_guided_delta(
+                    previous_score,
+                    previous_confidence,
+                    area_score_map.get(area, lesson_run.score or previous_score or 70),
+                    signal_count=area_attempt_count_map.get(area, 1),
+                )
 
         snapshot.skill_scores.append(
             ProgressSkillScore(

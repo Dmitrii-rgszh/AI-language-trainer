@@ -69,6 +69,7 @@ export function LessonResultsScreen() {
       : "Open the dashboard and launch the next guided step so continuity stays intact.");
   const tomorrowPreview = dashboard?.journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = dashboard?.journeyState?.strategySnapshot.sessionSummary ?? null;
+  const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const strongestShift = [
     {
       label: tr("Grammar"),
@@ -107,6 +108,7 @@ export function LessonResultsScreen() {
       label: locale === "ru" ? "Почему это важно" : "Why it matters",
       text:
         sessionSummary?.whatWorked ??
+        practiceShiftLine ??
         (strongestShift.delta !== 0
           ? locale === "ru"
             ? `Потому что именно сдвиг в ${strongestShift.label} показывает, что эта сессия реально изменила learner model, а не просто закрыла ещё один урок.`
@@ -119,6 +121,7 @@ export function LessonResultsScreen() {
       id: "results-priority",
       label: locale === "ru" ? "Что теперь главное" : "What matters now",
       text:
+        practiceShiftLine ??
         sessionSummary?.watchSignal ??
         (locale === "ru"
           ? `Сейчас главное - не потерять continuity: принять updated route вокруг ${currentFocusArea} и не откатываться в случайный выбор следующего модуля.`
@@ -287,6 +290,11 @@ export function LessonResultsScreen() {
               <div className="text-xs uppercase tracking-[0.16em] text-accent">{tr("Tomorrow preview")}</div>
               <div className="mt-2 text-sm font-semibold text-ink">{tomorrowPreview.headline}</div>
               <div className="mt-2 text-sm text-slate-600">{tomorrowPreview.reason}</div>
+              {practiceShiftLine ? (
+                <div className="mt-3 rounded-2xl bg-accent/8 p-3 text-sm text-slate-700">
+                  <span className="font-semibold text-ink">{tr("Practice shift")}:</span> {practiceShiftLine}
+                </div>
+              ) : null}
             </div>
           ) : null}
           <Button onClick={() => void handleContinueRoadmap()}>{tr("Continue personal roadmap")}</Button>

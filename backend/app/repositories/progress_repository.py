@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.progress_mappers import to_progress_snapshot
-from app.repositories.progress_queries import load_latest_snapshot
+from app.repositories.progress_queries import load_latest_snapshot, load_recent_snapshots
 from app.repositories.progress_state import build_progress_snapshot_model
 from app.schemas.lesson import LessonRunState
 from app.schemas.profile import UserProfile
@@ -25,6 +25,13 @@ class ProgressRepository:
                 return None
 
             return to_progress_snapshot(snapshot, history)
+
+    def list_recent_snapshots(self, user_id: str, limit: int = 3) -> list[ProgressSnapshot]:
+        history = self._lesson_repository.list_recent_completed_lessons(user_id)
+
+        with self._session_factory() as session:
+            snapshots = load_recent_snapshots(session, user_id, limit=limit)
+            return [to_progress_snapshot(snapshot, history) for snapshot in snapshots]
 
     def create_snapshot_for_completed_lesson(
         self,

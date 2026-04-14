@@ -59,6 +59,27 @@ export function ActivityStudyLoopSection({
             <div className="mt-3 rounded-2xl bg-white/78 p-4 text-sm text-slate-700">
               <span className="font-semibold text-ink">{tr("Route detail")}:</span> {strategyAlignment.routeSeedDetail}
             </div>
+            {strategyAlignment.liveProgressFocus ? (
+              <div className="mt-3 rounded-2xl bg-white/78 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Live learner signal")}</div>
+                <div className="mt-2 text-sm font-semibold text-ink">
+                  {strategyAlignment.liveProgressFocus}
+                  {typeof strategyAlignment.liveProgressScore === "number" ? ` · ${strategyAlignment.liveProgressScore}/100` : ""}
+                </div>
+                <div className="mt-2 text-sm text-slate-700">
+                  {strategyAlignment.liveProgressReason ?? strategyAlignment.recommendedModuleReason ?? strategyAlignment.nextBestAction}
+                </div>
+              </div>
+            ) : null}
+            {strategyAlignment.skillTrajectory ? (
+              <div className="mt-3 rounded-2xl bg-white/78 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Multi-day memory")}</div>
+                <div className="mt-2 text-sm font-semibold text-ink">
+                  {strategyAlignment.skillTrajectory.focusSkill} · {strategyAlignment.skillTrajectory.direction}
+                </div>
+                <div className="mt-2 text-sm text-slate-700">{strategyAlignment.skillTrajectory.summary}</div>
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               {strategyAlignment.carryOverSignalLabel ? (
                 <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">

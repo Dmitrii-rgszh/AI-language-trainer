@@ -85,3 +85,43 @@ def test_build_next_steps_uses_rotation_for_non_recovery_mode() -> None:
 
     assert steps
     assert steps[0].id.startswith("adaptive-rotation-")
+
+
+def test_build_module_rotation_respects_text_first_and_active_focus() -> None:
+    rotation = build_module_rotation(
+        recommendation_lesson_type="lesson",
+        recommendation_focus_area="grammar",
+        recent_lessons=[],
+        due_vocabulary=_build_due_vocabulary(),
+        listening_focus=None,
+        mistake_resolution=[],
+        active_skill_focus=["writing", "grammar"],
+        preferred_mode="text_first",
+        route_seed_source="daily_loop_plan",
+    )
+
+    keys = [item.module_key for item in rotation[:4]]
+
+    assert "writing" in keys[:2]
+    assert "grammar" in keys[:3]
+    assert "vocabulary" in keys
+
+
+def test_build_module_rotation_elevates_voice_and_profession_signals() -> None:
+    rotation = build_module_rotation(
+        recommendation_lesson_type="lesson",
+        recommendation_focus_area="profession",
+        recent_lessons=[],
+        due_vocabulary=[],
+        listening_focus="audio_comprehension",
+        mistake_resolution=[],
+        active_skill_focus=["profession", "pronunciation", "speaking"],
+        preferred_mode="voice_first",
+        route_seed_source="tomorrow_preview",
+    )
+
+    keys = [item.module_key for item in rotation[:4]]
+
+    assert "profession" in keys[:2]
+    assert "pronunciation" in keys[:4]
+    assert "listening" in keys[:4]

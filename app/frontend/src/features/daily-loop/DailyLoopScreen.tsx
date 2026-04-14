@@ -36,6 +36,7 @@ export function DailyLoopScreen() {
     journeyState?.nextBestAction ?? plan.nextStepHint;
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
+  const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const explainActions = [
     {
       id: "daily-loop-simpler",
@@ -52,14 +53,14 @@ export function DailyLoopScreen() {
     {
       id: "daily-loop-why",
       label: locale === "ru" ? "Почему именно это" : "Why this now",
-      text: plan.completedAt && tomorrowPreview ? tomorrowPreview.reason : plan.whyThisNow,
+      text: plan.completedAt && tomorrowPreview ? practiceShiftLine ?? tomorrowPreview.reason : plan.whyThisNow,
     },
     {
       id: "daily-loop-priority",
       label: locale === "ru" ? "Что важнее всего" : "What matters most",
       text:
         plan.completedAt && sessionSummary
-          ? sessionSummary.watchSignal
+          ? practiceShiftLine ?? sessionSummary.watchSignal
           : plan.sessionKind === "diagnostic"
           ? locale === "ru"
             ? "Сейчас важнее всего пройти checkpoint честно и не пытаться выглядеть сильнее, чем есть, потому что от этого зависит точность следующего маршрута."
@@ -189,6 +190,11 @@ export function DailyLoopScreen() {
                 <div className="text-xs uppercase tracking-[0.18em] text-accent">{tr("Tomorrow preview")}</div>
                 <div className="mt-2 text-base font-semibold text-ink">{tomorrowPreview.headline}</div>
                 <div className="mt-3 text-sm leading-6 text-slate-700">{tomorrowPreview.reason}</div>
+                {practiceShiftLine ? (
+                  <div className="mt-3 rounded-[18px] bg-white/76 p-3 text-sm text-slate-700">
+                    <span className="font-semibold text-ink">{tr("Practice shift")}:</span> {practiceShiftLine}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {plan.completedAt ? (

@@ -19,6 +19,7 @@ from app.services.adaptive_study_service.loop_copy import (
 )
 from app.services.adaptive_study_service.loop_heuristics import (
     build_mistake_resolution,
+    detect_progress_focus,
     detect_listening_focus,
 )
 from app.services.adaptive_study_service.loop_rotation import (
@@ -48,9 +49,13 @@ def build_adaptive_study_loop(
         due_vocabulary=due_vocabulary,
         listening_focus=listening_focus,
         mistake_resolution=mistake_resolution,
+        active_skill_focus=profile.onboarding_answers.active_skill_focus,
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        route_seed_source=strategy_alignment.route_seed_source if strategy_alignment else None,
     )
 
-    focus_area = weak_spots[0].category if weak_spots else recommendation.focus_area
+    progress_focus = detect_progress_focus(progress, profile.onboarding_answers.active_skill_focus)
+    focus_area = weak_spots[0].category if weak_spots else progress_focus or recommendation.focus_area
     headline = build_headline(profile.name, focus_area)
     summary = build_summary(
         weak_spots=weak_spots,

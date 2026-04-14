@@ -26,6 +26,9 @@ from app.services.adaptive_study_service.loop_builder import (
     build_adaptive_study_loop,
     derive_generation_rationale,
 )
+from app.services.adaptive_study_service.loop_heuristics import detect_progress_focus
+from app.services.adaptive_study_service.loop_heuristics import build_progress_trajectory
+from app.services.adaptive_study_service.loop_heuristics import build_progress_score_map
 from app.services.adaptive_study_service.vocabulary_hub_builder import build_vocabulary_hub
 from app.services.recommendation_service.service import RecommendationService
 
@@ -57,6 +60,7 @@ class AdaptiveStudyService:
         weak_spots = self._mistake_repository.list_weak_spots(profile.id, limit=3)
         mistakes = self._mistake_repository.list_mistakes(profile.id)
         progress = self._progress_repository.get_latest_snapshot(profile.id)
+        recent_progress = self._progress_repository.list_recent_snapshots(profile.id, limit=3)
         recent_lessons = self._lesson_repository.list_recent_completed_lessons(profile.id, limit=3)
         due_vocabulary = self._vocabulary_repository.list_due_items(profile.id, limit=4)
         vocabulary_summary = self._vocabulary_repository.get_summary(profile.id)
@@ -81,8 +85,11 @@ class AdaptiveStudyService:
                 recommendation=recommendation,
                 weak_spots=weak_spots,
                 due_vocabulary=due_vocabulary,
+                progress=progress,
+                recent_progress=recent_progress,
                 journey_state=journey_state,
                 daily_loop_plan=daily_loop_plan,
+                profile=profile,
             ),
         )
 
@@ -142,8 +149,11 @@ class AdaptiveStudyService:
         recommendation,
         weak_spots: list[WeakSpot],
         due_vocabulary: list[VocabularyReviewItem],
+        progress,
+        recent_progress,
         journey_state: LearnerJourneyState | None,
         daily_loop_plan: DailyLoopPlan | None,
+        profile: UserProfile,
     ) -> AdaptiveStrategyAlignment | None:
         if not journey_state and not daily_loop_plan:
             return None
@@ -189,11 +199,22 @@ class AdaptiveStudyService:
             if daily_loop_plan
             else recommendation.goal
         )
-        recommended_module_key = weak_spots[0].category if weak_spots else recommendation.focus_area.split(",")[0]
+        progress_focus = detect_progress_focus(progress, profile.onboarding_answers.active_skill_focus)
+        progress_score_map = build_progress_score_map(progress)
+        trajectory = build_progress_trajectory(recent_progress, profile.onboarding_answers.active_skill_focus)
+        recommended_module_key = (
+            weak_spots[0].category
+            if weak_spots
+            else progress_focus
+            or (trajectory.focus_skill if trajectory else None)
+            or recommendation.focus_area.split(",")[0]
+        )
         recommended_module_reason = (
             weak_spots[0].recommendation
             if weak_spots
-            else f"Keep the route centered on {recommendation.focus_area}."
+            else trajectory.summary
+            if trajectory and not progress_focus
+            else f"Keep the route centered on {progress_focus or recommendation.focus_area}."
         )
         if due_vocabulary and not weak_spots:
             recommended_module_key = "vocabulary"
@@ -210,4 +231,12 @@ class AdaptiveStudyService:
             watch_signal_label=watch_signal_label,
             recommended_module_key=recommended_module_key,
             recommended_module_reason=recommended_module_reason,
+            live_progress_focus=progress_focus,
+            live_progress_score=progress_score_map.get(progress_focus, 0) if progress_focus else None,
+            live_progress_reason=(
+                f"Fresh progress is currently weakest in {progress_focus}, so the adaptive route is leaning there before it widens again."
+                if progress_focus
+                else None
+            ),
+            skill_trajectory=trajectory,
         )

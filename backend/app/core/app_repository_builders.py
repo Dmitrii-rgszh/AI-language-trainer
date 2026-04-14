@@ -24,6 +24,7 @@ def build_app_repositories(session_factory: SessionFactory = SessionLocal) -> Ap
     lesson_repository = LessonRepository(session_factory)
     mistake_repository = MistakeRepository(session_factory)
     vocabulary_repository = VocabularyRepository(session_factory)
+    progress_repository = ProgressRepository(session_factory, lesson_repository)
 
     return AppRepositories(
         content_repository=ContentRepository(session_factory),
@@ -34,13 +35,14 @@ def build_app_repositories(session_factory: SessionFactory = SessionLocal) -> Ap
         mistake_repository=mistake_repository,
         onboarding_repository=OnboardingRepository(session_factory),
         profile_repository=ProfileRepository(session_factory),
-        progress_repository=ProgressRepository(session_factory, lesson_repository),
+        progress_repository=progress_repository,
         provider_preference_repository=ProviderPreferenceRepository(session_factory),
         pronunciation_attempt_repository=PronunciationAttemptRepository(session_factory),
         recommendation_repository=RecommendationRepository(
             lesson_repository,
             mistake_repository,
             vocabulary_repository,
+            progress_repository,
         ),
         speaking_attempt_repository=SpeakingAttemptRepository(session_factory),
         user_account_repository=UserAccountRepository(session_factory),

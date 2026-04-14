@@ -8,6 +8,7 @@ from app.repositories.journey_repository import JourneyRepository
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.mistake_repository import MistakeRepository
+from app.repositories.progress_repository import ProgressRepository
 from app.repositories.vocabulary_repository import VocabularyRepository
 from app.schemas.journey import (
     DailyLoopPlan,
@@ -20,6 +21,7 @@ from app.schemas.lesson import LessonRecommendation, LessonRunState
 from app.schemas.mistake import WeakSpot
 from app.schemas.profile import UserProfile
 from app.services.adaptive_study_service.rotation_builder import build_module_rotation
+from app.services.adaptive_study_service.loop_heuristics import build_progress_trajectory
 from app.services.recommendation_service.service import RecommendationService
 
 
@@ -39,6 +41,7 @@ class JourneyService:
         recommendation_service: RecommendationService,
         mistake_repository: MistakeRepository,
         vocabulary_repository: VocabularyRepository,
+        progress_repository: ProgressRepository | None = None,
     ) -> None:
         self._repository = repository
         self._lesson_repository = lesson_repository
@@ -46,6 +49,7 @@ class JourneyService:
         self._recommendation_service = recommendation_service
         self._mistake_repository = mistake_repository
         self._vocabulary_repository = vocabulary_repository
+        self._progress_repository = progress_repository
 
     def start_onboarding_session(self, payload: StartOnboardingSessionRequest) -> OnboardingSession:
         return self._repository.create_onboarding_session(
@@ -370,6 +374,11 @@ class JourneyService:
         )
         estimated_minutes = max(15, min(profile.lesson_duration, 32))
         preferred_mode = profile.onboarding_answers.preferred_mode
+        practice_shift = (
+            session_summary.get("practiceMixEvaluation")
+            if session_summary and isinstance(session_summary.get("practiceMixEvaluation"), dict)
+            else None
+        )
         carry_over_label = (
             str(follow_up_preview.get("carryOverSignalLabel"))
             if follow_up_preview and follow_up_preview.get("carryOverSignalLabel")
@@ -390,7 +399,12 @@ class JourneyService:
             stage=stage,
             session_kind=session_kind,
             focus_area=focus_area,
-            headline=self._build_plan_headline(profile, focus_area, follow_up_preview=follow_up_preview),
+            headline=self._build_plan_headline(
+                profile,
+                focus_area,
+                follow_up_preview=follow_up_preview,
+                practice_shift=practice_shift,
+            ),
             summary=self._build_plan_summary(
                 profile,
                 focus_area,
@@ -398,6 +412,7 @@ class JourneyService:
                 session,
                 follow_up_preview=follow_up_preview,
                 session_summary=session_summary,
+                practice_shift=practice_shift,
             ),
             why_this_now=self._build_plan_reason(
                 profile,
@@ -406,12 +421,14 @@ class JourneyService:
                 session,
                 follow_up_preview=follow_up_preview,
                 session_summary=session_summary,
+                practice_shift=practice_shift,
             ),
             next_step_hint=self._build_next_best_action_text(
                 profile,
                 session_kind,
                 focus_area,
                 follow_up_preview=follow_up_preview,
+                practice_shift=practice_shift,
             ),
             preferred_mode=preferred_mode,
             time_budget_minutes=profile.lesson_duration,
@@ -424,6 +441,7 @@ class JourneyService:
                 estimated_minutes,
                 carry_over_label=carry_over_label,
                 watch_label=watch_label,
+                practice_shift=practice_shift,
             ),
         )
         return plan
@@ -526,7 +544,7 @@ class JourneyService:
         recommendation: LessonRecommendation | None,
         session: OnboardingSession | None,
     ) -> dict:
-        return {
+        snapshot = {
             "primaryGoal": profile.onboarding_answers.primary_goal,
             "preferredMode": profile.onboarding_answers.preferred_mode,
             "diagnosticReadiness": profile.onboarding_answers.diagnostic_readiness,
@@ -537,6 +555,10 @@ class JourneyService:
             "recommendationTitle": recommendation.title if recommendation else None,
             "recommendationType": recommendation.lesson_type if recommendation else None,
         }
+        skill_trajectory = self._build_skill_trajectory_memory(profile.id)
+        if skill_trajectory:
+            snapshot["skillTrajectory"] = skill_trajectory
+        return snapshot
 
     def _build_active_strategy_snapshot(
         self,
@@ -566,6 +588,9 @@ class JourneyService:
             "focusArea": plan.focus_area,
             "sessionKind": plan.session_kind,
         }
+        skill_trajectory = self._build_skill_trajectory_memory(profile.id, current_state)
+        if skill_trajectory:
+            snapshot["skillTrajectory"] = skill_trajectory
         return snapshot
 
     def _refresh_state_for_ready_plan(
@@ -591,6 +616,9 @@ class JourneyService:
                 },
             }
         )
+        skill_trajectory = self._build_skill_trajectory_memory(profile.id, current_state)
+        if skill_trajectory:
+            snapshot["skillTrajectory"] = skill_trajectory
         self._repository.upsert_journey_state(
             user_id=profile.id,
             stage="daily_loop_ready",
@@ -629,6 +657,13 @@ class JourneyService:
         continuity_seed: dict | None,
     ) -> dict:
         snapshot = current_state.strategy_snapshot if current_state else {}
+        session_summary = self._extract_session_summary(current_state)
+        practice_shift = (
+            session_summary.get("practiceMixEvaluation")
+            if session_summary and isinstance(session_summary.get("practiceMixEvaluation"), dict)
+            else None
+        )
+        skill_trajectory = self._build_skill_trajectory_memory(profile.id, current_state)
         active_plan_seed = snapshot.get("activePlanSeed") if isinstance(snapshot.get("activePlanSeed"), dict) else None
         input_lane = self._infer_input_lane(profile)
         recent_lessons = self._lesson_repository.list_recent_completed_lessons(profile.id, limit=3)
@@ -639,6 +674,26 @@ class JourneyService:
             due_vocabulary=due_vocabulary,
             listening_focus=input_lane if input_lane == "listening" else None,
             mistake_resolution=[],
+            active_skill_focus=profile.onboarding_answers.active_skill_focus,
+            preferred_mode=profile.onboarding_answers.preferred_mode,
+            route_seed_source=(
+                str(active_plan_seed.get("source"))
+                if active_plan_seed and active_plan_seed.get("source")
+                else "tomorrow_preview"
+                if continuity_seed
+                else "daily_loop_plan"
+            ),
+        )
+        practice_mix = self._build_route_practice_mix(
+            profile=profile,
+            plan=plan,
+            module_rotation=module_rotation,
+            weak_spots=weak_spots,
+            due_vocabulary=due_vocabulary,
+            continuity_seed=continuity_seed,
+            input_lane=input_lane,
+            practice_shift=practice_shift,
+            skill_trajectory=skill_trajectory,
         )
         return {
             "focusArea": plan.focus_area,
@@ -648,12 +703,47 @@ class JourneyService:
             "whyNow": plan.why_this_now,
             "nextBestAction": plan.next_step_hint,
             "primaryGoal": profile.onboarding_answers.primary_goal,
+            "professionTrack": profile.profession_track,
             "preferredMode": profile.onboarding_answers.preferred_mode,
             "activeSkillFocus": profile.onboarding_answers.active_skill_focus,
             "inputLane": input_lane,
             "outputLane": self._infer_output_lane(profile),
             "moduleRotationKeys": [item.module_key for item in module_rotation[:3]],
+            "moduleRotationTitles": [item.title for item in module_rotation[:3]],
             "weakSpotTitles": [spot.title for spot in weak_spots[:3]],
+            "weakSpotCategories": [spot.category for spot in weak_spots[:3]],
+            "practiceMix": practice_mix,
+            "skillTrajectory": skill_trajectory,
+            "skillTrajectorySummary": (
+                str(skill_trajectory.get("summary"))
+                if skill_trajectory and skill_trajectory.get("summary")
+                else None
+            ),
+            "skillTrajectoryFocus": (
+                str(skill_trajectory.get("focusSkill"))
+                if skill_trajectory and skill_trajectory.get("focusSkill")
+                else None
+            ),
+            "skillTrajectoryDirection": (
+                str(skill_trajectory.get("direction"))
+                if skill_trajectory and skill_trajectory.get("direction")
+                else None
+            ),
+            "practiceShiftSummary": (
+                str(practice_shift.get("summaryLine"))
+                if practice_shift and practice_shift.get("summaryLine")
+                else None
+            ),
+            "leadPracticeTitle": (
+                str(practice_shift.get("leadPracticeTitle"))
+                if practice_shift and practice_shift.get("leadPracticeTitle")
+                else None
+            ),
+            "weakestPracticeTitle": (
+                str(practice_shift.get("weakestPracticeTitle"))
+                if practice_shift and practice_shift.get("weakestPracticeTitle")
+                else None
+            ),
             "routeSeedSource": (
                 str(active_plan_seed.get("source"))
                 if active_plan_seed and active_plan_seed.get("source")
@@ -665,6 +755,185 @@ class JourneyService:
             "recommendationType": recommendation.lesson_type if recommendation else plan.recommended_lesson_type,
         }
 
+    @staticmethod
+    def _build_route_practice_mix(
+        *,
+        profile: UserProfile,
+        plan: DailyLoopPlan,
+        module_rotation: list,
+        weak_spots: list[WeakSpot],
+        due_vocabulary: list,
+        continuity_seed: dict | None,
+        input_lane: str,
+        practice_shift: dict | None = None,
+        skill_trajectory: dict | None = None,
+    ) -> list[dict]:
+        weights = {
+            "lesson": 18,
+            "speaking": 12,
+            "writing": 8,
+            "grammar": 8,
+            "vocabulary": 6,
+            "listening": 5,
+            "pronunciation": 4,
+            "profession": 4,
+        }
+        title_map = {
+            "lesson": "Main lesson flow",
+            "speaking": "Speaking practice",
+            "writing": "Writing practice",
+            "grammar": "Grammar patterning",
+            "vocabulary": "Vocabulary recall",
+            "listening": "Listening input",
+            "pronunciation": "Pronunciation control",
+            "profession": "Professional framing",
+        }
+        reason_map = {
+            "lesson": "Keep one connected route instead of fragmenting the session into isolated drills.",
+            "speaking": "Speaking keeps the route active in live output.",
+            "writing": "Writing slows the route down just enough to stabilize structure before pressure returns.",
+            "grammar": "Grammar keeps the route structurally reliable while the skill widens again.",
+            "vocabulary": "Vocabulary helps the next response feel easier and more reusable.",
+            "listening": "Listening gives the route fresh input before the response block.",
+            "pronunciation": "Pronunciation keeps clarity and confidence attached to the live route.",
+            "profession": "Professional framing keeps the route useful in a real scenario, not generic.",
+        }
+        output_lane = JourneyService._infer_output_lane(profile)
+        preferred_mode = profile.onboarding_answers.preferred_mode
+        focus_area = plan.focus_area
+        active_skill_focus = {
+            skill.strip()
+            for skill in profile.onboarding_answers.active_skill_focus
+            if skill and skill.strip()
+        }
+        weak_categories = {
+            spot.category.strip()
+            for spot in weak_spots
+            if spot.category and spot.category.strip()
+        }
+        focus_tokens = {
+            token.strip()
+            for token in str(focus_area or "").replace("/", ",").split(",")
+            if token.strip()
+        }
+        focus_tokens.update(active_skill_focus)
+
+        if preferred_mode == "text_first":
+            weights["writing"] += 11
+            weights["speaking"] = max(6, weights["speaking"] - 4)
+        elif preferred_mode == "voice_first":
+            weights["speaking"] += 9
+            weights["pronunciation"] += 7
+            weights["listening"] += 4
+
+        if input_lane == "listening":
+            weights["listening"] += 5
+        if output_lane == "writing":
+            weights["writing"] += 5
+        elif output_lane == "speaking":
+            weights["speaking"] += 5
+
+        for module_key in focus_tokens:
+            if module_key in weights:
+                weights[module_key] += 14 if module_key == focus_area else 8
+
+        if "grammar" in weak_categories:
+            weights["grammar"] += 6
+        if "pronunciation" in weak_categories:
+            weights["pronunciation"] += 5
+        if "vocabulary" in weak_categories or due_vocabulary:
+            weights["vocabulary"] += 7 if due_vocabulary else 4
+
+        if continuity_seed:
+            weights["lesson"] += 4
+            carry_over = str(continuity_seed.get("carryOverSignalLabel") or "").lower()
+            watch_signal = str(continuity_seed.get("watchSignalLabel") or "").lower()
+            if "speak" in carry_over or "fluency" in carry_over:
+                weights["speaking"] += 4
+            if "write" in carry_over:
+                weights["writing"] += 4
+            if "grammar" in carry_over or "tense" in watch_signal:
+                weights["grammar"] += 4
+            if "pronunciation" in carry_over or "pronunciation" in watch_signal:
+                weights["pronunciation"] += 4
+
+        trajectory_focus = (
+            str(skill_trajectory.get("focusSkill"))
+            if skill_trajectory and skill_trajectory.get("focusSkill")
+            else ""
+        )
+        trajectory_direction = (
+            str(skill_trajectory.get("direction"))
+            if skill_trajectory and skill_trajectory.get("direction")
+            else ""
+        )
+        if trajectory_focus in weights:
+            weights[trajectory_focus] += (
+                8 if trajectory_direction == "slipping" else 5 if trajectory_direction == "stable" else 2
+            )
+            if trajectory_direction == "slipping":
+                reason_map[trajectory_focus] = (
+                    "Recent learner-model history shows this skill slipping across sessions, so the route keeps more support here."
+                )
+            elif trajectory_direction == "stable":
+                reason_map[trajectory_focus] = (
+                    "Recent learner-model history says this skill is still fragile, so the route keeps it active instead of assuming it is solved."
+                )
+            else:
+                reason_map[trajectory_focus] = (
+                    "Recent learner-model history shows this skill improving, so the route can use that momentum as a support lane."
+                )
+
+        if practice_shift:
+            lead_practice_key = str(practice_shift.get("leadPracticeKey") or "")
+            weakest_practice_key = str(practice_shift.get("weakestPracticeKey") or "")
+            strongest_practice_key = str(practice_shift.get("strongestPracticeKey") or "")
+            lead_outcome = str(practice_shift.get("leadOutcome") or "")
+
+            if lead_practice_key in weights:
+                weights[lead_practice_key] += 4 if lead_outcome == "held" else 2 if lead_outcome == "usable" else 1
+            if weakest_practice_key in weights:
+                weights[weakest_practice_key] += 9 if lead_outcome in {"held", "usable"} else 6
+                reason_map[weakest_practice_key] = (
+                    "Yesterday this practice type stayed weaker, so the next route should give it more structured support."
+                )
+            if strongest_practice_key in weights and strongest_practice_key != lead_practice_key:
+                weights[strongest_practice_key] += 5 if lead_outcome == "fragile" else 2
+                reason_map[strongest_practice_key] = (
+                    "This practice type looked most reliable in the previous route and can support the next session."
+                )
+
+        for boost, item in enumerate(module_rotation[:4]):
+            weights[item.module_key] = weights.get(item.module_key, 4) + (14 - boost * 3)
+            title_map[item.module_key] = item.title
+            reason_map[item.module_key] = item.reason
+
+        primary_goal_text = str(profile.onboarding_answers.primary_goal or "").lower()
+        if profile.profession_track and profile.profession_track != "general" and (
+            "profession" in focus_tokens or "work" in primary_goal_text
+        ):
+            weights["profession"] += 6
+
+        ordered_weights = sorted(weights.items(), key=lambda item: item[1], reverse=True)
+        total = sum(weight for _key, weight in ordered_weights) or 1
+        mix: list[dict] = []
+        for index, (module_key, weight) in enumerate(ordered_weights[:5]):
+            share = round(weight / total * 100)
+            emphasis = "lead" if index == 0 else "support" if index < 3 else "light"
+            mix.append(
+                {
+                    "moduleKey": module_key,
+                    "title": title_map.get(module_key, module_key.replace("_", " ").title()),
+                    "share": share,
+                    "emphasis": emphasis,
+                    "reason": reason_map.get(module_key, "Keep this module in the route when it supports the next step."),
+                }
+            )
+
+        if mix:
+            mix[0]["share"] = max(int(mix[0]["share"]), 24)
+        return mix
+
     @classmethod
     def _build_completed_session_summary(
         cls,
@@ -674,13 +943,31 @@ class JourneyService:
         weak_spots: list[WeakSpot],
         tomorrow_focus_area: str,
     ) -> dict:
+        practice_evaluation = cls._build_practice_mix_evaluation(lesson_run)
         strongest_signal, weakest_signal = cls._extract_block_performance_signals(lesson_run)
         outcome_band = cls._determine_outcome_band(lesson_run)
         top_weak_spot = weak_spots[0].title if weak_spots else None
-        strongest_label = strongest_signal["label"] if strongest_signal else (completed_plan.focus_area if completed_plan else "today's route")
-        weakest_label = weakest_signal["label"] if weakest_signal else (completed_plan.focus_area if completed_plan else "the core signal")
+        strongest_label = (
+            practice_evaluation.get("strongestPracticeTitle")
+            if practice_evaluation and practice_evaluation.get("strongestPracticeTitle")
+            else strongest_signal["label"]
+            if strongest_signal
+            else (completed_plan.focus_area if completed_plan else "today's route")
+        )
+        weakest_label = (
+            practice_evaluation.get("weakestPracticeTitle")
+            if practice_evaluation and practice_evaluation.get("weakestPracticeTitle")
+            else weakest_signal["label"]
+            if weakest_signal
+            else (completed_plan.focus_area if completed_plan else "the core signal")
+        )
         carry_over_label = strongest_label if outcome_band in {"breakthrough", "stable", "checkpoint"} else tomorrow_focus_area
         watch_label = top_weak_spot or weakest_label
+        practice_shift = (
+            str(practice_evaluation.get("summaryLine"))
+            if practice_evaluation and practice_evaluation.get("summaryLine")
+            else None
+        )
 
         if outcome_band == "checkpoint":
             headline = "This checkpoint gave the route a clearer calibration."
@@ -739,6 +1026,9 @@ class JourneyService:
                 "Avoid scattering into random modules now. Let the next route absorb the weak signal first."
             )
 
+        if practice_shift:
+            strategy_shift = f"{strategy_shift} {practice_shift}"
+
         return {
             "outcomeBand": outcome_band,
             "headline": headline,
@@ -751,6 +1041,7 @@ class JourneyService:
             "weakSpotTitle": top_weak_spot,
             "strongestSignalLabel": strongest_label,
             "weakestSignalLabel": weakest_label,
+            "practiceMixEvaluation": practice_evaluation,
         }
 
     @staticmethod
@@ -826,8 +1117,8 @@ class JourneyService:
     ) -> str:
         return f"{session_summary['headline']} {session_summary['strategyShift']}"
 
-    @staticmethod
     def _build_completed_strategy_snapshot(
+        self,
         *,
         current_state: LearnerJourneyState | None,
         profile: UserProfile,
@@ -858,6 +1149,9 @@ class JourneyService:
                 "tomorrowPreview": tomorrow_preview,
             }
         )
+        skill_trajectory = self._build_skill_trajectory_memory(profile.id, current_state)
+        if skill_trajectory:
+            snapshot["skillTrajectory"] = skill_trajectory
         return snapshot
 
     @staticmethod
@@ -895,6 +1189,130 @@ class JourneyService:
         strongest = max(scored_blocks, key=lambda item: item["score"])
         weakest = min(scored_blocks, key=lambda item: item["score"])
         return strongest, weakest
+
+    @classmethod
+    def _build_practice_mix_evaluation(cls, lesson_run: LessonRunState) -> dict | None:
+        route_context = cls._extract_route_context(lesson_run)
+        practice_mix_items = (
+            route_context.get("practiceMix")
+            if isinstance(route_context.get("practiceMix"), list)
+            else []
+        )
+        practice_mix = {
+            str(item.get("moduleKey")): item
+            for item in practice_mix_items
+            if isinstance(item, dict) and item.get("moduleKey")
+        }
+        if not practice_mix:
+            return None
+
+        block_by_id = {block.id: block for block in lesson_run.lesson.blocks}
+        score_buckets: dict[str, list[int]] = {}
+        for block_run in lesson_run.block_runs:
+            if block_run.score is None:
+                continue
+            block = block_by_id.get(block_run.block_id)
+            if block is None:
+                continue
+            module_key = cls._map_block_type_to_practice_key(block.block_type)
+            score_buckets.setdefault(module_key, []).append(block_run.score)
+
+        practiced = []
+        for module_key, scores in score_buckets.items():
+            if not scores:
+                continue
+            mix_item = practice_mix.get(module_key, {})
+            practiced.append(
+                {
+                    "moduleKey": module_key,
+                    "title": mix_item.get("title") or cls._label_block_type(f"{module_key}_block"),
+                    "share": mix_item.get("share"),
+                    "emphasis": mix_item.get("emphasis"),
+                    "averageScore": round(sum(scores) / len(scores)),
+                }
+            )
+
+        if not practiced:
+            return None
+
+        practiced_sorted = sorted(practiced, key=lambda item: item["averageScore"], reverse=True)
+        strongest = practiced_sorted[0]
+        weakest = practiced_sorted[-1]
+        lead_mix_item = next(
+            (
+                item
+                for item in practice_mix_items
+                if isinstance(item, dict) and item.get("emphasis") == "lead" and item.get("moduleKey")
+            ),
+            None,
+        )
+        lead_module_key = (
+            str(lead_mix_item.get("moduleKey"))
+            if isinstance(lead_mix_item, dict) and lead_mix_item.get("moduleKey")
+            else strongest["moduleKey"]
+        )
+        lead_result = next((item for item in practiced_sorted if item["moduleKey"] == lead_module_key), None)
+        lead_title = (
+            str(lead_mix_item.get("title"))
+            if isinstance(lead_mix_item, dict) and lead_mix_item.get("title")
+            else lead_result["title"]
+            if lead_result
+            else strongest["title"]
+        )
+        lead_score = lead_result["averageScore"] if lead_result else None
+        if lead_score is None:
+            lead_outcome = "unmeasured"
+        elif lead_score >= 80:
+            lead_outcome = "held"
+        elif lead_score >= 68:
+            lead_outcome = "usable"
+        else:
+            lead_outcome = "fragile"
+
+        if strongest["moduleKey"] == weakest["moduleKey"]:
+            summary_line = f"The route mostly measured {strongest['title']}, so tomorrow should keep that same practice type honest before widening."
+        elif lead_outcome == "held":
+            summary_line = f"{lead_title} carried the route best, while {weakest['title']} still needs support in the next session."
+        elif lead_outcome == "usable":
+            summary_line = f"{lead_title} stayed usable, but the route should rebalance toward {weakest['title']} before it broadens again."
+        else:
+            summary_line = f"{lead_title} stayed fragile, so tomorrow should reduce pressure and support it through {strongest['title']}."
+
+        return {
+            "leadPracticeKey": lead_module_key,
+            "leadPracticeTitle": lead_title,
+            "leadOutcome": lead_outcome,
+            "leadAverageScore": lead_score,
+            "strongestPracticeKey": strongest["moduleKey"],
+            "strongestPracticeTitle": strongest["title"],
+            "strongestPracticeScore": strongest["averageScore"],
+            "weakestPracticeKey": weakest["moduleKey"],
+            "weakestPracticeTitle": weakest["title"],
+            "weakestPracticeScore": weakest["averageScore"],
+            "summaryLine": summary_line,
+        }
+
+    @staticmethod
+    def _extract_route_context(lesson_run: LessonRunState) -> dict:
+        for block in lesson_run.lesson.blocks:
+            route_context = block.payload.get("routeContext") if isinstance(block.payload, dict) else None
+            if isinstance(route_context, dict) and route_context:
+                return route_context
+        return {}
+
+    @staticmethod
+    def _map_block_type_to_practice_key(block_type: str) -> str:
+        return {
+            "review_block": "lesson",
+            "summary_block": "lesson",
+            "grammar_block": "grammar",
+            "vocab_block": "vocabulary",
+            "speaking_block": "speaking",
+            "pronunciation_block": "pronunciation",
+            "listening_block": "listening",
+            "writing_block": "writing",
+            "profession_block": "profession",
+        }.get(block_type, block_type.replace("_block", ""))
 
     @staticmethod
     def _label_block_type(block_type: str) -> str:
@@ -937,6 +1355,26 @@ class JourneyService:
         value = current_state.strategy_snapshot.get("sessionSummary")
         return value if isinstance(value, dict) and value else None
 
+    @staticmethod
+    def _extract_skill_trajectory(current_state: LearnerJourneyState | None) -> dict | None:
+        if not current_state:
+            return None
+
+        value = current_state.strategy_snapshot.get("skillTrajectory")
+        return value if isinstance(value, dict) and value else None
+
+    def _build_skill_trajectory_memory(
+        self,
+        user_id: str,
+        current_state: LearnerJourneyState | None = None,
+    ) -> dict | None:
+        if self._progress_repository is not None:
+            recent_progress = self._progress_repository.list_recent_snapshots(user_id, limit=3)
+            trajectory = build_progress_trajectory(recent_progress)
+            if trajectory is not None:
+                return trajectory.model_dump(mode="json", by_alias=True)
+        return self._extract_skill_trajectory(current_state)
+
     @classmethod
     def _build_continuity_template_seed(
         cls,
@@ -976,6 +1414,7 @@ class JourneyService:
         focus_area: str,
         *,
         follow_up_preview: dict | None = None,
+        practice_shift: dict | None = None,
     ) -> str:
         learner_name = profile.name.strip() or "Learner"
         carry_over_label = (
@@ -983,7 +1422,14 @@ class JourneyService:
             if follow_up_preview and follow_up_preview.get("carryOverSignalLabel")
             else None
         )
+        lead_practice_title = (
+            str(practice_shift.get("leadPracticeTitle"))
+            if practice_shift and practice_shift.get("leadPracticeTitle")
+            else None
+        )
         if carry_over_label:
+            if lead_practice_title:
+                return f"{learner_name}, today's route carries forward {carry_over_label} and rebalances through {lead_practice_title} around {focus_area}."
             return f"{learner_name}, today's route carries forward {carry_over_label} around {focus_area}."
         return f"{learner_name}, this is your first guided daily loop around {focus_area}."
 
@@ -996,11 +1442,18 @@ class JourneyService:
         *,
         follow_up_preview: dict | None = None,
         session_summary: dict | None = None,
+        practice_shift: dict | None = None,
     ) -> str:
         if follow_up_preview:
             carry_over_label = follow_up_preview.get("carryOverSignalLabel") or focus_area
             watch_label = follow_up_preview.get("watchSignalLabel") or focus_area
-            shift_line = session_summary.get("strategyShift") if session_summary else follow_up_preview.get("reason")
+            shift_line = (
+                str(practice_shift.get("summaryLine"))
+                if practice_shift and practice_shift.get("summaryLine")
+                else session_summary.get("strategyShift")
+                if session_summary
+                else follow_up_preview.get("reason")
+            )
             return (
                 f"Today's route picks up from yesterday by carrying forward {carry_over_label} and keeping {watch_label} in view. "
                 f"{shift_line}"
@@ -1026,13 +1479,20 @@ class JourneyService:
         *,
         follow_up_preview: dict | None = None,
         session_summary: dict | None = None,
+        practice_shift: dict | None = None,
     ) -> str:
         if follow_up_preview:
             carry_over_label = follow_up_preview.get("carryOverSignalLabel") or focus_area
             watch_label = follow_up_preview.get("watchSignalLabel") or focus_area
             summary_headline = session_summary.get("headline") if session_summary else follow_up_preview.get("headline")
+            practice_line = (
+                str(practice_shift.get("summaryLine"))
+                if practice_shift and practice_shift.get("summaryLine")
+                else None
+            )
             return (
                 f"{summary_headline} The route now carries {carry_over_label} forward while staying careful around {watch_label}."
+                + (f" {practice_line}" if practice_line else "")
             )
 
         proof_signal = ""
@@ -1055,9 +1515,19 @@ class JourneyService:
         focus_area: str,
         *,
         follow_up_preview: dict | None = None,
+        practice_shift: dict | None = None,
     ) -> str:
         if follow_up_preview and follow_up_preview.get("nextStepHint"):
-            return str(follow_up_preview["nextStepHint"])
+            practice_line = (
+                str(practice_shift.get("summaryLine"))
+                if practice_shift and practice_shift.get("summaryLine")
+                else None
+            )
+            return (
+                f"{follow_up_preview['nextStepHint']} {practice_line}"
+                if practice_line
+                else str(follow_up_preview["nextStepHint"])
+            )
         if session_kind == "diagnostic":
             return "Finish the checkpoint now, then tomorrow's route will become more personalized."
         if profile.onboarding_answers.preferred_mode == "text_first":
@@ -1074,9 +1544,25 @@ class JourneyService:
         *,
         carry_over_label: str | None = None,
         watch_label: str | None = None,
+        practice_shift: dict | None = None,
     ) -> list[dict]:
         input_lane = self._infer_input_lane(profile)
         output_lane = self._infer_output_lane(profile)
+        lead_practice_key = (
+            str(practice_shift.get("leadPracticeKey"))
+            if practice_shift and practice_shift.get("leadPracticeKey")
+            else None
+        )
+        weakest_practice_key = (
+            str(practice_shift.get("weakestPracticeKey"))
+            if practice_shift and practice_shift.get("weakestPracticeKey")
+            else None
+        )
+        weakest_practice_title = (
+            str(practice_shift.get("weakestPracticeTitle"))
+            if practice_shift and practice_shift.get("weakestPracticeTitle")
+            else None
+        )
         step_specs = [
             ("warm-start", "coach", "Warm start", "Liza sets the goal of this session and explains why it matters now.", 2),
             ("vocabulary-recall", "vocabulary", "Vocabulary recall", "Bring back a few words that the next session needs immediately.", 3),
@@ -1115,6 +1601,56 @@ class JourneyService:
                 2,
             ),
         ]
+
+        weakness_support_map = {
+            "grammar": ("grammar-pattern", "grammar", weakest_practice_title or "Grammar support", f"Give {focus_area} more structural support before the route widens again.", 4),
+            "writing": ("writing-support", "writing", weakest_practice_title or "Writing support", "Stabilize one calmer written response before widening into faster output.", 4),
+            "speaking": ("speaking-support", "speaking", weakest_practice_title or "Speaking support", "Keep one spoken answer short and controlled so the route does not drift.", 4),
+            "pronunciation": ("pronunciation", "pronunciation", weakest_practice_title or "Pronunciation support", "Protect one pronunciation issue while the route still feels fresh.", 3),
+            "listening": ("input", "listening", weakest_practice_title or "Listening support", "Add one clearer input cue before responding so the route has more support.", 4),
+            "profession": ("profession-support", "profession", weakest_practice_title or "Professional framing", "Ground the route in one real task so the language stays useful.", 4),
+            "vocabulary": ("vocabulary-recall", "vocabulary", weakest_practice_title or "Vocabulary support", "Bring back the route words that make the next answer easier to build.", 4),
+        }
+        if weakest_practice_key in weakness_support_map:
+            replacement = weakness_support_map[weakest_practice_key]
+            replace_index = next(
+                (index for index, spec in enumerate(step_specs) if spec[0] in {"vocabulary-recall", "grammar-pattern", "pronunciation"}),
+                None,
+            )
+            if replace_index is not None:
+                step_specs[replace_index] = replacement
+
+        if lead_practice_key == "writing":
+            step_specs = [
+                (
+                    step_id,
+                    "writing" if step_id == "response" else skill,
+                    "Guided writing response" if step_id == "response" else title,
+                    (
+                        f"Draft a clear written response that carries {carry_over_label or focus_area} before widening the route."
+                        if step_id == "response"
+                        else description
+                    ),
+                    weight + 1 if step_id == "response" else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+        elif lead_practice_key == "speaking":
+            step_specs = [
+                (
+                    step_id,
+                    "speaking" if step_id == "response" else skill,
+                    "Guided speaking response" if step_id == "response" else title,
+                    (
+                        f"Answer out loud first and keep {carry_over_label or focus_area} active while the route is still live."
+                        if step_id == "response"
+                        else description
+                    ),
+                    weight + 1 if step_id == "response" else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+
         total_weight = sum(weight for *_, weight in step_specs)
         scale = max(estimated_minutes / total_weight, 1)
         steps: list[dict] = []

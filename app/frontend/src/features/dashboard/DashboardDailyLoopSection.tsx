@@ -22,6 +22,8 @@ export function DashboardDailyLoopSection({
   }
 
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
+  const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
+  const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const tomorrowSignals = [
     tomorrowPreview?.carryOverSignalLabel
       ? `${tr("Carry forward")}: ${tomorrowPreview.carryOverSignalLabel}`
@@ -52,6 +54,11 @@ export function DashboardDailyLoopSection({
           <div className="text-xs uppercase tracking-[0.18em] text-accent">{tr("Tomorrow preview")}</div>
           <div className="mt-2 text-lg font-semibold text-ink">{tomorrowPreview.headline}</div>
           <div className="mt-3 text-sm leading-6 text-slate-700">{tomorrowPreview.reason}</div>
+          {practiceShiftLine ? (
+            <div className="mt-3 rounded-[18px] bg-white/72 p-3 text-sm text-slate-700">
+              <span className="font-semibold text-ink">{tr("Practice shift")}:</span> {practiceShiftLine}
+            </div>
+          ) : null}
           {tomorrowSignals.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {tomorrowSignals.map((signal) => (

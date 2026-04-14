@@ -12,6 +12,15 @@
    - next-day continuity seeding from previous session outcome
    - guided-route template overlay for recommended runs
    - route-aware block composition for support modules and preferred-mode response shape
+   - route `practice mix` weighting between learner strategy and lesson block composition
+   - post-lesson practice-mix evaluation from block-level scores for next-day continuity
+   - continuity UI that surfaces practice-shift signals across dashboard, lesson results, daily loop, and shell re-entry
+   - next-day route seeding that feeds practice-shift signals into plan copy, step structure, and guided lesson prompts
+   - skill-aware learner-model updates from block-level lesson scores into progress snapshots
+   - progress-aware recommendation and adaptive-focus selection when recovery pressure softens
+   - adaptive UI surfaces that expose the live learner-model signal behind the chosen route focus
+   - multi-day `skillTrajectory` memory from recent progress snapshots that feeds journey snapshot, adaptive alignment, and guided route shaping
+   - strategy-aware adaptive rotation for `grammar / writing / pronunciation / profession` emphasis
    - continuity-aware lesson template overlay for recommended runs
    - recommendation flow
    - global Liza guidance flow
@@ -22,6 +31,7 @@
    - learner journey state
    - daily loop plan
    - session summary / tomorrow preview continuity snapshot
+   - skill trajectory memory inside journey strategy snapshot
    - lesson
    - mistake
    - progress

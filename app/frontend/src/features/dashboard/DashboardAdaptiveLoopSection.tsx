@@ -76,6 +76,10 @@ export function DashboardAdaptiveLoopSection({
     },
   ];
   const strategyAlignment = studyLoop.strategyAlignment ?? null;
+  const strategyCards =
+    2 +
+    (strategyAlignment?.liveProgressFocus ? 1 : 0) +
+    (strategyAlignment?.skillTrajectory ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -162,8 +166,19 @@ export function DashboardAdaptiveLoopSection({
                   {tr("Watch next")}: {strategyAlignment.watchSignalLabel}
                 </div>
               ) : null}
+              {strategyAlignment.liveProgressFocus ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Live learner signal")}: {strategyAlignment.liveProgressFocus}
+                  {typeof strategyAlignment.liveProgressScore === "number" ? ` ${strategyAlignment.liveProgressScore}/100` : ""}
+                </div>
+              ) : null}
+              {strategyAlignment.skillTrajectory ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Multi-day memory")}: {strategyAlignment.skillTrajectory.focusSkill} {strategyAlignment.skillTrajectory.direction}
+                </div>
+              ) : null}
             </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className={`mt-3 grid gap-3 ${strategyCards >= 4 ? "md:grid-cols-4" : strategyCards === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
               <div className="rounded-2xl bg-white/78 p-4">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Route detail")}</div>
                 <div className="mt-2 text-sm text-slate-700">{strategyAlignment.routeSeedDetail}</div>
@@ -173,6 +188,25 @@ export function DashboardAdaptiveLoopSection({
                 <div className="mt-2 text-sm font-semibold text-ink">{strategyAlignment.recommendedModuleKey ?? tr("main route")}</div>
                 <div className="mt-2 text-sm text-slate-700">{strategyAlignment.recommendedModuleReason ?? strategyAlignment.nextBestAction}</div>
               </div>
+              {strategyAlignment.liveProgressFocus ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Learner model")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.liveProgressFocus}
+                    {typeof strategyAlignment.liveProgressScore === "number" ? ` · ${strategyAlignment.liveProgressScore}/100` : ""}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{strategyAlignment.liveProgressReason ?? strategyAlignment.nextBestAction}</div>
+                </div>
+              ) : null}
+              {strategyAlignment.skillTrajectory ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Trajectory memory")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.skillTrajectory.focusSkill} · {strategyAlignment.skillTrajectory.direction}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{strategyAlignment.skillTrajectory.summary}</div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

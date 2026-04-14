@@ -24,6 +24,7 @@ export function DashboardRouteContinuitySection({
 
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
+  const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const hasCompletedToday = dailyLoopPlan.completedAt !== null;
   const hasStartedToday = dailyLoopPlan.lessonRunId !== null;
 
@@ -46,6 +47,11 @@ export function DashboardRouteContinuitySection({
           <div className="text-xs uppercase tracking-[0.18em] text-coral">{tr("Tomorrow preview")}</div>
           <div className="mt-2 text-lg font-semibold text-ink">{tomorrowPreview.headline}</div>
           <div className="mt-3 text-sm leading-6 text-slate-700">{tomorrowPreview.reason}</div>
+          {practiceShiftLine ? (
+            <div className="mt-3 rounded-[18px] bg-accent/8 p-3 text-sm text-slate-700">
+              <span className="font-semibold text-ink">{tr("Practice shift")}:</span> {practiceShiftLine}
+            </div>
+          ) : null}
           <div className="mt-3 rounded-[18px] bg-sand/70 p-3 text-sm text-slate-700">
             {tomorrowPreview.nextStepHint}
           </div>

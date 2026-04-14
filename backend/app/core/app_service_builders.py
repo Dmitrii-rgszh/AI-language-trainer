@@ -44,6 +44,7 @@ def build_app_runtime(
         repositories.lesson_repository,
         repositories.mistake_repository,
         repositories.vocabulary_repository,
+        repositories.progress_repository,
     )
     journey_service = JourneyService(
         repositories.journey_repository,
@@ -52,6 +53,7 @@ def build_app_runtime(
         recommendation_service,
         repositories.mistake_repository,
         repositories.vocabulary_repository,
+        repositories.progress_repository,
     )
 
     return AppRuntime(

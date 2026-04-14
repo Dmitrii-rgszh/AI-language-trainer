@@ -22,6 +22,8 @@ export function RouteIntelligencePanel({
   const sessionSummary = snapshot.sessionSummary ?? null;
   const tomorrowPreview = snapshot.tomorrowPreview ?? null;
   const activePlanSeed = snapshot.activePlanSeed ?? null;
+  const skillTrajectory = snapshot.skillTrajectory ?? null;
+  const practiceShift = sessionSummary?.practiceMixEvaluation ?? null;
 
   const routeSignals = [
     sessionSummary?.carryOverSignalLabel
@@ -36,9 +38,16 @@ export function RouteIntelligencePanel({
     activePlanSeed?.source
       ? `${tr("Route seed")}: ${activePlanSeed.source}`
       : null,
+    practiceShift?.leadPracticeTitle
+      ? `${tr("Lead practice")}: ${practiceShift.leadPracticeTitle}`
+      : null,
+    skillTrajectory?.focusSkill
+      ? `${tr("Multi-day memory")}: ${skillTrajectory.focusSkill} ${skillTrajectory.direction}`
+      : null,
   ].filter((item): item is string => Boolean(item));
 
   const routeStory =
+    practiceShift?.summaryLine ||
     journeyState.currentStrategySummary ||
     sessionSummary?.strategyShift ||
     tomorrowPreview?.reason ||
@@ -76,7 +85,7 @@ export function RouteIntelligencePanel({
         </div>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={`grid gap-3 ${skillTrajectory ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
         <div className="rounded-[20px] bg-sand/70 p-4">
           <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Current route")}</div>
           <div className="mt-2 text-sm font-semibold text-ink">
@@ -106,6 +115,16 @@ export function RouteIntelligencePanel({
             {sessionSummary?.watchSignal ?? tomorrowPreview?.reason ?? tr("The route still protects one weaker signal while it moves forward.")}
           </div>
         </div>
+
+        {skillTrajectory ? (
+          <div className="rounded-[20px] bg-white/82 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Multi-day memory")}</div>
+            <div className="mt-2 text-sm font-semibold text-ink">
+              {skillTrajectory.focusSkill} · {skillTrajectory.direction}
+            </div>
+            <div className="mt-2 text-sm text-slate-600">{skillTrajectory.summary}</div>
+          </div>
+        ) : null}
       </div>
     </Card>
   );

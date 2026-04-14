@@ -294,6 +294,7 @@ def test_onboarding_completion_creates_first_daily_loop_plan(seeded_session_fact
     lesson_repository = LessonRepository(seeded_session_factory)
     lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
     mistake_repository = MistakeRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
     vocabulary_repository = VocabularyRepository(seeded_session_factory)
     journey_repository = JourneyRepository(seeded_session_factory)
     recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
@@ -304,6 +305,7 @@ def test_onboarding_completion_creates_first_daily_loop_plan(seeded_session_fact
         recommendation_service,
         mistake_repository,
         vocabulary_repository,
+        progress_repository,
     )
     onboarding_service = OnboardingService(
         user_repository,
@@ -466,6 +468,19 @@ def test_next_day_plan_follows_persisted_tomorrow_preview(seeded_session_factory
                 "coachNote": "Keep the ritual going.",
                 "carryOverSignalLabel": "Speaking response",
                 "watchSignalLabel": "Present Perfect vs Past Simple",
+                "practiceMixEvaluation": {
+                    "leadPracticeKey": "speaking",
+                    "leadPracticeTitle": "Speaking practice",
+                    "leadOutcome": "held",
+                    "leadAverageScore": 83,
+                    "strongestPracticeKey": "speaking",
+                    "strongestPracticeTitle": "Speaking practice",
+                    "strongestPracticeScore": 83,
+                    "weakestPracticeKey": "grammar",
+                    "weakestPracticeTitle": "Grammar patterning",
+                    "weakestPracticeScore": 66,
+                    "summaryLine": "Speaking practice carried the route best, while grammar patterning still needs support in the next session.",
+                },
             },
             "tomorrowPreview": {
                 "focusArea": "grammar",
@@ -489,7 +504,10 @@ def test_next_day_plan_follows_persisted_tomorrow_preview(seeded_session_factory
     assert next_day_plan.recommended_lesson_title == "Tomorrow Guided Loop"
     assert "Speaking response" in next_day_plan.summary
     assert "Present Perfect vs Past Simple" in next_day_plan.why_this_now
+    assert "grammar patterning" in next_day_plan.summary.lower()
     assert next_day_plan.next_step_hint.startswith("Return tomorrow")
+    assert "speaking practice carried the route best" in next_day_plan.next_step_hint.lower()
+    assert any(step.skill == "grammar" for step in next_day_plan.steps)
     assert refreshed_state is not None
     assert refreshed_state.stage == "daily_loop_ready"
     assert refreshed_state.current_focus_area == "grammar"
@@ -513,6 +531,11 @@ def test_next_day_plan_follows_persisted_tomorrow_preview(seeded_session_factory
     assert any(
         isinstance((block.payload or {}).get("routeContext"), dict)
         and (block.payload or {})["routeContext"].get("routeSeedSource") == "tomorrow_preview"
+        for block in lesson_run.lesson.blocks
+    )
+    assert any(
+        isinstance((block.payload or {}).get("routeContext"), dict)
+        and "grammar patterning still needs support" in str((block.payload or {})["routeContext"].get("practiceShiftSummary") or "").lower()
         for block in lesson_run.lesson.blocks
     )
     assert active_state is not None
@@ -590,13 +613,15 @@ def test_recommended_daily_route_builds_strategy_guided_template(seeded_session_
         for block in lesson_run.lesson.blocks
         if isinstance(block.payload.get("routeContext"), dict)
     ]
+    has_vocabulary_rotation = any("vocabulary" in (context.get("moduleRotationKeys") or []) for context in route_contexts)
 
     assert lesson_run.lesson.title.endswith("guided route for speaking")
     assert "This route should turn recent weak signals" in lesson_run.lesson.goal
-    assert any(block.block_type == "vocab_block" for block in lesson_run.lesson.blocks)
     assert any("routeContext" in (block.payload or {}) for block in lesson_run.lesson.blocks)
     assert route_contexts
-    assert any("vocabulary" in (context.get("moduleRotationKeys") or []) for context in route_contexts)
+    assert any(isinstance(context.get("practiceMix"), list) and context.get("practiceMix") for context in route_contexts)
+    if has_vocabulary_rotation:
+        assert any(block.block_type == "vocab_block" for block in lesson_run.lesson.blocks)
     assert any(
         isinstance((block.payload or {}).get("routeContext"), dict)
         and (block.payload or {})["routeContext"].get("whyNow") == plan.why_this_now
@@ -703,6 +728,248 @@ def test_text_first_guided_route_switches_response_block_to_writing(seeded_sessi
     assert "written response" in response_block.title.lower() or "письмен" in response_block.instructions.lower()
     assert response_block.payload.get("task_id") == "guided-route-writing-response"
     assert isinstance(response_block.payload.get("checklist"), list)
+    route_context = response_block.payload.get("routeContext")
+    assert isinstance(route_context, dict)
+    practice_mix = route_context.get("practiceMix")
+    assert isinstance(practice_mix, list) and practice_mix
+    writing_item = next((item for item in practice_mix if item.get("moduleKey") == "writing"), None)
+    speaking_item = next((item for item in practice_mix if item.get("moduleKey") == "speaking"), None)
+    assert writing_item is not None
+    if speaking_item is not None:
+        assert int(writing_item.get("share") or 0) >= int(speaking_item.get("share") or 0)
+
+
+def test_voice_first_guided_route_can_add_pronunciation_support(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    voice_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={
+                    "preferred_mode": "voice_first",
+                    "active_skill_focus": ["pronunciation", "speaking", "profession"],
+                }
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=voice_first_profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=voice_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=voice_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=voice_first_profile.lesson_duration,
+        current_focus_area="pronunciation",
+        current_strategy_summary="Today's route should keep the voice layer active.",
+        next_best_action="Start the voice-first route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "primaryGoal": voice_first_profile.onboarding_answers.primary_goal,
+            "preferredMode": voice_first_profile.onboarding_answers.preferred_mode,
+            "focusArea": "pronunciation",
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=voice_first_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="pronunciation",
+        headline="Today's route keeps a voice-first pronunciation layer active.",
+        summary="Use guided speaking plus a short pronunciation support block.",
+        why_this_now="A voice-first route should keep pronunciation close to the main response while the route is still fresh.",
+        next_step_hint="Start the route and keep the voice layer active.",
+        preferred_mode=voice_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=voice_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Voice-first pronunciation route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(voice_first_profile)
+    route_contexts = [
+        block.payload.get("routeContext")
+        for block in lesson_run.lesson.blocks
+        if isinstance(block.payload.get("routeContext"), dict)
+    ]
+
+    assert any(block.block_type == "pronunciation_block" for block in lesson_run.lesson.blocks)
+    assert route_contexts
+    assert any("pronunciation" in (context.get("moduleRotationKeys") or []) for context in route_contexts)
+    assert any(
+        any(
+            isinstance(item, dict) and item.get("moduleKey") == "pronunciation"
+            for item in (context.get("practiceMix") or [])
+        )
+        for context in route_contexts
+    )
+
+
+def test_completed_journey_state_persists_practice_mix_evaluation(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    strategy_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={
+                    "preferred_mode": "text_first",
+                    "active_skill_focus": ["grammar", "writing", "vocabulary"],
+                }
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=strategy_profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=strategy_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=strategy_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=strategy_profile.lesson_duration,
+        current_focus_area="grammar",
+        current_strategy_summary="Today's route should lean on grammar and writing.",
+        next_best_action="Start today's route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "primaryGoal": strategy_profile.onboarding_answers.primary_goal,
+            "preferredMode": strategy_profile.onboarding_answers.preferred_mode,
+            "focusArea": "grammar",
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=strategy_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="grammar",
+        headline="Today's route leans on grammar and a calmer writing response.",
+        summary="Use grammar plus writing to stabilize the route before widening it.",
+        why_this_now="A calmer route should stabilize grammar before speaking pressure widens again.",
+        next_step_hint="Start the route and keep the structure clean.",
+        preferred_mode=strategy_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=strategy_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Text-first grammar route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(strategy_profile)
+    grammar_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "grammar_block"), None)
+    writing_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "writing_block"), None)
+    vocab_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "vocab_block"), None)
+
+    assert grammar_block is not None
+    assert writing_block is not None
+
+    completed_run = lesson_runtime_repository.complete_lesson_run(
+        strategy_profile.id,
+        lesson_run.run_id,
+        78,
+        [
+            BlockResultSubmission(
+                block_id=grammar_block.id,
+                user_response_type="text",
+                user_response="I have worked with this team since 2022.",
+                feedback_summary="Grammar stayed mostly stable.",
+                score=84,
+            ),
+            BlockResultSubmission(
+                block_id=writing_block.id,
+                user_response_type="text",
+                user_response="I have written a short update for the client.",
+                feedback_summary="Writing stayed usable but still a little stiff.",
+                score=71,
+            ),
+            *(
+                [
+                    BlockResultSubmission(
+                        block_id=vocab_block.id,
+                        user_response_type="text",
+                        user_response="I reviewed the active route words.",
+                        feedback_summary="Vocabulary recall still needs more repetition.",
+                        score=60,
+                    )
+                ]
+                if vocab_block is not None
+                else []
+            ),
+        ],
+    )
+    assert completed_run is not None
+    progress_repository.create_snapshot_for_completed_lesson(strategy_profile, completed_run)
+
+    journey_service.register_completed_lesson(strategy_profile, completed_run)
+    completed_state = journey_repository.get_journey_state(strategy_profile.id)
+
+    assert completed_state is not None
+    session_summary = completed_state.strategy_snapshot["sessionSummary"]
+    practice_evaluation = session_summary.get("practiceMixEvaluation")
+    assert isinstance(practice_evaluation, dict)
+    assert practice_evaluation.get("leadPracticeKey") in {"grammar", "writing"}
+    assert practice_evaluation.get("strongestPracticeKey") == "grammar"
+    assert practice_evaluation.get("summaryLine")
+    assert practice_evaluation.get("leadOutcome") in {"held", "usable"}
+    assert practice_evaluation.get("weakestPracticeKey") in {"writing", "vocabulary"}
+    assert practice_evaluation.get("summaryLine") in session_summary.get("strategyShift", "")
+    skill_trajectory = completed_state.strategy_snapshot.get("skillTrajectory")
+    assert isinstance(skill_trajectory, dict)
+    assert skill_trajectory.get("focusSkill")
+    assert skill_trajectory.get("summary")
 
 
 def test_user_account_repository_checks_login_availability_and_existing_account(empty_session_factory) -> None:
@@ -1113,6 +1380,7 @@ def test_recommendation_softens_when_weak_spots_are_recovering(seeded_session_fa
         LessonRepository(seeded_session_factory),
         mistake_repository,
         vocabulary_repository,
+        ProgressRepository(seeded_session_factory, LessonRepository(seeded_session_factory)),
     )
     ai_orchestrator = AIOrchestrator(MockLLMProvider())
 
@@ -1147,12 +1415,21 @@ def test_recommendation_softens_when_weak_spots_are_recovering(seeded_session_fa
     recommendation = recommendation_repository.get_next_step(profile)
     assert recommendation is not None
     assert recommendation.lesson_type != "recovery"
+    assert recommendation.focus_area == "pronunciation"
     assert any(
         phrase in recommendation.goal
         for phrase in (
             "Recovery pressure is easing",
             "recovery load is starting to soften",
             "repair no longer needs to dominate",
+        )
+    )
+    assert any(
+        phrase in recommendation.goal
+        for phrase in (
+            "weakest active skill",
+            "learner model shows pronunciation under more pressure",
+            "pronunciation needs the clearest support",
         )
     )
 
