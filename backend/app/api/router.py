@@ -1,9 +1,11 @@
 from fastapi import APIRouter
 
 from app.api.routes.adaptive import router as adaptive_router
+from app.api.routes.daily_loop import router as daily_loop_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.diagnostic import router as diagnostic_router
 from app.api.routes.grammar import router as grammar_router
+from app.api.routes.journey import router as journey_router
 from app.api.routes.health import router as health_router
 from app.api.routes.lessons import router as lessons_router
 from app.api.routes.live_avatar import router as live_avatar_router
@@ -26,9 +28,11 @@ from app.core.config import settings
 api_router = APIRouter(prefix=settings.api_prefix)
 api_router.include_router(health_router)
 api_router.include_router(users_router)
+api_router.include_router(journey_router)
 api_router.include_router(onboarding_router)
 api_router.include_router(profile_router)
 api_router.include_router(adaptive_router)
+api_router.include_router(daily_loop_router)
 api_router.include_router(diagnostic_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(lessons_router)

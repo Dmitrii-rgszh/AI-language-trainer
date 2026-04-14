@@ -4,6 +4,7 @@ from app.core.errors import NotFoundError, ServiceUnavailableError
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.mistake_repository import MistakeRepository
 from app.repositories.progress_repository import ProgressRepository
+from app.services.journey_service.service import JourneyService
 from app.services.mistake_extraction_service.service import MistakeExtractionService
 from app.schemas.lesson import (
     CompleteLessonRunRequest,
@@ -22,11 +23,13 @@ class LessonRuntimeService:
         progress_repository: ProgressRepository,
         mistake_repository: MistakeRepository,
         mistake_extraction_service: MistakeExtractionService,
+        journey_service: JourneyService | None = None,
     ) -> None:
         self._repository = repository
         self._progress_repository = progress_repository
         self._mistake_repository = mistake_repository
         self._mistake_extraction_service = mistake_extraction_service
+        self._journey_service = journey_service
 
     def start_run(self, profile: UserProfile, payload: StartLessonRunRequest) -> LessonRunState:
         lesson_run = self._repository.start_lesson_run(
@@ -92,4 +95,6 @@ class LessonRuntimeService:
             lesson_run=lesson_run,
             minutes_completed=payload.minutes_completed,
         )
+        if self._journey_service is not None:
+            self._journey_service.register_completed_lesson(profile, lesson_run)
         return CompleteLessonRunResponse(lesson_run=lesson_run, progress=progress, mistakes=mistakes)

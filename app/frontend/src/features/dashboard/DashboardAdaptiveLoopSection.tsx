@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { AdaptiveStudyLoop } from "../../shared/types/app-data";
+import type { AdaptiveStudyLoop, DailyLoopPlan } from "../../shared/types/app-data";
 import { routes } from "../../shared/constants/routes";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
@@ -7,8 +7,11 @@ import { Card } from "../../shared/ui/Card";
 type DashboardAdaptiveLoopSectionProps = {
   adaptiveHeadline: string | null;
   adaptiveSummary: string | null;
+  dailyLoopPlan: DailyLoopPlan | null;
+  onStartDailyRoute: () => Promise<void>;
   onReviewVocabulary: (itemId: string) => Promise<void>;
   onStartRecoveryLesson: () => Promise<void>;
+  primaryRouteLabel: string;
   reviewingVocabularyId: string | null;
   studyLoop: AdaptiveStudyLoop | null;
   tr: (value: string) => string;
@@ -18,8 +21,11 @@ type DashboardAdaptiveLoopSectionProps = {
 export function DashboardAdaptiveLoopSection({
   adaptiveHeadline,
   adaptiveSummary,
+  dailyLoopPlan,
+  onStartDailyRoute,
   onReviewVocabulary,
   onStartRecoveryLesson,
+  primaryRouteLabel,
   reviewingVocabularyId,
   studyLoop,
   tr,
@@ -34,9 +40,9 @@ export function DashboardAdaptiveLoopSection({
       id: "daily-loop-lesson",
       index: 1,
       title: tr("Core lesson"),
-      description: tr(studyLoop.recommendation.title),
+      description: tr(dailyLoopPlan?.recommendedLessonTitle ?? studyLoop.recommendation.title),
       detail: tr("Start with the central lesson so the rest of the session has a clear anchor."),
-      route: studyLoop.moduleRotation[0]?.route ?? routes.activity,
+      route: dailyLoopPlan ? routes.dailyLoop : studyLoop.moduleRotation[0]?.route ?? routes.activity,
     },
     {
       id: "daily-loop-weakspot",
@@ -69,6 +75,7 @@ export function DashboardAdaptiveLoopSection({
       route: studyLoop.nextSteps[0]?.route ?? routes.activity,
     },
   ];
+  const strategyAlignment = studyLoop.strategyAlignment ?? null;
 
   return (
     <div className="space-y-4">
@@ -137,6 +144,38 @@ export function DashboardAdaptiveLoopSection({
             ))}
           </div>
         </div>
+        {strategyAlignment ? (
+          <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
+            <div className="text-sm font-semibold text-ink">{tr("Strategy alignment")}</div>
+            <div className="mt-3 text-sm leading-6 text-slate-700">{strategyAlignment.whyNow}</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                {tr("Route seed")}: {strategyAlignment.routeSeedSource}
+              </div>
+              {strategyAlignment.carryOverSignalLabel ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Carry forward")}: {strategyAlignment.carryOverSignalLabel}
+                </div>
+              ) : null}
+              {strategyAlignment.watchSignalLabel ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Watch next")}: {strategyAlignment.watchSignalLabel}
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl bg-white/78 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Route detail")}</div>
+                <div className="mt-2 text-sm text-slate-700">{strategyAlignment.routeSeedDetail}</div>
+              </div>
+              <div className="rounded-2xl bg-white/78 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Recommended module")}</div>
+                <div className="mt-2 text-sm font-semibold text-ink">{strategyAlignment.recommendedModuleKey ?? tr("main route")}</div>
+                <div className="mt-2 text-sm text-slate-700">{strategyAlignment.recommendedModuleReason ?? strategyAlignment.nextBestAction}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {studyLoop.moduleRotation.length > 0 ? (
           <div className="rounded-2xl bg-white/70 p-4">
             <div className="text-sm font-semibold text-ink">{tr("Main flow rotation")}</div>
@@ -154,7 +193,8 @@ export function DashboardAdaptiveLoopSection({
           </div>
         ) : null}
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => void onStartRecoveryLesson()}>{tr("Start recovery lesson")}</Button>
+          <Button onClick={() => void onStartDailyRoute()}>{primaryRouteLabel}</Button>
+          <Button variant="secondary" onClick={() => void onStartRecoveryLesson()}>{tr("Start recovery lesson")}</Button>
           <Link
             to={routes.activity}
             className="rounded-2xl bg-sand px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-[#ddccb6]"

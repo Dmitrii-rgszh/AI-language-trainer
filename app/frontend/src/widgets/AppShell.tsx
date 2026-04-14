@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { routes } from "../shared/constants/routes";
 import { readStoredActiveUserId } from "../shared/auth/active-user";
 import { useLocale } from "../shared/i18n/useLocale";
@@ -9,9 +9,11 @@ import { LivingBackgroundSystem } from "./living-background/LivingBackgroundSyst
 import { LivingDepthSection } from "./living-background/LivingDepthSection";
 import { getLivingDepthRouteSectionId } from "./living-background/livingBackgroundConfig";
 import { AppTopRail } from "./navigation/AppTopRail";
+import { JourneyReentryPrompt } from "./navigation/JourneyReentryPrompt";
 
 export function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isWelcomeRoute = location.pathname === routes.welcome;
   const isWelcomeClassicRoute = location.pathname === routes.welcomeClassic;
   const isOnboardingRoute = location.pathname === routes.onboarding;
@@ -21,6 +23,8 @@ export function AppShell() {
   const isBootstrapping = useAppStore((state) => state.isBootstrapping);
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const needsOnboarding = useAppStore((state) => state.needsOnboarding);
+  const resumeLessonRun = useAppStore((state) => state.resumeLessonRun);
+  const startTodayDailyLoop = useAppStore((state) => state.startTodayDailyLoop);
   const hasStoredActiveUser = Boolean(readStoredActiveUserId());
   const shouldShowGuestEntry = needsOnboarding || !hasStoredActiveUser;
   const { locale, setLocale, tr, formatRecommendationGoal } = useLocale();
@@ -46,6 +50,20 @@ export function AppShell() {
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  async function handleResumeRoute() {
+    await resumeLessonRun();
+    navigate(routes.lessonRunner);
+  }
+
+  async function handleStartTodayRoute() {
+    await startTodayDailyLoop();
+    navigate(routes.lessonRunner);
+  }
+
+  function handleOpenDashboard() {
+    navigate(routes.dashboard);
+  }
 
   if (shouldShowGuestEntry && !isOnboardingRoute && !isWelcomeRoute && !isWelcomeClassicRoute) {
     return <Navigate to={routes.welcome} replace />;
@@ -107,6 +125,14 @@ export function AppShell() {
           localeOptions={localeOptions}
           recommendationGoal={recommendationGoal}
           setLocale={setLocale}
+          tr={tr}
+        />
+        <JourneyReentryPrompt
+          dashboard={dashboard}
+          pathname={location.pathname}
+          onOpenDashboard={handleOpenDashboard}
+          onResumeRoute={handleResumeRoute}
+          onStartTodayRoute={handleStartTodayRoute}
           tr={tr}
         />
 

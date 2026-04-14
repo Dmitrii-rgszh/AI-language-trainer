@@ -15,6 +15,7 @@ class UserOnboarding(ApiModel):
 class CompleteOnboardingRequest(ApiModel):
     login: str
     email: str
+    session_id: str | None = None
     profile: ProfileUpdateRequest
 
 

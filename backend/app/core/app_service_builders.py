@@ -9,6 +9,7 @@ from app.live_avatar.tts.qwen3.engine import Qwen3LiveTTSAdapter
 from app.services.adaptive_study_service.service import AdaptiveStudyService
 from app.services.diagnostic_service.service import DiagnosticService
 from app.services.grammar_service.service import GrammarService
+from app.services.journey_service.service import JourneyService
 from app.services.lesson_runtime_service.service import LessonRuntimeService
 from app.services.lesson_service.service import LessonService
 from app.services.listening_service.service import ListeningService
@@ -44,6 +45,14 @@ def build_app_runtime(
         repositories.mistake_repository,
         repositories.vocabulary_repository,
     )
+    journey_service = JourneyService(
+        repositories.journey_repository,
+        repositories.lesson_repository,
+        repositories.lesson_runtime_repository,
+        recommendation_service,
+        repositories.mistake_repository,
+        repositories.vocabulary_repository,
+    )
 
     return AppRuntime(
         adaptive_study_service=AdaptiveStudyService(
@@ -53,6 +62,7 @@ def build_app_runtime(
             repositories.mistake_repository,
             repositories.progress_repository,
             repositories.vocabulary_repository,
+            repositories.journey_repository,
         ),
         diagnostic_service=DiagnosticService(
             repositories.lesson_repository,
@@ -61,11 +71,13 @@ def build_app_runtime(
             repositories.mistake_repository,
         ),
         grammar_service=GrammarService(repositories.content_repository),
+        journey_service=journey_service,
         lesson_runtime_service=LessonRuntimeService(
             repositories.lesson_runtime_repository,
             repositories.progress_repository,
             repositories.mistake_repository,
             dependencies.mistake_extraction_service,
+            journey_service,
         ),
         lesson_service=LessonService(repositories.lesson_repository),
         listening_service=ListeningService(repositories.listening_repository),
@@ -82,6 +94,7 @@ def build_app_runtime(
             repositories.user_account_repository,
             repositories.onboarding_repository,
             dependencies.profile_service,
+            journey_service,
         ),
         profile_service=dependencies.profile_service,
         profession_service=ProfessionService(repositories.content_repository),

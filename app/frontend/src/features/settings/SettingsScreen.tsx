@@ -7,13 +7,19 @@ import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 import { AccountIdentityCard } from "../../widgets/profile-settings/AccountIdentityCard";
 import { ProfileEditorCard } from "../../widgets/profile-settings/ProfileEditorCard";
 
 export function SettingsScreen() {
-  const { tr } = useLocale();
+  const { tr, locale } = useLocale();
   const currentUser = useAppStore((state) => state.currentUser);
   const profile = useAppStore((state) => state.profile);
+  const dashboard = useAppStore((state) => state.dashboard);
   const providers = useAppStore((state) => state.providers);
   const providerPreferences = useAppStore((state) => state.providerPreferences);
   const professionTracks = useAppStore((state) => state.professionTracks);
@@ -29,6 +35,7 @@ export function SettingsScreen() {
   const enabledCount = providers.filter(
     (provider) => getPreferenceEnabled(provider.type) ?? provider.status !== "offline",
   ).length;
+  const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "daily loop";
   const providerTypeLabels: Record<"llm" | "stt" | "tts" | "scoring", string> = {
     llm: "LLM",
     stt: "STT",
@@ -56,6 +63,49 @@ export function SettingsScreen() {
     });
   }, [currentUser]);
 
+  const coachMessage =
+    locale === "ru"
+      ? `Настройки здесь нужны не ради техники самой по себе. Я использую их, чтобы твой путь вокруг ${currentFocusArea} оставался стабильным: identity не терялась, профиль не расходился, а voice-and-AI stack не ломал ежедневный ритуал.`
+      : `Settings here are not just technical controls. I use them to keep your ${currentFocusArea} path stable: identity stays intact, the profile stays aligned, and the voice-and-AI stack does not break the daily ritual.`;
+  const coachSupportingText =
+    dashboard?.journeyState?.currentStrategySummary ??
+    (locale === "ru"
+      ? "Этот экран должен помогать сохранить консистентность продукта: кто учится, как система объясняет, и какие провайдеры реально поддерживают живой опыт."
+      : "This screen should protect product consistency: who is learning, how the system explains, and which providers truly support the live experience.");
+  const nextSettingsStep =
+    dashboard?.journeyState?.nextBestAction ??
+    (locale === "ru"
+      ? "Проверь профиль и runtime stack, затем вернись в dashboard или daily loop, чтобы продолжить без разрыва маршрута."
+      : "Check the profile and runtime stack, then return to the dashboard or daily loop so the route continues without a break.");
+  const explainActions = [
+    {
+      id: "settings-simpler",
+      label: locale === "ru" ? "Объясни проще" : "Explain simpler",
+      text:
+        locale === "ru"
+          ? "Этот экран нужен, чтобы профиль, аккаунт и AI-стек не расходились между собой и не ломали опыт."
+          : "This screen exists so the profile, account, and AI stack do not drift apart and break the experience.",
+    },
+    {
+      id: "settings-why",
+      label: locale === "ru" ? "Почему это важно" : "Why it matters",
+      text: coachSupportingText,
+    },
+    {
+      id: "settings-priority",
+      label: locale === "ru" ? "Что важнее всего" : "What matters most",
+      text:
+        locale === "ru"
+          ? `Сейчас важнее всего сохранить консистентность маршрута вокруг ${currentFocusArea}, а не просто включить как можно больше провайдеров.`
+          : `What matters most right now is preserving route consistency around ${currentFocusArea}, not simply enabling as many providers as possible.`,
+    },
+    {
+      id: "settings-next",
+      label: locale === "ru" ? "Следующий лучший шаг" : "Next best step",
+      text: nextSettingsStep,
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <SectionHeading
@@ -64,6 +114,51 @@ export function SettingsScreen() {
         description={tr(
           "User settings and provider health live here. This screen lets you control the local LLM, STT, TTS, and fallback runtime behavior.",
         )}
+      />
+
+      <LivingDepthSection id={livingDepthSectionIds.settingsCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`settings:${currentFocusArea}:${runtimeReadyCount}:${enabledCount}`}
+          title={tr("Liza Settings Layer")}
+          message={coachMessage}
+          spokenMessage={coachMessage}
+          spokenLanguage={locale}
+          replayCta={tr("Послушать ещё раз")}
+          primaryAction={(
+            <Link to={routes.dashboard} className="proof-lesson-primary-button">
+              {tr("Вернуться в dashboard")}
+            </Link>
+          )}
+          secondaryAction={(
+            <Link to={routes.pronunciation} className="proof-lesson-secondary-action">
+              {tr("Проверить voice lab")}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
+
+      <LizaGuidanceGrid
+        currentLabel={locale === "ru" ? "Что сейчас происходит" : "What is happening now"}
+        currentText={
+          locale === "ru"
+            ? "Здесь хранится identity, профиль и состояние AI runtime, который нужен для живого coach experience."
+            : "This is where identity, profile data, and the AI runtime state behind the live coach experience are managed."
+        }
+        whyLabel={locale === "ru" ? "Почему это важно тебе" : "Why it matters for you"}
+        whyText={
+          locale === "ru"
+            ? "Если здесь появляется рассинхрон, продукт начинает ощущаться как набор режимов. Если всё ровно, Лиза и daily loop ведут тебя как одна система."
+            : "If this layer drifts out of sync, the product starts feeling like separate modes. When it stays clean, Liza and the daily loop guide you as one system."
+        }
+        nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
+        nextText={nextSettingsStep}
+      />
+
+      <LizaExplainActions
+        title={locale === "ru" ? "Разобрать настройки с Лизой" : "Break down settings with Liza"}
+        actions={explainActions}
       />
 
       <div className="grid gap-4 md:grid-cols-3">

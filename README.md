@@ -6,7 +6,8 @@
 
 - модульный каркас `React + TypeScript + Tailwind` для desktop-first frontend;
 - модульный каркас `FastAPI` backend с сервисным слоем, схемами и AI provider abstraction;
-- начальные MVP-экраны: onboarding, dashboard, lesson runner, grammar, speaking, pronunciation, writing, profession, mistakes, progress, settings;
+- уже собранный first-path контур: `proof lesson -> registration -> onboarding -> dashboard -> daily loop`;
+- продуктовые экраны: onboarding, dashboard, daily loop, lesson runner, grammar, speaking, pronunciation, writing, profession, mistakes, progress, settings;
 - lesson engine v1 на конфиге lesson blocks;
 - моковые данные и локальные заглушки для AI orchestration, чтобы архитектуру можно было развивать без переписывания ядра.
 - LM Studio integration layer для локального OpenAI-compatible LLM server с fallback на mock provider.
@@ -18,6 +19,7 @@
 - [docs/architecture-map.md](./docs/architecture-map.md) — карта модулей
 - [docs/live-avatar-webrtc.md](./docs/live-avatar-webrtc.md) — live avatar режим на WebRTC + Qwen3-TTS + MuseTalk
 - [docs/entity-model-and-lesson-schema.md](./docs/entity-model-and-lesson-schema.md) — сущности и lesson blocks
+- [docs/er-model.md](./docs/er-model.md) — storage-модель пользователя, onboarding, journey state и daily loop
 - [docs/product-roadmap.md](./docs/product-roadmap.md) — продуктовый roadmap и план следующего онбординга
 
 ## Локальный запуск

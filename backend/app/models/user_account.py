@@ -15,3 +15,6 @@ class UserAccount(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
 
     onboarding = relationship("UserOnboarding", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    onboarding_sessions = relationship("OnboardingSession", back_populates="user")
+    journey_state = relationship("LearnerJourneyState", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    daily_loop_plans = relationship("DailyLoopPlan", back_populates="user", cascade="all, delete-orphan")

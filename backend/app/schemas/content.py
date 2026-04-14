@@ -2,6 +2,7 @@ from typing import Literal
 
 from .adaptive import AdaptiveStudyLoop
 from .base import ApiModel
+from .journey import DailyLoopPlan, LearnerJourneyState
 from .lesson import LessonRecommendation
 from .mistake import WeakSpot
 from .profile import UserProfile
@@ -30,6 +31,8 @@ class DashboardData(ApiModel):
     weak_spots: list[WeakSpot]
     recommendation: LessonRecommendation
     study_loop: AdaptiveStudyLoop | None = None
+    daily_loop_plan: DailyLoopPlan | None = None
+    journey_state: LearnerJourneyState | None = None
     quick_actions: list[QuickAction]
     resume_lesson: ResumeLessonCard | None = None
 

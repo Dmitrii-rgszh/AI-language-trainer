@@ -1,8 +1,11 @@
 from app.models.base import Base
+from app.models.daily_loop_plan import DailyLoopPlan
 from app.models.grammar_topic import GrammarTopic
+from app.models.learner_journey_state import LearnerJourneyState
 from app.models.lesson_run import LessonBlockRun, LessonRun
 from app.models.lesson_template import LessonBlock, LessonTemplate
 from app.models.mistake_record import MistakeRecord
+from app.models.onboarding_session import OnboardingSession
 from app.models.profession_topic import ProfessionTopic, lesson_template_profession_topics
 from app.models.profession_track import ProfessionTrack
 from app.models.progress_snapshot import ProgressSkillScore, ProgressSnapshot
@@ -20,12 +23,15 @@ from app.models.writing_task import WritingTask
 
 __all__ = [
     "Base",
+    "DailyLoopPlan",
     "GrammarTopic",
+    "LearnerJourneyState",
     "LessonBlock",
     "LessonBlockRun",
     "LessonRun",
     "LessonTemplate",
     "MistakeRecord",
+    "OnboardingSession",
     "ProfessionTopic",
     "ProfessionTrack",
     "ProgressSkillScore",

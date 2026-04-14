@@ -3,9 +3,11 @@ import type { Mistake, WeakSpot } from "../../entities/mistake/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
 import { defaultOnboardingAnswers, type UserProfile } from "../../entities/user/model";
 import type {
+  DailyLoopPlan,
   DiagnosticRoadmap,
   DashboardData,
   GrammarTopic,
+  LearnerJourneyState,
   ProfessionTrackCard,
   PronunciationDrill,
   ProviderStatus,
@@ -117,11 +119,104 @@ export const mockQuickActions: QuickAction[] = [
   },
 ];
 
+export const mockDailyLoopPlan: DailyLoopPlan = {
+  id: "daily-loop-1",
+  planDateKey: "2026-04-13",
+  status: "planned",
+  stage: "first_path",
+  sessionKind: "recommended",
+  focusArea: "speaking",
+  headline: "Alex, your first guided daily loop is ready.",
+  summary:
+    "Start from speaking confidence, reinforce grammar in context, and let the system shape tomorrow's next best step from one connected session.",
+  whyThisNow:
+    "The proof lesson and onboarding both point to a voice-led start, so the first loop keeps the path simple and immediately useful.",
+  nextStepHint: "Open today's loop, finish the first guided session, and then review the updated next step.",
+  preferredMode: "voice_first",
+  timeBudgetMinutes: 25,
+  estimatedMinutes: 24,
+  recommendedLessonType: "mixed",
+  recommendedLessonTitle: "First Guided Daily Loop",
+  lessonRunId: null,
+  completedAt: null,
+  steps: [
+    {
+      id: "warm-start",
+      skill: "coach",
+      title: "Warm start",
+      description: "Liza frames the session and explains why this is the right move today.",
+      durationMinutes: 2,
+    },
+    {
+      id: "vocabulary-recall",
+      skill: "vocabulary",
+      title: "Vocabulary recall",
+      description: "Bring back a few words that the next speaking response will need.",
+      durationMinutes: 3,
+    },
+    {
+      id: "response",
+      skill: "speaking",
+      title: "Speaking response",
+      description: "Answer one guided prompt and convert correction into a stronger version.",
+      durationMinutes: 6,
+    },
+  ],
+};
+
+export const mockJourneyState: LearnerJourneyState = {
+  userId: "user-local-1",
+  stage: "daily_loop_ready",
+  source: "proof_lesson",
+  preferredMode: "voice_first",
+  diagnosticReadiness: "soft_start",
+  timeBudgetMinutes: 25,
+  currentFocusArea: "speaking",
+  currentStrategySummary:
+    "The current strategy starts from speaking confidence, then reinforces grammar and vocabulary inside one connected daily ritual.",
+  nextBestAction:
+    "Finish today's guided loop, review the result summary, and let tomorrow's route sharpen around the same signal.",
+  lastDailyPlanId: "daily-loop-1",
+  strategySnapshot: {
+    focusArea: "speaking",
+    primaryGoal: "everyday_communication",
+    sessionSummary: {
+      outcomeBand: "stable",
+      headline: "This session kept the route stable.",
+      whatWorked: "Speaking response gave the system enough confidence to keep the main route connected instead of rebuilding it from zero.",
+      watchSignal: "The system should still watch Present Perfect vs Past Simple so the same weak pattern does not reappear in the next route.",
+      strategyShift: "Tomorrow stays centered on grammar while keeping a light watch on Present Perfect vs Past Simple.",
+      coachNote: "This is the moment to keep the ritual going and let the next route sharpen naturally.",
+      carryOverSignalLabel: "Speaking response",
+      watchSignalLabel: "Present Perfect vs Past Simple",
+      weakSpotTitle: "Present Perfect vs Past Simple",
+      strongestSignalLabel: "Speaking response",
+      weakestSignalLabel: "Grammar pattern",
+    },
+    tomorrowPreview: {
+      focusArea: "grammar",
+      sessionKind: "recommended",
+      headline: "Tomorrow returns with a guided grammar-led loop.",
+      reason: "The next route narrows a little so the corrected speaking signal can become more stable.",
+      nextStepHint: "Come back tomorrow and start from the guided grammar-led loop.",
+      recommendedLessonTitle: "Tomorrow Guided Loop",
+      continuityMode: "guided",
+      carryOverSignalLabel: "Speaking response",
+      watchSignalLabel: "Present Perfect vs Past Simple",
+    },
+  },
+  onboardingCompletedAt: "2026-04-13T10:10:00",
+  createdAt: "2026-04-13T10:10:00",
+  updatedAt: "2026-04-13T10:10:00",
+};
+
 export const mockDashboardData: DashboardData = {
   profile: mockProfile,
   progress: mockProgress,
   weakSpots: mockWeakSpots,
   recommendation: mockRecommendation,
+  dailyLoopPlan: mockDailyLoopPlan,
+  journeyState: mockJourneyState,
   studyLoop: {
     focusArea: "grammar",
     headline: "Alex, today's adaptive focus is grammar.",

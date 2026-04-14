@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from app.models.mistake_record import MistakeRecord
 from app.repositories.content_repository import ContentRepository
+from app.repositories.journey_repository import JourneyRepository
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.listening_repository import ListeningRepository
@@ -22,11 +23,13 @@ from app.services.ai_orchestrator import AIOrchestrator
 from app.services.diagnostic_service.service import DiagnosticService
 from app.services.lesson_runtime_service.service import LessonRuntimeService
 from app.services.mistake_extraction_service.service import MistakeExtractionService
+from app.services.journey_service.service import JourneyService
 from app.services.speaking_service.service import SpeakingService
 from app.services.writing_service.service import WritingService
 from app.schemas.lesson import BlockResultSubmission
 from app.schemas.lesson import CompleteLessonRunRequest, StartLessonRunRequest
 from app.schemas.feedback import AITextFeedback
+from app.schemas.journey import SaveOnboardingSessionDraftRequest, StartOnboardingSessionRequest
 from app.schemas.onboarding import CompleteOnboardingRequest
 from app.schemas.provider import ProviderPreferenceUpdateRequest, ProviderType
 from app.schemas.profile import OnboardingAnswers, ProfileUpdateRequest
@@ -34,6 +37,7 @@ from app.schemas.mistake import WeakSpot
 from app.schemas.adaptive import MistakeResolutionSignal, VocabularyLoopSummary
 from app.services.onboarding_service.service import OnboardingService
 from app.services.profile_service.service import ProfileService
+from app.services.recommendation_service.service import RecommendationService
 
 
 def test_profile_repository_supports_create_and_update(empty_session_factory) -> None:
@@ -169,6 +173,536 @@ def test_onboarding_service_keeps_user_and_answers_in_separate_tables(empty_sess
     assert saved_profile is not None
     assert saved_profile.id == completed.user.id
     assert saved_profile.profession_track == "cross_cultural"
+
+
+def test_journey_repository_persists_onboarding_sessions_and_daily_loop_state(empty_session_factory) -> None:
+    journey_repository = JourneyRepository(empty_session_factory)
+    user = UserAccountRepository(empty_session_factory).resolve_user("journey_user", "journey@example.com")
+
+    session = journey_repository.create_onboarding_session(
+        source="proof_lesson",
+        proof_lesson_handoff={
+            "locale": "ru",
+            "scenarioId": "coffee-order",
+            "beforePhrase": "I want coffee.",
+            "afterPhrase": "I'd like a coffee without sugar.",
+            "clarityStatusLabel": "Уже звучит яснее",
+            "directions": ["speaking", "vocabulary"],
+            "wins": ["Learner completed the first phrase."],
+            "createdAt": "2026-04-13T12:00:00",
+        },
+    )
+
+    saved_session = journey_repository.save_onboarding_draft(
+        session.id,
+        account_draft={"login": "nina", "email": "nina@example.com"},
+        profile_draft={
+            "id": "temp-profile",
+            "name": "Nina",
+            "nativeLanguage": "ru",
+            "currentLevel": "A2",
+            "targetLevel": "B1",
+            "professionTrack": "cross_cultural",
+            "preferredUiLanguage": "ru",
+            "preferredExplanationLanguage": "ru",
+            "lessonDuration": 20,
+            "speakingPriority": 8,
+            "grammarPriority": 6,
+            "professionPriority": 5,
+            "onboardingAnswers": {
+                "primaryGoal": "everyday_communication",
+                "preferredMode": "voice_first",
+                "diagnosticReadiness": "soft_start",
+                "activeSkillFocus": ["speaking", "vocabulary"],
+            },
+        },
+        current_step=2,
+    )
+
+    assert saved_session is not None
+    assert saved_session.current_step == 2
+    assert saved_session.account_draft.login == "nina"
+
+    state = journey_repository.upsert_journey_state(
+        user_id=user.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode="voice_first",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="speaking",
+        current_strategy_summary="Keep the first loop focused on speaking.",
+        next_best_action="Open the first guided loop.",
+        proof_lesson_handoff={
+            "locale": "ru",
+            "scenarioId": "coffee-order",
+            "beforePhrase": "I want coffee.",
+            "afterPhrase": "I'd like a coffee without sugar.",
+            "clarityStatusLabel": "Уже звучит яснее",
+            "directions": ["speaking", "vocabulary"],
+            "wins": ["Learner completed the first phrase."],
+            "createdAt": "2026-04-13T12:00:00",
+        },
+        strategy_snapshot={"focusArea": "speaking"},
+        last_daily_plan_id="daily-loop-1",
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    plan = journey_repository.upsert_daily_loop_plan(
+        user_id=user.id,
+        plan_date_key="2026-04-13",
+        stage="first_path",
+        session_kind="recommended",
+        focus_area="speaking",
+        headline="First guided loop",
+        summary="Start from one guided speaking loop.",
+        why_this_now="The first path is ready to move into daily practice.",
+        next_step_hint="Open the loop now.",
+        preferred_mode="voice_first",
+        time_budget_minutes=20,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Daily speaking loop",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Set the first goal.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+    attached_plan = journey_repository.attach_daily_loop_run(plan.id, "run-123")
+    completed_plan = journey_repository.complete_daily_loop_plan_by_run(
+        user_id=user.id,
+        run_id="run-123",
+        completion_summary={"score": 82},
+    )
+
+    assert state.last_daily_plan_id == "daily-loop-1"
+    assert plan.focus_area == "speaking"
+    assert attached_plan is not None
+    assert attached_plan.lesson_run_id == "run-123"
+    assert completed_plan is not None
+    assert completed_plan.status == "completed"
+
+
+def test_onboarding_completion_creates_first_daily_loop_plan(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    user_repository = UserAccountRepository(seeded_session_factory)
+    onboarding_repository = OnboardingRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+    onboarding_service = OnboardingService(
+        user_repository,
+        onboarding_repository,
+        ProfileService(profile_repository),
+        journey_service,
+    )
+
+    session = journey_service.start_onboarding_session(
+        StartOnboardingSessionRequest(
+            source="proof_lesson",
+            proof_lesson_handoff={
+                "locale": "en",
+                "scenarioId": "coffee-order",
+                "beforePhrase": "I want coffee.",
+                "afterPhrase": "I'd like a coffee without sugar.",
+                "clarityStatusLabel": "Clearer now",
+                "directions": ["speaking", "travel"],
+                "wins": ["Completed the proof lesson."],
+                "createdAt": "2026-04-13T10:00:00",
+            },
+        )
+    )
+    journey_service.save_onboarding_draft(
+        session.id,
+        SaveOnboardingSessionDraftRequest(
+            account_draft={"login": "nina_journey", "email": "nina_journey@example.com"},
+            profile_draft=ProfileUpdateRequest(
+                id="temp-profile",
+                name="Nina",
+                native_language="ru",
+                current_level="A2",
+                target_level="B1",
+                profession_track="cross_cultural",
+                preferred_ui_language="ru",
+                preferred_explanation_language="ru",
+                lesson_duration=20,
+                speaking_priority=8,
+                grammar_priority=6,
+                profession_priority=5,
+                onboarding_answers=OnboardingAnswers(
+                    learner_persona="self_learner",
+                    age_group="adult",
+                    learning_context="general_english",
+                    primary_goal="everyday_communication",
+                    preferred_mode="voice_first",
+                    diagnostic_readiness="checkpoint_now",
+                    active_skill_focus=["speaking", "vocabulary"],
+                ),
+            ),
+            current_step=3,
+        ),
+    )
+
+    completed = onboarding_service.complete_onboarding(
+        CompleteOnboardingRequest(
+            login="nina_journey",
+            email="nina_journey@example.com",
+            session_id=session.id,
+            profile=ProfileUpdateRequest(
+                id="temp-profile",
+                name="Nina",
+                native_language="ru",
+                current_level="A2",
+                target_level="B1",
+                profession_track="cross_cultural",
+                preferred_ui_language="ru",
+                preferred_explanation_language="ru",
+                lesson_duration=20,
+                speaking_priority=8,
+                grammar_priority=6,
+                profession_priority=5,
+                onboarding_answers=OnboardingAnswers(
+                    learner_persona="self_learner",
+                    age_group="adult",
+                    learning_context="general_english",
+                    primary_goal="everyday_communication",
+                    preferred_mode="voice_first",
+                    diagnostic_readiness="checkpoint_now",
+                    active_skill_focus=["speaking", "vocabulary"],
+                ),
+            ),
+        )
+    )
+
+    journey_state = journey_repository.get_journey_state(completed.user.id)
+    assert journey_state is not None
+    assert journey_state.stage == "daily_loop_ready"
+    assert journey_state.current_focus_area in {"speaking", "grammar", "travel"}
+
+    daily_plan = journey_repository.get_daily_loop_plan(completed.user.id, datetime.utcnow().date().isoformat())
+    assert daily_plan is not None
+    assert daily_plan.session_kind == "diagnostic"
+    assert daily_plan.steps
+
+    lesson_run = journey_service.start_today_session(completed.profile)
+    assert lesson_run.lesson.lesson_type == "diagnostic"
+
+    refreshed_plan = journey_repository.get_daily_loop_plan(completed.user.id, datetime.utcnow().date().isoformat())
+    assert refreshed_plan is not None
+    assert refreshed_plan.lesson_run_id == lesson_run.run_id
+
+    completed_run = lesson_runtime_repository.complete_lesson_run(
+        completed.profile.id,
+        lesson_run.run_id,
+        84,
+        [],
+    )
+    assert completed_run is not None
+
+    journey_service.register_completed_lesson(completed.profile, completed_run)
+    completed_state = journey_repository.get_journey_state(completed.user.id)
+    assert completed_state is not None
+    assert completed_state.stage == "daily_loop_completed"
+    assert completed_state.strategy_snapshot["sessionSummary"]["headline"]
+    assert completed_state.strategy_snapshot["sessionSummary"]["strategyShift"]
+    assert completed_state.strategy_snapshot["tomorrowPreview"]["focusArea"]
+    assert completed_state.strategy_snapshot["tomorrowPreview"]["nextStepHint"]
+    assert completed_state.strategy_snapshot["tomorrowPreview"]["continuityMode"]
+
+
+def test_next_day_plan_follows_persisted_tomorrow_preview(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    journey_repository.upsert_journey_state(
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=profile.lesson_duration,
+        current_focus_area="speaking",
+        current_strategy_summary="Yesterday's route is complete.",
+        next_best_action="Review tomorrow's route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "sessionSummary": {
+                "outcomeBand": "stable",
+                "headline": "This session kept the route stable.",
+                "whatWorked": "Speaking response gave the system enough confidence to keep the route connected.",
+                "watchSignal": "The system still needs to watch Present Perfect vs Past Simple.",
+                "strategyShift": "Tomorrow stays centered on grammar while keeping a light watch on Present Perfect vs Past Simple.",
+                "coachNote": "Keep the ritual going.",
+                "carryOverSignalLabel": "Speaking response",
+                "watchSignalLabel": "Present Perfect vs Past Simple",
+            },
+            "tomorrowPreview": {
+                "focusArea": "grammar",
+                "sessionKind": "recommended",
+                "headline": "Tomorrow keeps moving around grammar without dropping speaking response.",
+                "reason": "The route stays connected while it protects the weak signal.",
+                "nextStepHint": "Return tomorrow and keep the guided route moving while carrying speaking response into the next session.",
+                "recommendedLessonTitle": "Tomorrow Guided Loop",
+                "continuityMode": "carry_forward",
+                "carryOverSignalLabel": "Speaking response",
+                "watchSignalLabel": "Present Perfect vs Past Simple",
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+
+    next_day_plan = journey_service.get_today_plan(profile)
+    refreshed_state = journey_repository.get_journey_state(profile.id)
+
+    assert next_day_plan.focus_area == "grammar"
+    assert next_day_plan.recommended_lesson_title == "Tomorrow Guided Loop"
+    assert "Speaking response" in next_day_plan.summary
+    assert "Present Perfect vs Past Simple" in next_day_plan.why_this_now
+    assert next_day_plan.next_step_hint.startswith("Return tomorrow")
+    assert refreshed_state is not None
+    assert refreshed_state.stage == "daily_loop_ready"
+    assert refreshed_state.current_focus_area == "grammar"
+    assert refreshed_state.next_best_action == next_day_plan.next_step_hint
+
+    lesson_run = journey_service.start_today_session(profile)
+    active_state = journey_repository.get_journey_state(profile.id)
+    assert "Speaking response" in lesson_run.lesson.title
+    assert "Present Perfect vs Past Simple" in lesson_run.lesson.goal
+    assert any(
+        "carry forward" in block.instructions.lower() or "keep" in block.instructions.lower()
+        for block in lesson_run.lesson.blocks
+    )
+    assert any("continuity" in (block.payload or {}) for block in lesson_run.lesson.blocks)
+    assert any("routeContext" in (block.payload or {}) for block in lesson_run.lesson.blocks)
+    assert any(
+        isinstance((block.payload or {}).get("continuity"), dict)
+        and (block.payload or {})["continuity"].get("weakSpotTitles")
+        for block in lesson_run.lesson.blocks
+    )
+    assert any(
+        isinstance((block.payload or {}).get("routeContext"), dict)
+        and (block.payload or {})["routeContext"].get("routeSeedSource") == "tomorrow_preview"
+        for block in lesson_run.lesson.blocks
+    )
+    assert active_state is not None
+    assert active_state.strategy_snapshot["activePlanSeed"]["source"] == "tomorrow_preview"
+
+
+def test_recommended_daily_route_builds_strategy_guided_template(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    journey_repository.upsert_journey_state(
+        user_id=profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=profile.lesson_duration,
+        current_focus_area="speaking",
+        current_strategy_summary="Today's route is ready.",
+        next_best_action="Start today's route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "primaryGoal": profile.onboarding_answers.primary_goal,
+            "preferredMode": profile.onboarding_answers.preferred_mode,
+            "focusArea": "speaking",
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    plan = journey_repository.upsert_daily_loop_plan(
+        user_id=profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="speaking",
+        headline="Today's route keeps speaking as the lead signal.",
+        summary="Start from a guided speaking route and keep grammar in view.",
+        why_this_now="This route should turn recent weak signals into one guided speaking pass instead of random module hopping.",
+        next_step_hint="Start today's route and keep the response aligned with the main goal.",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Guided speaking route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(profile)
+    active_state = journey_repository.get_journey_state(profile.id)
+    route_contexts = [
+        block.payload.get("routeContext")
+        for block in lesson_run.lesson.blocks
+        if isinstance(block.payload.get("routeContext"), dict)
+    ]
+
+    assert lesson_run.lesson.title.endswith("guided route for speaking")
+    assert "This route should turn recent weak signals" in lesson_run.lesson.goal
+    assert any(block.block_type == "vocab_block" for block in lesson_run.lesson.blocks)
+    assert any("routeContext" in (block.payload or {}) for block in lesson_run.lesson.blocks)
+    assert route_contexts
+    assert any("vocabulary" in (context.get("moduleRotationKeys") or []) for context in route_contexts)
+    assert any(
+        isinstance((block.payload or {}).get("routeContext"), dict)
+        and (block.payload or {})["routeContext"].get("whyNow") == plan.why_this_now
+        for block in lesson_run.lesson.blocks
+    )
+    assert any(
+        isinstance((block.payload or {}).get("routeContext"), dict)
+        and (block.payload or {})["routeContext"].get("preferredMode") == profile.onboarding_answers.preferred_mode
+        for block in lesson_run.lesson.blocks
+    )
+    if any("listening" in (context.get("moduleRotationKeys") or []) for context in route_contexts):
+        assert any(block.block_type == "listening_block" for block in lesson_run.lesson.blocks)
+    assert any(
+        "main goal" in prompt.lower() or profile.onboarding_answers.primary_goal in prompt
+        for block in lesson_run.lesson.blocks
+        for prompt in ((block.payload or {}).get("prompts") or [])
+        if isinstance(prompt, str)
+    )
+    assert active_state is not None
+    assert active_state.strategy_snapshot["activePlanSeed"]["source"] == "daily_loop_plan"
+
+
+def test_text_first_guided_route_switches_response_block_to_writing(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(lesson_repository, mistake_repository, vocabulary_repository)
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(update={"preferred_mode": "text_first"})
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="grammar",
+        current_strategy_summary="Today's route should slow down into a text-first response.",
+        next_best_action="Start the text-first guided route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "primaryGoal": text_first_profile.onboarding_answers.primary_goal,
+            "preferredMode": text_first_profile.onboarding_answers.preferred_mode,
+            "focusArea": "grammar",
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=text_first_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="grammar",
+        headline="Today's route slows down into a writing-first grammar pass.",
+        summary="Use a calmer written response before speaking pressure returns.",
+        why_this_now="A text-first pass should stabilize grammar before the route widens again.",
+        next_step_hint="Start the text-first route and make the response more structured.",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Text-first grammar route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(text_first_profile)
+    response_block = next(
+        (
+            block
+            for block in lesson_run.lesson.blocks
+            if block.block_type in {"writing_block", "speaking_block"}
+        ),
+        None,
+    )
+
+    assert response_block is not None
+    assert response_block.block_type == "writing_block"
+    assert "written response" in response_block.title.lower() or "письмен" in response_block.instructions.lower()
+    assert response_block.payload.get("task_id") == "guided-route-writing-response"
+    assert isinstance(response_block.payload.get("checklist"), list)
 
 
 def test_user_account_repository_checks_login_availability_and_existing_account(empty_session_factory) -> None:

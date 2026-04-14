@@ -48,6 +48,17 @@ export const goalOptions: OnboardingOption[] = [
   { value: "travel_confidence", label: "Travel confidence" },
 ];
 
+export const preferredModeOptions: OnboardingOption[] = [
+  { value: "mixed", label: "Mixed mode" },
+  { value: "voice_first", label: "Voice first" },
+  { value: "text_first", label: "Text first" },
+];
+
+export const diagnosticReadinessOptions: OnboardingOption[] = [
+  { value: "soft_start", label: "Soft start first" },
+  { value: "checkpoint_now", label: "Ready for checkpoint" },
+];
+
 export const skillFocusOptions: OnboardingOption[] = [
   { value: "speaking", label: "Speaking" },
   { value: "listening", label: "Listening" },
@@ -151,6 +162,9 @@ export function cloneAnswers(answers?: Partial<OnboardingAnswers>): OnboardingAn
     ageGroup: answers?.ageGroup ?? defaultOnboardingAnswers.ageGroup,
     learningContext: answers?.learningContext ?? defaultOnboardingAnswers.learningContext,
     primaryGoal: answers?.primaryGoal ?? defaultOnboardingAnswers.primaryGoal,
+    preferredMode: answers?.preferredMode ?? defaultOnboardingAnswers.preferredMode,
+    diagnosticReadiness:
+      answers?.diagnosticReadiness ?? defaultOnboardingAnswers.diagnosticReadiness,
     secondaryGoals: [...(answers?.secondaryGoals ?? defaultOnboardingAnswers.secondaryGoals)],
     activeSkillFocus: [...(answers?.activeSkillFocus ?? defaultOnboardingAnswers.activeSkillFocus)],
     studyPreferences: [...(answers?.studyPreferences ?? defaultOnboardingAnswers.studyPreferences)],

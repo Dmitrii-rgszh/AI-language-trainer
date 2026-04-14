@@ -4,6 +4,7 @@ export const routes = {
   liveAvatar: "/live-avatar",
   onboarding: "/onboarding",
   dashboard: "/dashboard",
+  dailyLoop: "/daily-loop",
   activity: "/activity",
   vocabulary: "/vocabulary",
   lessonRunner: "/lesson-runner",

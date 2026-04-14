@@ -24,6 +24,7 @@ export const router = createBrowserRouter([
       { path: routes.liveAvatar, lazy: lazyPage(() => import("../pages/LiveAvatarPage"), "LiveAvatarPage") },
       { path: routes.onboarding, lazy: lazyPage(() => import("../pages/OnboardingPage"), "OnboardingPage") },
       { path: routes.dashboard, lazy: lazyPage(() => import("../pages/DashboardPage"), "DashboardPage") },
+      { path: routes.dailyLoop, lazy: lazyPage(() => import("../pages/DailyLoopPage"), "DailyLoopPage") },
       { path: routes.activity, lazy: lazyPage(() => import("../pages/ActivityPage"), "ActivityPage") },
       { path: routes.vocabulary, lazy: lazyPage(() => import("../pages/VocabularyPage"), "VocabularyPage") },
       { path: routes.lessonRunner, lazy: lazyPage(() => import("../pages/LessonRunnerPage"), "LessonRunnerPage") },

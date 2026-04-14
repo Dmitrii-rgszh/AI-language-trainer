@@ -1,14 +1,22 @@
+import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { routes } from "../../shared/constants/routes";
 import { apiClient } from "../../shared/api/client";
 import { useLocale } from "../../shared/i18n/useLocale";
 import type { AITextFeedback, SpeakingAttempt } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function SpeakingScreen() {
-  const { tr, tt, formatDateTime } = useLocale();
+  const { tr, tt, formatDateTime, locale } = useLocale();
   const scenarios = useAppStore((state) => state.speakingScenarios);
+  const dashboard = useAppStore((state) => state.dashboard);
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(scenarios[0]?.id ?? null);
   const [transcript, setTranscript] = useState(
     "I have worked with sales teams across several product launches, and recently I have focused more on feedback design for managers.",
@@ -39,6 +47,49 @@ export function SpeakingScreen() {
             attempts.length,
         )
       : 0;
+  const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "speaking";
+  const coachMessage =
+    locale === "ru"
+      ? `Сейчас speaking нужен не сам по себе. Я использую этот экран, чтобы проверить, как у тебя держится живой ответ вокруг фокуса ${currentFocusArea}, а потом перенесу сигнал в следующий шаг.`
+      : `Speaking here is not isolated practice. I use this screen to test how your live response holds around ${currentFocusArea}, then carry that signal into the next step.`;
+  const coachSupportingText =
+    dashboard?.journeyState?.currentStrategySummary ??
+    (locale === "ru"
+      ? "Исправления из speaking сразу попадают в общую learning memory, поэтому этот модуль влияет не только на речь, но и на следующий daily loop."
+      : "Speaking corrections feed the shared learning memory right away, so this module shapes not only speech, but also the next daily loop.");
+  const nextSpeakingStep =
+    dashboard?.journeyState?.nextBestAction ??
+    (locale === "ru"
+      ? "Сделай один осмысленный speaking pass, а потом вернись в daily loop или dashboard, чтобы увидеть обновлённый next step."
+      : "Complete one meaningful speaking pass, then return to the daily loop or dashboard to see the updated next step.");
+  const explainActions = [
+    {
+      id: "speaking-simpler",
+      label: locale === "ru" ? "Объясни проще" : "Explain simpler",
+      text:
+        locale === "ru"
+          ? "Сейчас тебе не нужно делать идеальную речь. Достаточно одного осмысленного ответа, чтобы система увидела живой сигнал и обновила маршрут."
+          : "You do not need a perfect answer right now. One meaningful response is enough for the system to read a live signal and update the route.",
+    },
+    {
+      id: "speaking-why",
+      label: locale === "ru" ? "Почему именно speaking" : "Why speaking now",
+      text: coachSupportingText,
+    },
+    {
+      id: "speaking-priority",
+      label: locale === "ru" ? "Что важнее всего" : "What matters most",
+      text:
+        locale === "ru"
+          ? `Сейчас важнее всего получить честный ответ вокруг ${currentFocusArea}, а не переписывать transcript до идеального вида.`
+          : `What matters most right now is getting an honest response around ${currentFocusArea}, not polishing the transcript into something perfect.`,
+    },
+    {
+      id: "speaking-next",
+      label: locale === "ru" ? "Следующий лучший шаг" : "Next best step",
+      text: nextSpeakingStep,
+    },
+  ];
 
   useEffect(() => {
     void loadAttempts();
@@ -195,6 +246,51 @@ export function SpeakingScreen() {
         eyebrow={tr("Speaking Partner")}
         title={tr("Speaking Studio")}
         description={tr("Use text and voice practice to train clarity, confidence, and faster self-correction.")}
+      />
+
+      <LivingDepthSection id={livingDepthSectionIds.speakingCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`speaking:${activeScenario?.id ?? "empty"}:${currentFocusArea}:${attempts.length}`}
+          title={tr("Liza Speaking Layer")}
+          message={coachMessage}
+          spokenMessage={coachMessage}
+          spokenLanguage={locale}
+          replayCta={tr("Послушать ещё раз")}
+          primaryAction={(
+            <button type="button" onClick={() => void requestFeedback()} className="proof-lesson-primary-button">
+              {tr("Получить speaking feedback")}
+            </button>
+          )}
+          secondaryAction={(
+            <Link to={routes.dailyLoop} className="proof-lesson-secondary-action">
+              {tr("Открыть daily loop")}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
+
+      <LizaGuidanceGrid
+        currentLabel={locale === "ru" ? "Что сейчас происходит" : "What is happening now"}
+        currentText={
+          locale === "ru"
+            ? `Ты тренируешь живой ответ в сценарии ${activeScenario ? tr(activeScenario.title) : tr("speaking scenario")} и сразу видишь, где речь начинает проседать.`
+            : `You are training a live response inside ${activeScenario ? tr(activeScenario.title) : tr("a speaking scenario")} and immediately seeing where speech starts to slip.`
+        }
+        whyLabel={locale === "ru" ? "Почему это важно тебе" : "Why it matters for you"}
+        whyText={
+          locale === "ru"
+            ? `Твой текущий фокус сейчас завязан на ${currentFocusArea}, а speaking быстрее всего показывает, что уже стало рабочим, а что пока держится только в теории.`
+            : `Your current focus is anchored around ${currentFocusArea}, and speaking is the fastest way to show what is already usable versus what still works only in theory.`
+        }
+        nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
+        nextText={nextSpeakingStep}
+      />
+
+      <LizaExplainActions
+        title={locale === "ru" ? "Разобрать speaking с Лизой" : "Break down speaking with Liza"}
+        actions={explainActions}
       />
 
       {error ? (

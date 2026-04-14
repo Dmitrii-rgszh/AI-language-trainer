@@ -4,6 +4,7 @@ export const navigationItems = [
   { label: "Live Avatar", to: routes.liveAvatar },
   { label: "Onboarding", to: routes.onboarding },
   { label: "Dashboard", to: routes.dashboard },
+  { label: "Daily Loop", to: routes.dailyLoop },
   { label: "Activity", to: routes.activity },
   { label: "Vocabulary", to: routes.vocabulary },
   { label: "Lesson Runner", to: routes.lessonRunner },

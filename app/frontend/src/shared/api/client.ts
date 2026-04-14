@@ -9,6 +9,7 @@ import type { Mistake } from "../../entities/mistake/model";
 import type {
   CompleteOnboardingRequest,
   CompleteOnboardingResponse,
+  OnboardingJourneySession,
   UserOnboarding,
 } from "../../entities/onboarding/model";
 import type { ProgressSnapshot } from "../../entities/progress/model";
@@ -23,6 +24,7 @@ import type {
 import type {
   AITextFeedback,
   AdaptiveStudyLoop,
+  DailyLoopPlan,
   DashboardData,
   DiagnosticRoadmap,
   GrammarTopic,
@@ -145,6 +147,11 @@ export const apiClient = {
   getAdaptiveStudyLoop: () => request<AdaptiveStudyLoop>("/api/adaptive/loop"),
   getVocabularyHub: () => request<VocabularyHub>("/api/adaptive/vocabulary/hub"),
   getDiagnosticRoadmap: () => request<DiagnosticRoadmap>("/api/diagnostic/roadmap"),
+  getTodayDailyLoop: () => request<DailyLoopPlan>("/api/daily-loop/today"),
+  startTodayDailyLoop: () =>
+    request<LessonRunState>("/api/daily-loop/today/start", {
+      method: "POST",
+    }),
   startDiagnosticCheckpoint: () =>
     request<LessonRunState>("/api/diagnostic/checkpoint-run", {
       method: "POST",
@@ -185,6 +192,47 @@ export const apiClient = {
       body: JSON.stringify(payload),
     }),
   getCurrentOnboarding: () => request<UserOnboarding>("/api/onboarding/current"),
+  startOnboardingJourneySession: (payload: {
+    source: "proof_lesson" | "direct_onboarding";
+    proofLessonHandoff?: {
+      locale: "ru" | "en";
+      scenarioId: string;
+      beforePhrase: string;
+      afterPhrase: string;
+      clarityStatusLabel: string;
+      directions: string[];
+      wins: string[];
+      createdAt: string;
+    } | null;
+  }) =>
+    request<OnboardingJourneySession>(
+      "/api/journey/onboarding-session",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      false,
+    ),
+  getOnboardingJourneySession: (sessionId: string) =>
+    request<OnboardingJourneySession>(`/api/journey/onboarding-session/${sessionId}`, undefined, false),
+  saveOnboardingJourneyDraft: (
+    sessionId: string,
+    payload: {
+      accountDraft: { login: string; email: string };
+      profileDraft: CompleteOnboardingRequest["profile"];
+      currentStep: number;
+    },
+  ) =>
+    request<OnboardingJourneySession>(
+      `/api/journey/onboarding-session/${sessionId}/draft`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      false,
+    ),
   completeOnboarding: (payload: CompleteOnboardingRequest) =>
     request<CompleteOnboardingResponse>(
       "/api/onboarding/complete",

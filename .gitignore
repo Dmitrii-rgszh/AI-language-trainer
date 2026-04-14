@@ -24,3 +24,5 @@ docs/ux-books-kb/
 app/frontend/*.log
 backend/*.log
 .codex_tmp/
+backend/tmp_debug/
+sample/

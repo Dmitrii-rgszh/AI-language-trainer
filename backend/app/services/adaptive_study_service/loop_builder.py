@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.schemas.adaptive import (
+    AdaptiveStrategyAlignment,
     AdaptiveStudyLoop,
     MistakeVocabularyBacklink,
     MistakeResolutionSignal,
@@ -36,6 +37,7 @@ def build_adaptive_study_loop(
     due_vocabulary: list[VocabularyReviewItem],
     vocabulary_summary: VocabularyLoopSummary,
     vocabulary_backlinks: list[MistakeVocabularyBacklink],
+    strategy_alignment: AdaptiveStrategyAlignment | None = None,
 ) -> AdaptiveStudyLoop:
     mistake_resolution = build_mistake_resolution(mistakes, vocabulary_backlinks)
     listening_focus = detect_listening_focus(progress, weak_spots)
@@ -85,6 +87,7 @@ def build_adaptive_study_loop(
             listening_focus=listening_focus,
             module_rotation=module_rotation,
         ),
+        strategy_alignment=strategy_alignment,
     )
 
 

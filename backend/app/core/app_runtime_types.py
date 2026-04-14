@@ -6,6 +6,7 @@ from typing import Any
 
 from app.providers.registry import ProviderRegistry
 from app.repositories.content_repository import ContentRepository
+from app.repositories.journey_repository import JourneyRepository
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.listening_repository import ListeningRepository
@@ -24,6 +25,7 @@ from app.services.adaptive_study_service.service import AdaptiveStudyService
 from app.services.ai_orchestrator import AIOrchestrator
 from app.services.diagnostic_service.service import DiagnosticService
 from app.services.grammar_service.service import GrammarService
+from app.services.journey_service.service import JourneyService
 from app.services.lesson_runtime_service.service import LessonRuntimeService
 from app.services.lesson_service.service import LessonService
 from app.services.listening_service.service import ListeningService
@@ -50,6 +52,7 @@ SessionFactory = Callable[[], Any]
 @dataclass(frozen=True)
 class AppRepositories:
     content_repository: ContentRepository
+    journey_repository: JourneyRepository
     lesson_repository: LessonRepository
     lesson_runtime_repository: LessonRuntimeRepository
     listening_repository: ListeningRepository
@@ -80,6 +83,7 @@ class AppRuntime:
     adaptive_study_service: AdaptiveStudyService
     diagnostic_service: DiagnosticService
     grammar_service: GrammarService
+    journey_service: JourneyService
     lesson_runtime_service: LessonRuntimeService
     lesson_service: LessonService
     listening_service: ListeningService

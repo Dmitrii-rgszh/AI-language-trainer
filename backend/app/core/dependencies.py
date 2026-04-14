@@ -5,6 +5,7 @@ runtime = build_runtime()
 adaptive_study_service = runtime.adaptive_study_service
 diagnostic_service = runtime.diagnostic_service
 grammar_service = runtime.grammar_service
+journey_service = runtime.journey_service
 lesson_runtime_service = runtime.lesson_runtime_service
 lesson_service = runtime.lesson_service
 listening_service = runtime.listening_service

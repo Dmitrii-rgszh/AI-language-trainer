@@ -6,10 +6,11 @@ import { useLocale } from "../../shared/i18n/useLocale";
 import { useAppStore } from "../../shared/store/app-store";
 
 export function useProgressScreen() {
-  const { tr, tt, tl, formatDate, formatDateTime, formatDays, formatRoadmapSummary } = useLocale();
+  const { tr, tt, tl, formatDate, formatDateTime, formatDays, formatRoadmapSummary, locale } = useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
   const progress = useAppStore((state) => state.progress);
   const diagnosticRoadmap = useAppStore((state) => state.diagnosticRoadmap);
+  const startTodayDailyLoop = useAppStore((state) => state.startTodayDailyLoop);
   const startDiagnosticCheckpoint = useAppStore((state) => state.startDiagnosticCheckpoint);
   const navigate = useNavigate();
   const { activityError, listeningAttempts, listeningTrend, pronunciationTrend, speakingAttempts } =
@@ -48,24 +49,49 @@ export function useProgressScreen() {
     navigate(routes.lessonRunner);
   }
 
+  const hasAvailableDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const hasActiveDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan?.lessonRunId) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const primaryRouteLabel = hasActiveDailyRoute
+    ? tr("Resume today’s route")
+    : hasAvailableDailyRoute
+      ? tr("Start today’s route")
+      : tr("Start checkpoint");
+
+  async function handleStartPrimaryRoute() {
+    if (hasAvailableDailyRoute) {
+      await startTodayDailyLoop();
+    } else {
+      await startDiagnosticCheckpoint();
+    }
+    navigate(routes.lessonRunner);
+  }
+
   return {
     activityError,
     averageLessonScore,
+    dashboard,
     dailyGoalProgress,
     diagnosticRoadmap,
     feedbackSourceLabel,
     formatDate,
     formatDateTime,
     formatDays,
+    handleStartPrimaryRoute,
     handleStartCheckpoint,
+    hasActiveDailyRoute,
+    hasAvailableDailyRoute,
     listeningAttempts,
     listeningTrend,
     mostRecentLesson,
+    primaryRouteLabel,
     progress,
     pronunciationTrend,
     recentSpeakingAttempts,
     roadmapSummary,
     studyLoop: dashboard?.studyLoop ?? null,
+    locale,
     tl,
     tr,
     tt,

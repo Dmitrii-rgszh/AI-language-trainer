@@ -2,6 +2,7 @@ from app.core.errors import ConflictError, NotFoundError
 from app.repositories.onboarding_repository import OnboardingRepository
 from app.repositories.user_account_repository import UserAccountRepository, UserIdentityConflictError
 from app.schemas.onboarding import CompleteOnboardingRequest, CompleteOnboardingResponse, UserOnboarding
+from app.services.journey_service.service import JourneyService
 from app.services.profile_service.service import ProfileService
 
 
@@ -11,10 +12,12 @@ class OnboardingService:
         user_repository: UserAccountRepository,
         onboarding_repository: OnboardingRepository,
         profile_service: ProfileService,
+        journey_service: JourneyService | None = None,
     ) -> None:
         self._user_repository = user_repository
         self._onboarding_repository = onboarding_repository
         self._profile_service = profile_service
+        self._journey_service = journey_service
 
     def get_onboarding(self, user_id: str) -> UserOnboarding:
         onboarding = self._onboarding_repository.get_onboarding(user_id)
@@ -28,6 +31,12 @@ class OnboardingService:
             user = self._user_repository.resolve_user(payload.login, payload.email)
             onboarding = self._onboarding_repository.upsert_onboarding(user.id, payload.profile.onboarding_answers)
             profile = self._profile_service.update_profile(user.id, payload.profile)
+            if self._journey_service is not None:
+                self._journey_service.finalize_onboarding(
+                    user_id=user.id,
+                    profile=profile,
+                    session_id=payload.session_id,
+                )
             return CompleteOnboardingResponse(user=user, onboarding=onboarding, profile=profile)
         except UserIdentityConflictError as error:
             raise ConflictError(str(error)) from error

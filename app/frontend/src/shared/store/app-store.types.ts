@@ -54,6 +54,7 @@ export interface AppStoreActions {
   saveProfile: (profile: UserProfile) => Promise<void>;
   saveProviderPreference: (providerType: ProviderPreference["providerType"], enabled: boolean) => Promise<void>;
   startLesson: () => Promise<void>;
+  startTodayDailyLoop: () => Promise<void>;
   startDiagnosticCheckpoint: () => Promise<void>;
   startRecoveryLesson: () => Promise<void>;
   resumeLessonRun: () => Promise<boolean>;

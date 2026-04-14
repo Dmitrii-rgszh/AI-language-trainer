@@ -11,6 +11,7 @@ type DashboardHeroSectionProps = {
   disabledProviders: number;
   fallbackProviders: number;
   onStartLesson: () => Promise<void>;
+  primaryRouteLabel: string;
   readyProviders: number;
   recommendationGoal: string;
   recoveringSignals: MistakeResolutionSignal[];
@@ -25,6 +26,7 @@ export function DashboardHeroSection({
   disabledProviders,
   fallbackProviders,
   onStartLesson,
+  primaryRouteLabel,
   readyProviders,
   recommendationGoal,
   recoveringSignals,
@@ -32,18 +34,23 @@ export function DashboardHeroSection({
   totalProviders,
   tr,
 }: DashboardHeroSectionProps) {
+  const routeTitle = dashboard.dailyLoopPlan?.recommendedLessonTitle ?? dashboard.recommendation.title;
+  const routeDuration = dashboard.dailyLoopPlan?.estimatedMinutes ?? dashboard.recommendation.duration;
+  const routeFocus = dashboard.dailyLoopPlan?.focusArea ?? dashboard.recommendation.focusArea;
+  const eyebrow = dashboard.dailyLoopPlan ? tr("Today's route") : tr("Recommended lesson");
+
   return (
     <>
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="space-y-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">
-            {tr("Recommended lesson")}
+            {eyebrow}
           </div>
-          <div className="text-2xl font-[700] tracking-[-0.03em] text-ink">{tr(dashboard.recommendation.title)}</div>
+          <div className="text-2xl font-[700] tracking-[-0.03em] text-ink">{tr(routeTitle)}</div>
           <div className="text-sm leading-6 text-slate-600">{recommendationGoal}</div>
           <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
-            {tr("Duration")}: {dashboard.recommendation.duration} min. {tr("Focus")}:{" "}
-            {tl(dashboard.recommendation.focusArea.split(","))}.
+            {tr("Duration")}: {routeDuration} min. {tr("Focus")}:{" "}
+            {tl(routeFocus.split(","))}.
           </div>
           {recoveringSignals.length > 0 ? (
             <div className="rounded-2xl bg-mint/30 p-4 text-sm text-slate-700">
@@ -53,7 +60,7 @@ export function DashboardHeroSection({
             </div>
           ) : null}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => void onStartLesson()}>{tr("Start lesson")}</Button>
+            <Button onClick={() => void onStartLesson()}>{primaryRouteLabel}</Button>
             <Link
               to={routes.progress}
               className="rounded-2xl bg-sand px-4 py-2.5 text-sm font-[700] tracking-[-0.01em] text-ink transition-colors hover:bg-[#ddccb6]"

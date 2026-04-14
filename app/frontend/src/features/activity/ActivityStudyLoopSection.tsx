@@ -25,6 +25,8 @@ export function ActivityStudyLoopSection({
     return null;
   }
 
+  const strategyAlignment = studyLoop.strategyAlignment ?? null;
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
       <Card className="space-y-3">
@@ -50,6 +52,27 @@ export function ActivityStudyLoopSection({
             ))}
           </div>
         </div>
+        {strategyAlignment ? (
+          <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
+            <div className="text-sm font-semibold text-ink">{tr("Strategy alignment")}</div>
+            <div className="mt-3 text-sm leading-6 text-slate-700">{strategyAlignment.whyNow}</div>
+            <div className="mt-3 rounded-2xl bg-white/78 p-4 text-sm text-slate-700">
+              <span className="font-semibold text-ink">{tr("Route detail")}:</span> {strategyAlignment.routeSeedDetail}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {strategyAlignment.carryOverSignalLabel ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Carry forward")}: {strategyAlignment.carryOverSignalLabel}
+                </div>
+              ) : null}
+              {strategyAlignment.watchSignalLabel ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Watch next")}: {strategyAlignment.watchSignalLabel}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <Button onClick={() => void onStartRecoveryLesson()}>{tr("Start recovery lesson")}</Button>
         {studyLoop.nextSteps.map((step) => (
           <Link key={step.id} to={step.route} className="block rounded-2xl bg-sand/80 p-4">

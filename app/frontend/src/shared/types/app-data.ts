@@ -26,8 +26,112 @@ export interface DashboardData {
   weakSpots: WeakSpot[];
   recommendation: LessonRecommendation;
   studyLoop: AdaptiveStudyLoop | null;
+  dailyLoopPlan: DailyLoopPlan | null;
+  journeyState: LearnerJourneyState | null;
   quickActions: QuickAction[];
   resumeLesson: ResumeLessonCard | null;
+}
+
+export interface DailyLoopStep {
+  id: string;
+  skill: string;
+  title: string;
+  description: string;
+  durationMinutes: number;
+}
+
+export interface DailyLoopPlan {
+  id: string;
+  planDateKey: string;
+  status: string;
+  stage: string;
+  sessionKind: string;
+  focusArea: string;
+  headline: string;
+  summary: string;
+  whyThisNow: string;
+  nextStepHint: string;
+  preferredMode: string;
+  timeBudgetMinutes: number;
+  estimatedMinutes: number;
+  recommendedLessonType: string;
+  recommendedLessonTitle: string;
+  lessonRunId?: string | null;
+  completedAt?: string | null;
+  steps: DailyLoopStep[];
+}
+
+export interface JourneyTomorrowPreview {
+  focusArea: string;
+  sessionKind: string;
+  headline: string;
+  reason: string;
+  nextStepHint: string;
+  recommendedLessonTitle?: string | null;
+  continuityMode?: string | null;
+  carryOverSignalLabel?: string | null;
+  watchSignalLabel?: string | null;
+}
+
+export interface JourneyCompletedLessonSignal {
+  lessonTitle?: string | null;
+  lessonType?: string | null;
+  score?: number | null;
+  completedAt?: string | null;
+}
+
+export interface JourneySessionSummary {
+  outcomeBand: string;
+  headline: string;
+  whatWorked: string;
+  watchSignal: string;
+  strategyShift: string;
+  coachNote: string;
+  carryOverSignalLabel?: string | null;
+  watchSignalLabel?: string | null;
+  weakSpotTitle?: string | null;
+  strongestSignalLabel?: string | null;
+  weakestSignalLabel?: string | null;
+}
+
+export interface JourneyActivePlanSeed {
+  source?: string | null;
+  planDateKey?: string | null;
+  focusArea?: string | null;
+  sessionKind?: string | null;
+}
+
+export interface JourneyStrategySnapshot {
+  primaryGoal?: string;
+  preferredMode?: string;
+  diagnosticReadiness?: string;
+  timeBudgetMinutes?: number;
+  focusArea?: string;
+  activeSkillFocus?: string[];
+  proofLessonDirections?: string[];
+  recommendationTitle?: string | null;
+  recommendationType?: string | null;
+  tomorrowPreview?: JourneyTomorrowPreview | null;
+  completedLesson?: JourneyCompletedLessonSignal | null;
+  sessionSummary?: JourneySessionSummary | null;
+  activePlanSeed?: JourneyActivePlanSeed | null;
+}
+
+export interface LearnerJourneyState {
+  userId: string;
+  stage: string;
+  source: string;
+  preferredMode: string;
+  diagnosticReadiness: string;
+  timeBudgetMinutes: number;
+  currentFocusArea: string;
+  currentStrategySummary: string;
+  nextBestAction: string;
+  lastDailyPlanId?: string | null;
+  strategySnapshot: JourneyStrategySnapshot;
+  onboardingCompletedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdaptiveLoopStep {
@@ -73,6 +177,19 @@ export interface MistakeResolutionSignal {
   resolutionHint: string;
 }
 
+export interface AdaptiveStrategyAlignment {
+  focusArea: string;
+  routeTitle: string;
+  routeSeedSource: string;
+  routeSeedDetail: string;
+  whyNow: string;
+  nextBestAction: string;
+  carryOverSignalLabel?: string | null;
+  watchSignalLabel?: string | null;
+  recommendedModuleKey?: string | null;
+  recommendedModuleReason?: string | null;
+}
+
 export interface AdaptiveStudyLoop {
   focusArea: string;
   headline: string;
@@ -93,6 +210,7 @@ export interface AdaptiveStudyLoop {
   listeningFocus?: string | null;
   generationRationale: string[];
   nextSteps: AdaptiveLoopStep[];
+  strategyAlignment?: AdaptiveStrategyAlignment | null;
 }
 
 export interface VocabularyHub {

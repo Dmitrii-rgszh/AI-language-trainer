@@ -7,6 +7,7 @@ import type { AppState, AppStoreGet, AppStoreSet } from "./app-store.types";
 
 type LessonActionKeys =
   | "startLesson"
+  | "startTodayDailyLoop"
   | "startDiagnosticCheckpoint"
   | "startRecoveryLesson"
   | "resumeLessonRun"
@@ -233,6 +234,10 @@ export function createLessonActions(
       }
 
       const lessonRun = await apiClient.startLessonRun();
+      set(hydrateLessonRunState(lessonRun));
+    },
+    startTodayDailyLoop: async () => {
+      const lessonRun = await apiClient.startTodayDailyLoop();
       set(hydrateLessonRunState(lessonRun));
     },
     startDiagnosticCheckpoint: async () => {

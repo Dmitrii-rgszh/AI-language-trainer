@@ -1,37 +1,29 @@
 import {
-  adultSupportOptions,
-  ageGroupOptions,
   currentLevelOptions,
+  diagnosticReadinessOptions,
   goalOptions,
-  interestTopicOptions,
-  learnerAgeQuestionOptions,
   learningContextOptions,
+  preferredModeOptions,
   resolveOptionLabel,
   resolveOptionList,
   skillFocusOptions,
-  studyPreferenceOptions,
-  supportNeedOptions,
   targetLevelOptions,
 } from "../../shared/profile/profile-form-config";
 import { cn } from "../../shared/utils/cn";
-import { ChoiceCard, FieldStatusBadge, MetricSlider } from "./OnboardingUi";
+import { ChoiceCard, FieldStatusBadge } from "./OnboardingUi";
 import type { OnboardingFlowController } from "./useOnboardingFlow";
 
 type OnboardingStepContentProps = Pick<
   OnboardingFlowController,
   | "account"
   | "activeTrack"
-  | "adultSupportEnabled"
   | "emailCheck"
   | "form"
   | "handleLocaleChange"
   | "loginCheck"
-  | "needsAdultSupportQuestion"
   | "setAccount"
   | "step"
   | "tracks"
-  | "updateAdultSupport"
-  | "updateAgeGroup"
   | "updateAnswer"
   | "updateField"
   | "updateLearningContext"
@@ -158,18 +150,14 @@ function getEmailStatusPresentation(
 export function OnboardingStepContent({
   account,
   activeTrack,
-  adultSupportEnabled,
   emailCheck,
   form,
   handleLocaleChange,
   loginCheck,
-  needsAdultSupportQuestion,
   setAccount,
   step,
   tracks,
   tr,
-  updateAdultSupport,
-  updateAgeGroup,
   updateAnswer,
   updateField,
   updateLearningContext,
@@ -261,10 +249,7 @@ export function OnboardingStepContent({
             className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
           />
         </label>
-        <label
-          style={{ animationDelay: "60ms" }}
-          className="onboarding-stagger-item space-y-2 text-sm text-slate-700"
-        >
+        <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
           <span>{tr("Native language")}</span>
           <select
             value={form.nativeLanguage}
@@ -276,10 +261,7 @@ export function OnboardingStepContent({
             <option value="other">{tr("Other language")}</option>
           </select>
         </label>
-        <label
-          style={{ animationDelay: "120ms" }}
-          className="onboarding-stagger-item space-y-2 text-sm text-slate-700"
-        >
+        <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
           <span>{tr("UI language")}</span>
           <select
             value={form.preferredUiLanguage}
@@ -290,10 +272,7 @@ export function OnboardingStepContent({
             <option value="en">{tr("English")}</option>
           </select>
         </label>
-        <label
-          style={{ animationDelay: "180ms" }}
-          className="onboarding-stagger-item space-y-2 text-sm text-slate-700"
-        >
+        <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
           <span>{tr("Current level")}</span>
           <select
             value={form.currentLevel}
@@ -305,10 +284,7 @@ export function OnboardingStepContent({
             ))}
           </select>
         </label>
-        <label
-          style={{ animationDelay: "240ms" }}
-          className="onboarding-stagger-item space-y-2 text-sm text-slate-700"
-        >
+        <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
           <span>{tr("Target level")}</span>
           <select
             value={form.targetLevel}
@@ -320,10 +296,7 @@ export function OnboardingStepContent({
             ))}
           </select>
         </label>
-        <label
-          style={{ animationDelay: "300ms" }}
-          className="onboarding-stagger-item space-y-2 text-sm text-slate-700 md:col-span-2"
-        >
+        <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700 md:col-span-2">
           <span>{tr("Explanation language")}</span>
           <select
             value={form.preferredExplanationLanguage}
@@ -342,16 +315,16 @@ export function OnboardingStepContent({
     return (
       <div className="space-y-6">
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Learner age group")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("Primary goal")}</div>
           {renderOptionGrid(
-            learnerAgeQuestionOptions,
-            form.onboardingAnswers.ageGroup,
-            updateAgeGroup,
+            goalOptions,
+            form.onboardingAnswers.primaryGoal,
+            (value) => updateAnswer("primaryGoal", value),
             tr,
           )}
         </div>
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Where is English most needed right now?")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("Where is English most important right now?")}</div>
           {renderOptionGrid(
             learningContextOptions,
             form.onboardingAnswers.learningContext,
@@ -359,46 +332,8 @@ export function OnboardingStepContent({
             tr,
           )}
         </div>
-        {needsAdultSupportQuestion ? (
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-ink">{tr("Does the learner need adult support?")}</div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {adultSupportOptions.map((option, index) => (
-                <ChoiceCard
-                  key={option.value}
-                  title={tr(option.label)}
-                  active={adultSupportEnabled === (option.value === "yes")}
-                  onClick={() => updateAdultSupport(option.value === "yes")}
-                  delay={index * 55}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <div className="space-y-6">
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Primary goal")}</div>
-          {renderOptionGrid(goalOptions, form.onboardingAnswers.primaryGoal, (value) => updateAnswer("primaryGoal", value), tr)}
-        </div>
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Secondary goals")}</div>
-          {renderOptionGrid(
-            goalOptions,
-            "",
-            (value) => toggleAnswer("secondaryGoals", value),
-            tr,
-            true,
-            form.onboardingAnswers.secondaryGoals,
-          )}
-        </div>
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Content lane for the first lesson pack")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("Content lane for the first daily loop")}</div>
           <div className="grid gap-3 md:grid-cols-2">
             {tracks.map((track, index) => (
               <ChoiceCard
@@ -412,52 +347,33 @@ export function OnboardingStepContent({
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  if (step === 4) {
-    return (
-      <div className="space-y-6">
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("What should the plan train most?")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("Preferred mode for the first loop")}</div>
           {renderOptionGrid(
-            skillFocusOptions,
-            "",
-            (value) => toggleAnswer("activeSkillFocus", value),
+            preferredModeOptions,
+            form.onboardingAnswers.preferredMode,
+            (value) => updateAnswer("preferredMode", value),
             tr,
-            true,
-            form.onboardingAnswers.activeSkillFocus,
           )}
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <MetricSlider
-            label={tr("Speaking priority")}
-            value={form.speakingPriority}
-            onChange={(value) => updateField("speakingPriority", value)}
-          />
-          <MetricSlider
-            label={tr("Grammar priority")}
-            value={form.grammarPriority}
-            onChange={(value) => updateField("grammarPriority", value)}
-            delay={70}
-          />
-          <MetricSlider
-            label={tr("Track priority")}
-            value={form.professionPriority}
-            onChange={(value) => updateField("professionPriority", value)}
-            delay={140}
-          />
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-ink">{tr("Diagnostic readiness")}</div>
+          {renderOptionGrid(
+            diagnosticReadinessOptions,
+            form.onboardingAnswers.diagnosticReadiness,
+            (value) => updateAnswer("diagnosticReadiness", value),
+            tr,
+          )}
         </div>
       </div>
     );
   }
 
-  if (step === 5) {
+  if (step === 3) {
     return (
       <div className="space-y-6">
         <label className="onboarding-stagger-item space-y-2 text-sm text-slate-700">
-          <span>{tr("Lesson duration")}</span>
+          <span>{tr("Time budget for the first daily loop")}</span>
           <input
             type="number"
             min={10}
@@ -468,48 +384,16 @@ export function OnboardingStepContent({
           />
         </label>
         <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Study preferences")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("What should the first loops train most?")}</div>
           {renderOptionGrid(
-            studyPreferenceOptions,
+            skillFocusOptions,
             "",
-            (value) => toggleAnswer("studyPreferences", value),
+            (value) => toggleAnswer("activeSkillFocus", value),
             tr,
             true,
-            form.onboardingAnswers.studyPreferences,
+            form.onboardingAnswers.activeSkillFocus,
           )}
         </div>
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Support needs")}</div>
-          {renderOptionGrid(
-            supportNeedOptions,
-            "",
-            (value) => toggleAnswer("supportNeeds", value),
-            tr,
-            true,
-            form.onboardingAnswers.supportNeeds,
-          )}
-        </div>
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-ink">{tr("Interest topics")}</div>
-          {renderOptionGrid(
-            interestTopicOptions,
-            "",
-            (value) => toggleAnswer("interestTopics", value),
-            tr,
-            true,
-            form.onboardingAnswers.interestTopics,
-          )}
-        </div>
-        <label className="space-y-2 text-sm text-slate-700">
-          <span>{tr("Flexible notes")}</span>
-          <textarea
-            rows={4}
-            value={form.onboardingAnswers.notes}
-            onChange={(event) => updateAnswer("notes", event.target.value)}
-            placeholder={tr("Add anything important: special goals, child-safe preferences, exam target, or personal context.")}
-            className="w-full rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 outline-none transition focus:border-accent/50"
-          />
-        </label>
       </div>
     );
   }
@@ -530,23 +414,10 @@ export function OnboardingStepContent({
             </div>
           </div>
         </div>
+
         <div className="rounded-[26px] border border-white/60 bg-white/70 p-5">
-          <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("Profile summary")}</div>
+          <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("First loop setup")}</div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Study format")}</div>
-              <div className="mt-2 font-semibold text-ink">
-                {needsAdultSupportQuestion && adultSupportEnabled
-                  ? tr("With adult support")
-                  : tr("Independent format")}
-              </div>
-            </div>
-            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Age group")}</div>
-              <div className="mt-2 font-semibold text-ink">
-                {resolveOptionLabel(form.onboardingAnswers.ageGroup, ageGroupOptions, tr)}
-              </div>
-            </div>
             <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
               <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Primary goal")}</div>
               <div className="mt-2 font-semibold text-ink">
@@ -554,9 +425,21 @@ export function OnboardingStepContent({
               </div>
             </div>
             <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Learning context")}</div>
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Preferred mode")}</div>
               <div className="mt-2 font-semibold text-ink">
-                {resolveOptionLabel(form.onboardingAnswers.learningContext, learningContextOptions, tr)}
+                {resolveOptionLabel(form.onboardingAnswers.preferredMode, preferredModeOptions, tr)}
+              </div>
+            </div>
+            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Diagnostic readiness")}</div>
+              <div className="mt-2 font-semibold text-ink">
+                {resolveOptionLabel(form.onboardingAnswers.diagnosticReadiness, diagnosticReadinessOptions, tr)}
+              </div>
+            </div>
+            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("Time budget")}</div>
+              <div className="mt-2 font-semibold text-ink">
+                {`${form.lessonDuration} ${tr("minutes")}`}
               </div>
             </div>
           </div>
@@ -568,21 +451,19 @@ export function OnboardingStepContent({
           <div className="text-xs uppercase tracking-[0.26em] text-coral">{tr("Current setup")}</div>
           <div className="mt-3 text-lg font-semibold text-ink">{form.name.trim() || tr("This learner")}</div>
           <div className="mt-2">{`${form.currentLevel} -> ${form.targetLevel} · ${tr(activeTrack?.title ?? form.professionTrack)}`}</div>
-          <div className="mt-4 rounded-[20px] bg-white/80 px-4 py-3">
-            {`${tr("Saved skill focus")}: ${resolveOptionList(form.onboardingAnswers.activeSkillFocus, skillFocusOptions, tr)}`}
+          <div className="mt-3 rounded-[20px] bg-white/80 px-4 py-3">
+            {`${tr("First focus")}: ${resolveOptionList(form.onboardingAnswers.activeSkillFocus, skillFocusOptions, tr)}`}
           </div>
           <div className="mt-3 rounded-[20px] bg-white/80 px-4 py-3">
-            {`${tr("Lesson format")}: ${form.lessonDuration} ${tr("minutes")}, ${tr("explanations in")} ${tr(
-              form.preferredExplanationLanguage === "ru" ? "Russian" : "English",
-            )}.`}
+            {`${tr("Learning context")}: ${resolveOptionLabel(form.onboardingAnswers.learningContext, learningContextOptions, tr)}`}
           </div>
           <div className="mt-3 rounded-[20px] bg-white/80 px-4 py-3">
-            {`${tr("Current engine mix")}: ${tr("speaking")} ${form.speakingPriority}, ${tr("grammar")} ${form.grammarPriority}, ${tr("track")} ${form.professionPriority}.`}
+            {`${tr("First daily rhythm")}: ${resolveOptionLabel(form.onboardingAnswers.preferredMode, preferredModeOptions, tr)}, ${form.lessonDuration} ${tr("minutes")}.`}
           </div>
         </div>
         <div className="rounded-[26px] border border-dashed border-accent/30 bg-accent/5 p-5 text-sm leading-6 text-slate-700">
           {tr(
-            "After this step, the learner gets a private dashboard, a first lesson lane, and profile-aware recommendations instead of demo placeholders.",
+            "After this step, the learner gets a personal dashboard and the first guided daily loop instead of a generic set of screens.",
           )}
         </div>
       </div>

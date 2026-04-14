@@ -32,6 +32,7 @@ export function useDashboardScreen() {
   const bootstrap = useAppStore((state) => state.bootstrap);
   const providers = useAppStore((state) => state.providers);
   const startLesson = useAppStore((state) => state.startLesson);
+  const startTodayDailyLoop = useAppStore((state) => state.startTodayDailyLoop);
   const startDiagnosticCheckpoint = useAppStore((state) => state.startDiagnosticCheckpoint);
   const startRecoveryLesson = useAppStore((state) => state.startRecoveryLesson);
   const discardLessonRun = useAppStore((state) => state.discardLessonRun);
@@ -174,8 +175,27 @@ export function useDashboardScreen() {
       ]
     : [];
 
+  const hasAvailableDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const hasActiveDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan?.lessonRunId) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const primaryRouteLabel = hasActiveDailyRoute
+    ? tr("Resume today’s route")
+    : hasAvailableDailyRoute
+      ? tr("Start today’s route")
+      : tr("Start lesson");
+
   async function handleStartLesson() {
-    await startLesson();
+    if (hasAvailableDailyRoute) {
+      await startTodayDailyLoop();
+    } else {
+      await startLesson();
+    }
+    navigate(routes.lessonRunner);
+  }
+
+  async function handleStartDailyLoop() {
+    await startTodayDailyLoop();
     navigate(routes.lessonRunner);
   }
 
@@ -225,6 +245,7 @@ export function useDashboardScreen() {
     handleDiscardLessonRun,
     handleRestartLesson,
     handleStartDiagnosticCheckpoint,
+    handleStartDailyLoop,
     handleStartLesson,
     handleStartRecoveryLesson,
     handleVocabularyReview,
@@ -232,6 +253,7 @@ export function useDashboardScreen() {
     openLessonRunner,
     pronunciationTrend,
     providers,
+    primaryRouteLabel,
     readyProviders,
     recentActivity,
     recommendationGoal,

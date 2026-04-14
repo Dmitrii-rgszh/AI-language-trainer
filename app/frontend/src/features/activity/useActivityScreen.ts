@@ -17,9 +17,10 @@ export type ActivityEvent = {
 };
 
 export function useActivityScreen() {
-  const { tr, tt, formatDateTime, formatDays } = useLocale();
+  const { tr, tt, formatDateTime, formatDays, locale } = useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
   const bootstrap = useAppStore((state) => state.bootstrap);
+  const startTodayDailyLoop = useAppStore((state) => state.startTodayDailyLoop);
   const startRecoveryLesson = useAppStore((state) => state.startRecoveryLesson);
   const progress = useAppStore((state) => state.progress);
   const mistakes = useAppStore((state) => state.mistakes);
@@ -130,15 +131,40 @@ export function useActivityScreen() {
     navigate(routes.lessonRunner);
   }
 
+  const hasAvailableDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const hasActiveDailyRoute =
+    Boolean(dashboard?.dailyLoopPlan?.lessonRunId) && dashboard?.dailyLoopPlan?.completedAt == null;
+  const primaryRouteLabel = hasActiveDailyRoute
+    ? tr("Resume today’s route")
+    : hasAvailableDailyRoute
+      ? tr("Start today’s route")
+      : tr("Start recovery");
+
+  async function handleStartPrimaryRoute() {
+    if (hasAvailableDailyRoute) {
+      await startTodayDailyLoop();
+    } else {
+      await startRecoveryLesson();
+    }
+    navigate(routes.lessonRunner);
+  }
+
   return {
     activityError,
+    dashboard,
     formatDateTime,
     formatDays,
+    handleStartPrimaryRoute,
     handleStartRecoveryLesson,
     handleVocabularyReview,
+    hasAvailableDailyRoute,
+    hasActiveDailyRoute,
     lastLessonResult,
+    locale,
     listeningTrend,
     mistakes,
+    primaryRouteLabel,
     progress,
     pronunciationTrend,
     recentEvents,

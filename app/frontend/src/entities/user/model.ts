@@ -3,6 +3,8 @@ export interface OnboardingAnswers {
   ageGroup: string;
   learningContext: string;
   primaryGoal: string;
+  preferredMode: string;
+  diagnosticReadiness: string;
   secondaryGoals: string[];
   activeSkillFocus: string[];
   studyPreferences: string[];
@@ -16,6 +18,8 @@ export const defaultOnboardingAnswers: OnboardingAnswers = {
   ageGroup: "adult",
   learningContext: "general_english",
   primaryGoal: "everyday_communication",
+  preferredMode: "mixed",
+  diagnosticReadiness: "soft_start",
   secondaryGoals: ["speaking_confidence", "vocabulary_growth"],
   activeSkillFocus: ["speaking", "vocabulary", "grammar"],
   studyPreferences: ["structured_plan", "short_sessions", "gentle_feedback"],

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.schemas.journey import DailyLoopPlan, LearnerJourneyState
 from app.schemas.adaptive import AdaptiveStudyLoop
 from app.schemas.content import DashboardData, QuickAction, ResumeLessonCard
 from app.schemas.lesson import LessonRecommendation, LessonRunState
@@ -146,6 +147,8 @@ def build_dashboard_data(
     weak_spots: list[WeakSpot],
     recommendation: LessonRecommendation,
     study_loop: AdaptiveStudyLoop | None,
+    daily_loop_plan: DailyLoopPlan | None,
+    journey_state: LearnerJourneyState | None,
     active_run: LessonRunState | None,
 ) -> DashboardData:
     return DashboardData(
@@ -154,6 +157,8 @@ def build_dashboard_data(
         weak_spots=weak_spots,
         recommendation=recommendation,
         study_loop=study_loop,
+        daily_loop_plan=daily_loop_plan,
+        journey_state=journey_state,
         quick_actions=build_quick_actions(
             profile=profile,
             weak_spots=weak_spots,

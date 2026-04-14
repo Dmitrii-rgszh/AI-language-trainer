@@ -14,6 +14,7 @@ from app.schemas.adaptive import (
     VocabularyReviewItem,
 )
 from app.schemas.content import DashboardData
+from app.schemas.journey import DailyLoopPlan, DailyLoopStep, LearnerJourneyState
 from app.schemas.lesson import (
     Lesson,
     LessonBlock,
@@ -201,6 +202,57 @@ def _build_active_run() -> LessonRunState:
     )
 
 
+def _build_daily_loop_plan() -> DailyLoopPlan:
+    return DailyLoopPlan(
+        id="daily-loop-1",
+        plan_date_key="2026-04-13",
+        status="planned",
+        stage="first_path",
+        session_kind="recommended",
+        focus_area="grammar",
+        headline="Nina, your daily loop is ready.",
+        summary="A focused first loop around grammar and speaking.",
+        why_this_now="The current plan keeps the first path simple and connected.",
+        next_step_hint="Start the loop and finish one guided session.",
+        preferred_mode="mixed",
+        time_budget_minutes=20,
+        estimated_minutes=20,
+        recommended_lesson_type="recovery",
+        recommended_lesson_title="Recovery lesson",
+        lesson_run_id=None,
+        completed_at=None,
+        steps=[
+            DailyLoopStep(
+                id="warm-start",
+                skill="coach",
+                title="Warm start",
+                description="Liza frames the session.",
+                duration_minutes=2,
+            )
+        ],
+    )
+
+
+def _build_journey_state() -> LearnerJourneyState:
+    return LearnerJourneyState(
+        user_id="user-1",
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode="mixed",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="grammar",
+        current_strategy_summary="Keep the next step focused on grammar first, then widen into speaking.",
+        next_best_action="Open the daily loop and complete one guided session.",
+        last_daily_plan_id="daily-loop-1",
+        proof_lesson_handoff=None,
+        strategy_snapshot={"focusArea": "grammar"},
+        onboarding_completed_at="2026-04-13T10:00:00",
+        created_at="2026-04-13T10:00:00",
+        updated_at="2026-04-13T10:00:00",
+    )
+
+
 def test_build_quick_actions_prioritizes_focus_and_avoids_duplicate_routes() -> None:
     actions = build_quick_actions(
         profile=_build_profile(),
@@ -242,10 +294,14 @@ def test_build_dashboard_data_wraps_all_sections() -> None:
             focus_area="grammar",
         ),
         study_loop=_build_study_loop(),
+        daily_loop_plan=_build_daily_loop_plan(),
+        journey_state=_build_journey_state(),
         active_run=_build_active_run(),
     )
 
     assert isinstance(data, DashboardData)
     assert data.resume_lesson is not None
     assert data.quick_actions
+    assert data.daily_loop_plan is not None
+    assert data.journey_state is not None
     assert profession_hub_description("trainer_skills").startswith("Feedback language")

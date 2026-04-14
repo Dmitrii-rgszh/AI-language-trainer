@@ -1,23 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { defaultUserAccountDraft, type UserAccountDraft } from "../../entities/account/model";
 import type { OnboardingAnswers, UserProfile } from "../../entities/user/model";
-import { ApiError } from "../../shared/api/client";
+import { ApiError, apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import {
-  applyAdultSupportPreference,
   buildProfileDraft,
   cloneAnswers,
+  diagnosticReadinessOptions,
   fallbackProfessionTracks,
   goalOptions,
   inferLearnerPersona,
-  learningContextOptions,
+  preferredModeOptions,
   skillFocusOptions,
   toggleValue,
   type OnboardingOption,
 } from "../../shared/profile/profile-form-config";
 import { applyGuestIntentToProfile, consumeGuestIntent } from "../../shared/profile/guest-intent";
+import {
+  clearStoredJourneySessionId,
+  readStoredJourneySessionId,
+  writeStoredJourneySessionId,
+} from "../../shared/profile/journey-session";
 import {
   clearWelcomeProofLessonHandoff,
   readWelcomeProofLessonHandoff,
@@ -53,6 +58,9 @@ export function useOnboardingFlow() {
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [welcomeHandoff] = useState(() => readWelcomeProofLessonHandoff());
+  const [journeySessionId, setJourneySessionId] = useState<string | null>(() => readStoredJourneySessionId());
+  const [isHydratingSession, setIsHydratingSession] = useState(true);
+  const draftSaveTimeoutRef = useRef<number | null>(null);
   const { loginCheck, emailCheck, emailIsValid } = useAccountAvailability(account);
 
   useEffect(() => {
@@ -90,6 +98,58 @@ export function useOnboardingFlow() {
     setSubmitError(null);
   }, [account.email, account.login]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateSession() {
+      setIsHydratingSession(true);
+      try {
+        let sessionId = readStoredJourneySessionId();
+        let session = null;
+
+        if (sessionId) {
+          try {
+            session = await apiClient.getOnboardingJourneySession(sessionId);
+          } catch {
+            session = null;
+          }
+        }
+
+        if (!session) {
+          session = await apiClient.startOnboardingJourneySession({
+            source: welcomeHandoff ? "proof_lesson" : "direct_onboarding",
+            proofLessonHandoff: welcomeHandoff ?? undefined,
+          });
+          sessionId = session.id;
+          writeStoredJourneySessionId(sessionId);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setJourneySessionId(sessionId);
+        if (session.accountDraft.login || session.accountDraft.email) {
+          setAccount(session.accountDraft);
+        }
+        if (session.profileDraft) {
+          setForm(buildProfileDraft(session.profileDraft));
+        }
+        setStep(Math.max(0, session.currentStep ?? 0));
+      } finally {
+        if (!cancelled) {
+          setIsHydratingSession(false);
+        }
+      }
+    }
+
+    void hydrateSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [welcomeHandoff]);
+
   const tracks: ProfessionTrackCard[] =
     professionTracks.length > 0 ? professionTracks : fallbackProfessionTracks;
   const activeTrack = useMemo(
@@ -103,9 +163,14 @@ export function useOnboardingFlow() {
     account.login.trim().length >= 3 && emailIsValid && loginStatusAllowsContinue;
   const basicsReady = form.name.trim().length > 0;
   const goalsReady =
-    form.onboardingAnswers.primaryGoal.trim().length > 0 && form.professionTrack.trim().length > 0;
-  const skillsReady = form.onboardingAnswers.activeSkillFocus.length > 0;
-  const styleReady = form.lessonDuration >= 10 && form.lessonDuration <= 60;
+    form.onboardingAnswers.primaryGoal.trim().length > 0 &&
+    form.professionTrack.trim().length > 0 &&
+    form.onboardingAnswers.preferredMode.trim().length > 0 &&
+    form.onboardingAnswers.diagnosticReadiness.trim().length > 0;
+  const rhythmReady =
+    form.lessonDuration >= 10 &&
+    form.lessonDuration <= 60 &&
+    form.onboardingAnswers.activeSkillFocus.length > 0;
 
   const steps: OnboardingStepDefinition[] = useMemo(
     () => [
@@ -121,77 +186,84 @@ export function useOnboardingFlow() {
         description:
           locale === "ru"
             ? welcomeHandoff
-              ? "Создай логин и укажи email, чтобы сохранить результат пробного урока и продолжить уже в личном пространстве обучения."
-              : "Выбери логин и email, чтобы мы создали личное учебное пространство и сохранили ответы за правильным пользователем."
+              ? "Создай логин и email, чтобы сохранить результат пробного урока и продолжить уже в личном пространстве."
+              : "Выбери логин и email, чтобы мы сохранили твой старт под правильным профилем."
             : welcomeHandoff
               ? "Create your login and email so we can save the proof-lesson result and continue inside your personal learning space."
-              : "Choose a login and email so we can create a private learner workspace and save onboarding answers under the right person.",
+              : "Choose a login and email so we can save your start under the right learner profile.",
         ready: accountReady,
         helper:
           locale === "ru"
-            ? welcomeHandoff
-              ? "Укажи логин и email, и мы сразу привяжем к ним твой стартовый результат."
-              : "Сначала добавь корректный логин и email."
-            : welcomeHandoff
-              ? "Add your login and email first so we can attach your starter result to the new workspace."
-              : "Add a valid login and email first.",
+            ? "Сначала нужен корректный логин и email."
+            : "A valid login and email come first.",
       },
       {
         title: tr("Basics"),
         description: tr(
-          "Set the learner name, languages, and target level so explanations and lesson pacing start in the right place.",
+          "Set the learner name, languages, and current level so explanations and pacing start in the right place.",
         ),
         ready: basicsReady,
         helper: tr("Add a learner name to continue."),
       },
       {
-        title: tr("Learner"),
-        description: tr("Tell us the learner's age and where English is most needed right now."),
-        ready: true,
-        helper: tr("Choose the age group and the main context."),
-      },
-      {
-        title: tr("Goals"),
-        description: tr("Choose the strongest outcomes and the first content lane to shape the starting lesson pack."),
+        title: tr("Goal"),
+        description: tr("Choose the main goal, the first content lane, the preferred mode, and diagnostic readiness."),
         ready: goalsReady,
-        helper: tr("Pick a main goal and a first content lane."),
+        helper: tr("Pick the main goal, mode, and the first lane."),
       },
       {
-        title: tr("Skills"),
-        description: tr("Balance the engine between speaking, grammar, track depth, and the skills this learner needs most."),
-        ready: skillsReady,
-        helper: tr("Select at least one active skill focus."),
-      },
-      {
-        title: tr("Style"),
-        description: tr("Tune the rhythm, support needs, and topics so the trainer feels gentle, useful, and personal."),
-        ready: styleReady,
+        title: tr("Rhythm"),
+        description: tr("Set the time budget and the first skills that should shape the daily loop."),
+        ready: rhythmReady,
         helper: tr("Keep lesson duration between 10 and 60 minutes."),
       },
       {
         title: tr("Review"),
-        description: tr("Check the summary before we open the personal dashboard and the first lesson track."),
-        ready: accountReady && basicsReady && goalsReady && skillsReady && styleReady,
+        description: tr("Check the summary before we open the dashboard and the first guided daily loop."),
+        ready: accountReady && basicsReady && goalsReady && rhythmReady,
         helper: tr("Review the setup and create the workspace."),
       },
     ],
-    [
-      accountReady,
-      basicsReady,
-      goalsReady,
-      locale,
-      skillsReady,
-      styleReady,
-      tr,
-      welcomeHandoff,
-    ],
+    [accountReady, basicsReady, goalsReady, locale, rhythmReady, tr, welcomeHandoff],
   );
+
+  useEffect(() => {
+    setStep((current) => Math.min(current, steps.length - 1));
+  }, [steps.length]);
+
+  useEffect(() => {
+    if (!journeySessionId || isHydratingSession) {
+      return;
+    }
+
+    if (draftSaveTimeoutRef.current !== null) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+    }
+
+    draftSaveTimeoutRef.current = window.setTimeout(() => {
+      void apiClient.saveOnboardingJourneyDraft(journeySessionId, {
+        accountDraft: {
+          login: account.login.trim(),
+          email: account.email.trim(),
+        },
+        profileDraft: {
+          ...form,
+          onboardingAnswers: cloneAnswers(form.onboardingAnswers),
+        },
+        currentStep: step,
+      }).catch(() => undefined);
+    }, 320);
+
+    return () => {
+      if (draftSaveTimeoutRef.current !== null) {
+        window.clearTimeout(draftSaveTimeoutRef.current);
+        draftSaveTimeoutRef.current = null;
+      }
+    };
+  }, [account, form, step, journeySessionId, isHydratingSession]);
 
   const activeStep = steps[step];
   const allCoreStepsReady = steps.slice(0, -1).every((item) => item.ready);
-  const needsAdultSupportQuestion =
-    form.onboardingAnswers.ageGroup === "child" || form.onboardingAnswers.ageGroup === "teen";
-  const adultSupportEnabled = form.onboardingAnswers.studyPreferences.includes("parent_guided");
 
   const activeStepHelper = useMemo(() => {
     if (step !== 0) {
@@ -226,20 +298,6 @@ export function useOnboardingFlow() {
       onboardingAnswers: { ...current.onboardingAnswers, [field]: value },
     }));
 
-  const updateAgeGroup = (value: string) =>
-    setForm((current) => ({
-      ...current,
-      onboardingAnswers: {
-        ...current.onboardingAnswers,
-        ageGroup: value,
-        learnerPersona: inferLearnerPersona(value, current.onboardingAnswers.learningContext),
-        studyPreferences:
-          value === "child" || value === "teen"
-            ? current.onboardingAnswers.studyPreferences
-            : applyAdultSupportPreference(current.onboardingAnswers.studyPreferences, false),
-      },
-    }));
-
   const updateLearningContext = (value: string) =>
     setForm((current) => ({
       ...current,
@@ -247,15 +305,6 @@ export function useOnboardingFlow() {
         ...current.onboardingAnswers,
         learningContext: value,
         learnerPersona: inferLearnerPersona(current.onboardingAnswers.ageGroup, value),
-      },
-    }));
-
-  const updateAdultSupport = (enabled: boolean) =>
-    setForm((current) => ({
-      ...current,
-      onboardingAnswers: {
-        ...current.onboardingAnswers,
-        studyPreferences: applyAdultSupportPreference(current.onboardingAnswers.studyPreferences, enabled),
       },
     }));
 
@@ -287,6 +336,7 @@ export function useOnboardingFlow() {
       await completeOnboarding({
         login: account.login.trim(),
         email: account.email.trim(),
+        sessionId: journeySessionId,
         profile: {
           ...form,
           name: form.name.trim(),
@@ -294,6 +344,7 @@ export function useOnboardingFlow() {
         },
       });
       clearWelcomeProofLessonHandoff();
+      clearStoredJourneySessionId();
       navigate(routes.dashboard);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -306,21 +357,30 @@ export function useOnboardingFlow() {
     }
   };
 
+  const helperOptionGroups: {
+    diagnosticReadinessOptions: OnboardingOption[];
+    preferredModeOptions: OnboardingOption[];
+  } = {
+    diagnosticReadinessOptions,
+    preferredModeOptions,
+  };
+
   return {
     account,
     activeStep,
     activeStepHelper,
     activeTrack,
-    adultSupportEnabled,
     allCoreStepsReady,
     emailCheck,
     form,
     goBack,
     goNext,
     handleLocaleChange,
+    helperOptionGroups,
+    isHydratingSession,
     isSaving,
+    journeySessionId,
     loginCheck,
-    needsAdultSupportQuestion,
     setAccount,
     setStep,
     step,
@@ -328,8 +388,6 @@ export function useOnboardingFlow() {
     submit,
     submitError,
     tracks,
-    updateAdultSupport,
-    updateAgeGroup,
     updateAnswer,
     updateField,
     updateLearningContext,

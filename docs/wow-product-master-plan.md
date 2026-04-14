@@ -44,6 +44,8 @@
   - small talk;
   - everyday English.
 
+Важно: family / child / parent-guided направления можно держать в архитектурном горизонте, но не расширять их как основной execution focus первой сильной версии.
+
 ## Product Principles
 
 ### 1. One System, Not Many Tools
@@ -603,6 +605,43 @@ Gamification должна быть глубокой, но не дешёвой.
 - он должен не просто “красиво работать”, а доказать весь продукт за 3-5 минут;
 - после него пользователь должен захотеть остаться внутри системы.
 
+Поверх этого уже начал собираться второй сильный слой: adaptive dashboard и Liza coach panels за пределами welcome.
+
+## Current Execution Checkpoint - 2026-04-13
+
+Сейчас продукт находится между поздней `Phase 2` и ранней `Phase 3` master plan: `Phase 1` уже по сути закрыта для первого сильного пути, `Phase 2` частично развёрнута, а `Phase 3` уже не только skeleton, но и первый persisted daily-loop contour.
+
+- `Phase 1. Stabilize And Elevate Proof Lesson` - в основном выполнена: есть цельный welcome/proof lesson, voice capture, pronunciation assessment, preset/prefetch media, handoff в onboarding и regression tests на ключевые builder/runtime куски.
+- `Phase 2. Build Global Liza Layer` - в процессе: `LizaCoachPanel` уже используется в welcome, onboarding, dashboard, daily loop, grammar, vocabulary, pronunciation, writing, speaking, progress, activity, settings и lesson results, guidance increasingly uses persisted `journey_state`, а explain-actions уже существуют как reusable interactive pattern.
+- `Phase 3. Build Unified Daily Learning Loop` - foundation уже есть: dashboard recommendation, diagnostic roadmap, adaptive loop, lesson runner, recovery/diagnostic runs, lesson results, persisted `daily_loop_plan` и `journey_state` связаны между собой, after-session continuity уже умеет показывать persisted `sessionSummary` и `tomorrowPreview`, next-day plan уже может частично наследовать этот continuity seed, recommended lesson run уже может стартовать через continuity-aware template overlay, а теперь и обычный recommended route стартует через guided-route overlay с `why now`, `preferred mode`, active skill focus и weak-signal context прямо внутри blocks; сверх этого guided route уже начинает перестраивать сам composition урока через support `vocab` / `listening` blocks и text-first response shaping. Dashboard всё заметнее превращается в route-first surface, а `AppShell`, `activity` и `progress` тоже начинают работать как реальные re-entry points, но session flow ещё не ощущается как полностью conversational daily ritual.
+- `Phase 4. Build Deep Skill Verticals` - частично идёт: сильнее всего готовы grammar, pronunciation, speaking, writing и vocabulary; listening и reading пока не вышли в отдельные полноценные verticals.
+- `Phase 5. Build Personal Strategy Engine` - ранний слой уже есть через profile-driven recommendation, weak spots и adaptive rotation, но полноценной editable strategy model пока нет.
+- `Phase 6. Add Gamification And Retention Architecture` - не начата, кроме базовых progress/streak метрик.
+- `Phase 7. Exam, Relocation, Travel And Real-Task Tracks` - как отдельные продуктовые пути ещё не реализована.
+
+## Strategic Keep / Freeze
+
+### Keep As Is
+
+Что не нужно переизобретать:
+
+- `one AI companion + one strategy + one connected learning loop`;
+- Лиза как product layer, а не как декоративный аватар;
+- proof lesson как flagship entrance;
+- позвоночник `proof lesson -> onboarding -> dashboard -> daily loop`;
+- explainable personalization как обязательный premium-standard.
+
+### Freeze For Now
+
+Что лучше сознательно заморозить на ближайший execution window:
+
+- social layer и speaking rooms;
+- тяжёлую геймификацию;
+- большие отдельные ветки `exam / relocation / travel / work`;
+- глубокое расширение family / child / parent-guided;
+- перегруженный онбординг первого входа;
+- широкое расширение listening/reading verticals до стабилизации daily ritual.
+
 ## Master Execution Plan
 
 ## Phase 1. Stabilize And Elevate Proof Lesson
@@ -672,6 +711,7 @@ Gamification должна быть глубокой, но не дешёвой.
 
 - пользователь больше не видит “набор страниц”;
 - пользователь видит одно живое приложение с одним наставником.
+- пользователь понимает, что происходит, почему это важно и что делать дальше без лишних догадок.
 
 ## Phase 3. Build Unified Daily Learning Loop
 
@@ -702,6 +742,7 @@ Gamification должна быть глубокой, но не дешёвой.
 - вся система начинает ощущаться целостной;
 - каждое занятие становится meaningful;
 - продукт перестаёт быть набором отдельных режимов.
+- у пользователя появляется ясный ежедневный ритуал, а не просто отдельные хорошие surfaces.
 
 ## Phase 4. Build Deep Skill Verticals
 
@@ -838,6 +879,60 @@ Gamification должна быть глубокой, но не дешёвой.
 - global Liza layer сделает продукт единым;
 - daily loop превратит wow-demo в реальный продукт.
 
+## Next 3 Sprints
+
+### Sprint 1. One Connected First Path
+
+Главная цель: собрать единый первый путь пользователя без ощущения перехода между разрозненными частями.
+
+Что делаем:
+
+1. Доводим до гладкости связку `proof lesson -> onboarding handoff -> onboarding finish -> first personal dashboard`.
+2. Сокращаем обязательный onboarding до минимума: goal, current level/self-rating, preferred mode, time budget, diagnostic readiness.
+3. Переносим второстепенные вопросы в позднее доуточнение через dashboard, first daily loop и mini-prompts от Лизы.
+4. Добавляем persistent draft save.
+5. Убираем seed/demo-хвосты из copy и product-facing surfaces.
+
+Статус на `2026-04-13`: основа спринта уже реализована. Следующий шаг здесь не расширять маршрут, а дополировать continuity после onboarding и объяснимость первого daily plan.
+
+### Sprint 2. Real Global Liza Layer
+
+Главная цель: сделать Лизу реальным системным слоем приложения.
+
+Что делаем:
+
+1. Дотягиваем Liza layer до `speaking`, `progress`, `activity`, `settings`, `lesson results`.
+2. На каждом ключевом экране внедряем три обязательных ответа:
+   что сейчас происходит;
+   почему это важно именно тебе;
+   что делать дальше.
+3. Выравниваем паттерн `full presence` и `ambient presence`.
+4. Добавляем explain-actions: `объясни проще`, `почему мне дали именно это`, `что мне сейчас важнее всего`, `следующий лучший шаг`.
+
+Статус на `2026-04-13`: главный screen coverage уже существенно расширен. Explain-actions уже существуют как reusable interactive pattern. Следующий шаг внутри этого спринта - сделать этот guidance layer ещё более conversational и context-aware.
+
+### Sprint 3. Daily Loop Skeleton
+
+Главная цель: превратить продукт в место, куда есть смысл возвращаться ежедневно.
+
+Что делаем:
+
+1. Канонизируем структуру daily session:
+   warm start;
+   vocabulary recall;
+   grammar pattern;
+   listening/reading input;
+   speaking/writing response;
+   pronunciation micro-fix;
+   reinforcement;
+   strategic summary.
+2. Делаем session summary обязательной частью опыта.
+3. Обновляем learner model после каждой meaningful session.
+4. Явно показываем пользователю влияние его действий на следующий шаг.
+5. Вводим лёгкий retention layer без тяжёлой геймификации.
+
+Статус на `2026-04-13`: strengthened foundation. `lesson results` и `daily loop` уже получают больше explainable continuity через persisted `journey_state`, а `tomorrowPreview` уже появляется после завершения loop, но полноценный ritual ещё требует richer session summary и более явного tomorrow-state behavior across the whole app.
+
 ## Definition Of Wow
 
 Продукт можно считать “wow-приложением, которого ещё нет”, если одновременно выполняются 5 условий:
@@ -850,4 +945,19 @@ Gamification должна быть глубокой, но не дешёвой.
 
 ## Immediate Next Step
 
-После утверждения этого документа начать не с распыления по всему продукту, а с детализированной реализации Phase 1 и подготовкой архитектурной основы для Phase 2.
+Следующий главный execution slice больше не Phase 1, а связка:
+
+`Global Liza layer hardening -> stronger daily loop ritual -> richer strategy model`
+
+Именно в такой последовательности.
+
+Почему:
+
+- proof lesson, onboarding handoff и persisted first daily plan уже дают сильный первый вход;
+- теперь нужно сделать остальную часть продукта такой же цельной по присутствию Лизы;
+- после этого daily loop должен ощущаться как один сценарий и один ритуал, а не как переходы между отдельными режимами;
+- и только затем имеет смысл углублять strategy engine, monetization и retention-архитектуру.
+
+Главный критерий качества на этом отрезке:
+
+`понимает ли пользователь, что происходит, зачем это нужно и что делать дальше`

@@ -8,6 +8,8 @@ class OnboardingAnswers(ApiModel):
     age_group: str = "adult"
     learning_context: str = "general_english"
     primary_goal: str = "everyday_communication"
+    preferred_mode: str = "mixed"
+    diagnostic_readiness: str = "soft_start"
     secondary_goals: list[str] = Field(
         default_factory=lambda: ["speaking_confidence", "vocabulary_growth"]
     )

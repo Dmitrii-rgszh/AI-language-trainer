@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.app_runtime_types import AppRepositories, SessionFactory
 from app.db.session import SessionLocal
 from app.repositories.content_repository import ContentRepository
+from app.repositories.journey_repository import JourneyRepository
 from app.repositories.lesson_repository import LessonRepository
 from app.repositories.lesson_runtime_repository import LessonRuntimeRepository
 from app.repositories.listening_repository import ListeningRepository
@@ -26,6 +27,7 @@ def build_app_repositories(session_factory: SessionFactory = SessionLocal) -> Ap
 
     return AppRepositories(
         content_repository=ContentRepository(session_factory),
+        journey_repository=JourneyRepository(session_factory),
         lesson_repository=lesson_repository,
         lesson_runtime_repository=LessonRuntimeRepository(session_factory),
         listening_repository=ListeningRepository(session_factory),

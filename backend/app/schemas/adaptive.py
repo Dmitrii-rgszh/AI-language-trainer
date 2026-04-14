@@ -61,6 +61,19 @@ class ModuleRotationItem(ApiModel):
     priority: int
 
 
+class AdaptiveStrategyAlignment(ApiModel):
+    focus_area: str
+    route_title: str
+    route_seed_source: str
+    route_seed_detail: str
+    why_now: str
+    next_best_action: str
+    carry_over_signal_label: str | None = None
+    watch_signal_label: str | None = None
+    recommended_module_key: str | None = None
+    recommended_module_reason: str | None = None
+
+
 class AdaptiveStudyLoop(ApiModel):
     focus_area: str
     headline: str
@@ -75,6 +88,7 @@ class AdaptiveStudyLoop(ApiModel):
     listening_focus: str | None = None
     generation_rationale: list[str]
     next_steps: list[AdaptiveLoopStep]
+    strategy_alignment: AdaptiveStrategyAlignment | None = None
 
 
 class VocabularyHub(ApiModel):

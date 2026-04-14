@@ -6,6 +6,12 @@ import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { ScoreBadge } from "../../shared/ui/ScoreBadge";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
+import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
+import { JourneySessionSummaryPanel } from "../../widgets/journey/JourneySessionSummaryPanel";
+import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
+import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 function deltaLabel(before: number | undefined, after: number, tr: (value: string) => string) {
   if (before === undefined) {
@@ -23,7 +29,7 @@ function deltaLabel(before: number | undefined, after: number, tr: (value: strin
 }
 
 export function LessonResultsScreen() {
-  const { tr, formatDateTime } = useLocale();
+  const { tr, formatDateTime, locale } = useLocale();
   const result = useAppStore((state) => state.lastLessonResult);
   const dashboard = useAppStore((state) => state.dashboard);
   const startLesson = useAppStore((state) => state.startLesson);
@@ -45,6 +51,85 @@ export function LessonResultsScreen() {
   const diagnosticMilestoneDeltas =
     result.milestoneDeltas?.filter((item) => item.readinessAfter !== item.readinessBefore) ?? [];
   const isCheckpointResult = result.title.toLowerCase().includes("checkpoint");
+  const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "next step";
+  const coachMessage =
+    locale === "ru"
+      ? `Сессия завершена. Сейчас важно не просто посмотреть на score, а понять, как этот результат сдвинул твой маршрут вокруг ${currentFocusArea} и что я рекомендую следующим шагом.`
+      : `The session is complete. What matters now is not only the score, but how this result shifted your route around ${currentFocusArea} and what I recommend next.`;
+  const coachSupportingText =
+    dashboard?.journeyState?.currentStrategySummary ??
+    (locale === "ru"
+      ? "Lesson results должны закрывать сессию не сухими цифрами, а понятным объяснением: что получилось, что просело и как это меняет следующий шаг."
+      : "Lesson results should close the session with more than dry numbers. They should explain what worked, what slipped, and how that changes the next step.");
+  const nextResultStep =
+    dashboard?.journeyState?.nextBestAction ??
+    result.nextRecommendationGoal ??
+    (locale === "ru"
+      ? "Открой dashboard и запусти следующий guided step, чтобы не терять continuity."
+      : "Open the dashboard and launch the next guided step so continuity stays intact.");
+  const tomorrowPreview = dashboard?.journeyState?.strategySnapshot.tomorrowPreview ?? null;
+  const sessionSummary = dashboard?.journeyState?.strategySnapshot.sessionSummary ?? null;
+  const strongestShift = [
+    {
+      label: tr("Grammar"),
+      delta: (result.progressAfter.grammarScore ?? 0) - (result.progressBefore?.grammarScore ?? 0),
+    },
+    {
+      label: tr("Speaking"),
+      delta: (result.progressAfter.speakingScore ?? 0) - (result.progressBefore?.speakingScore ?? 0),
+    },
+    {
+      label: tr("Writing"),
+      delta: (result.progressAfter.writingScore ?? 0) - (result.progressBefore?.writingScore ?? 0),
+    },
+    {
+      label: tr("Profession"),
+      delta: (result.progressAfter.professionScore ?? 0) - (result.progressBefore?.professionScore ?? 0),
+    },
+  ].sort((left, right) => right.delta - left.delta)[0];
+  const explainActions = [
+    {
+      id: "results-simpler",
+      label: locale === "ru" ? "Объясни проще" : "Explain simpler",
+      text:
+        isCheckpointResult
+          ? sessionSummary?.headline ??
+            (locale === "ru"
+              ? "Checkpoint закончен: теперь система точнее понимает твой уровень и может перестроить следующий маршрут."
+              : "The checkpoint is done: the system now understands your level more precisely and can reshape the next route.")
+          : sessionSummary?.headline ??
+            (locale === "ru"
+              ? "Сессия завершена: система обновила ошибки, progress и следующий маршрут. Теперь задача не пересматривать всё подряд, а пойти в следующий осмысленный шаг."
+              : "The session is complete: the system updated mistakes, progress, and the next route. The goal now is not to re-read everything, but to move into the next meaningful step."),
+    },
+    {
+      id: "results-why",
+      label: locale === "ru" ? "Почему это важно" : "Why it matters",
+      text:
+        sessionSummary?.whatWorked ??
+        (strongestShift.delta !== 0
+          ? locale === "ru"
+            ? `Потому что именно сдвиг в ${strongestShift.label} показывает, что эта сессия реально изменила learner model, а не просто закрыла ещё один урок.`
+            : `Because the shift in ${strongestShift.label} shows that this session changed the learner model rather than just closing another lesson.`
+          : locale === "ru"
+            ? "Потому что даже без большого score-jump система уточнила слабые сигналы и стала точнее в выборе следующего шага."
+            : "Because even without a large score jump, the system refined the weak signals and became more precise about the next step."),
+    },
+    {
+      id: "results-priority",
+      label: locale === "ru" ? "Что теперь главное" : "What matters now",
+      text:
+        sessionSummary?.watchSignal ??
+        (locale === "ru"
+          ? `Сейчас главное - не потерять continuity: принять updated route вокруг ${currentFocusArea} и не откатываться в случайный выбор следующего модуля.`
+          : `What matters now is not losing continuity: accept the updated route around ${currentFocusArea} and avoid falling back into random module hopping.`),
+    },
+    {
+      id: "results-next",
+      label: locale === "ru" ? "Следующий лучший шаг" : "Next best step",
+      text: sessionSummary?.strategyShift ?? tomorrowPreview?.nextStepHint ?? nextResultStep,
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -53,6 +138,59 @@ export function LessonResultsScreen() {
         title={tr(result.title)}
         description={tr("Итоги lesson run: score, найденные ошибки, обновление progress и следующий рекомендуемый шаг.")}
       />
+
+      <LivingDepthSection id={livingDepthSectionIds.lessonResultsCoach}>
+        <LizaCoachPanel
+          locale={locale}
+          playKey={`lesson-results:${result.runId}:${result.score}:${currentFocusArea}`}
+          title={tr("Liza Results Layer")}
+          message={coachMessage}
+          spokenMessage={coachMessage}
+          spokenLanguage={locale}
+          replayCta={tr("Послушать ещё раз")}
+          primaryAction={<Button onClick={() => void handleContinueRoadmap()} className="proof-lesson-primary-button">{tr("Продолжить roadmap")}</Button>}
+          secondaryAction={(
+            <Link to={routes.dashboard} className="proof-lesson-secondary-action">
+              {tr("Открыть dashboard")}
+            </Link>
+          )}
+          supportingText={coachSupportingText}
+        />
+      </LivingDepthSection>
+
+      <LizaGuidanceGrid
+        currentLabel={locale === "ru" ? "Что сейчас происходит" : "What is happening now"}
+        currentText={
+          locale === "ru"
+            ? `Урок завершён со score ${result.score}/100. Система уже собрала ошибки, обновила progress и пересчитала следующий шаг.`
+            : `The lesson finished with a ${result.score}/100 score. The system has already collected mistakes, refreshed progress, and recalculated the next step.`
+        }
+        whyLabel={locale === "ru" ? "Почему это важно тебе" : "Why it matters for you"}
+        whyText={
+          locale === "ru"
+            ? strongestShift.delta !== 0
+              ? `Сильнее всего сейчас сдвинулся сигнал ${strongestShift.label} (${strongestShift.delta > 0 ? `+${strongestShift.delta}` : strongestShift.delta}). Именно такие сдвиги меняют реальную стратегию, а не просто историю уроков.`
+              : "Даже если большие score-сдвиги ещё не видны, эта сессия всё равно уточняет roadmap и повышает точность следующего шага."
+            : strongestShift.delta !== 0
+              ? `The strongest shift right now is ${strongestShift.label} (${strongestShift.delta > 0 ? `+${strongestShift.delta}` : strongestShift.delta}). These shifts change the real strategy, not just the lesson history.`
+              : "Even if large score shifts are not visible yet, this session still sharpens the roadmap and improves the next step."
+        }
+        nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
+        nextText={nextResultStep}
+      />
+
+      <LizaExplainActions
+        title={locale === "ru" ? "Разобрать итог с Лизой" : "Break down the result with Liza"}
+        actions={explainActions}
+      />
+
+      {sessionSummary ? (
+        <JourneySessionSummaryPanel
+          summary={sessionSummary}
+          title={tr("Session shift")}
+          tr={tr}
+        />
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="space-y-4">
@@ -137,6 +275,18 @@ export function LessonResultsScreen() {
             <div className="rounded-2xl bg-sand/80 p-4">
               <div className="text-sm font-semibold text-ink">{tr(dashboard.studyLoop.headline)}</div>
               <div className="mt-2 text-sm text-slate-600">{tr(dashboard.studyLoop.summary)}</div>
+            </div>
+          ) : null}
+          {dashboard?.dailyLoopPlan?.completedAt ? (
+            <div className="rounded-2xl bg-accent/10 p-4 text-sm text-accent">
+              {tr("Today's daily loop is now marked as completed. Review the updated next step before you launch the next session.")}
+            </div>
+          ) : null}
+          {tomorrowPreview ? (
+            <div className="rounded-2xl border border-accent/20 bg-white/76 p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-accent">{tr("Tomorrow preview")}</div>
+              <div className="mt-2 text-sm font-semibold text-ink">{tomorrowPreview.headline}</div>
+              <div className="mt-2 text-sm text-slate-600">{tomorrowPreview.reason}</div>
             </div>
           ) : null}
           <Button onClick={() => void handleContinueRoadmap()}>{tr("Continue personal roadmap")}</Button>

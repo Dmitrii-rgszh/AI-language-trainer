@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import type { AppLocale } from "../../shared/i18n/locale";
 import type { PronunciationAssessment } from "../../shared/types/app-data";
 import { routes } from "../../shared/constants/routes";
+import { writeStoredJourneySessionId } from "../../shared/profile/journey-session";
 import { writeWelcomeProofLessonHandoff } from "../../shared/profile/welcome-proof-handoff";
 import { writeGuestIntent } from "./guest-intent";
 import type {
@@ -743,13 +744,8 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     setRetrySuccessful(successful);
   }
 
-  function buildNextLesson() {
-    writeGuestIntent({
-      directions: scenario.guestIntentDirections,
-      painPoint: scenario.id,
-      lessonTone: "proof_first",
-    });
-    writeWelcomeProofLessonHandoff({
+  async function buildNextLesson() {
+    const proofLessonHandoff = {
       locale,
       scenarioId: scenario.id,
       beforePhrase: feedback.userVersion,
@@ -758,7 +754,22 @@ export function useWelcomeProofLesson(locale: AppLocale) {
       directions: scenario.guestIntentDirections,
       wins: scenario.result.points,
       createdAt: new Date().toISOString(),
+    };
+    writeGuestIntent({
+      directions: scenario.guestIntentDirections,
+      painPoint: scenario.id,
+      lessonTone: "proof_first",
     });
+    writeWelcomeProofLessonHandoff(proofLessonHandoff);
+    try {
+      const session = await apiClient.startOnboardingJourneySession({
+        source: "proof_lesson",
+        proofLessonHandoff,
+      });
+      writeStoredJourneySessionId(session.id);
+    } catch {
+      // Local handoff remains as a fallback if session bootstrap fails.
+    }
     navigate(WELCOME_PROOF_LESSON_NEXT_ROUTE);
   }
 
