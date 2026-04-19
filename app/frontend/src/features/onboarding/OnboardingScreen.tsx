@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
@@ -8,8 +9,24 @@ import { useOnboardingFlow } from "./useOnboardingFlow";
 
 export function OnboardingScreen() {
   const { locale, tr } = useLocale();
+  const location = useLocation();
+  const locationState = location.state as
+    | {
+        routeEntryReason?: string;
+        routeEntrySource?: string;
+        routeEntryFollowUpLabel?: string;
+        routeEntryStageLabel?: string;
+      }
+    | undefined;
   const onboarding = useOnboardingFlow();
+  const isProofLessonBridge = locationState?.routeEntrySource === "proof_lesson_completion";
   const completionPercent = Math.round(((onboarding.step + 1) / onboarding.steps.length) * 100);
+  const nextStepTitle =
+    onboarding.step < onboarding.steps.length - 1
+      ? onboarding.steps[onboarding.step + 1]?.title ?? null
+      : locale === "ru"
+        ? "Dashboard и первый маршрут"
+        : "Dashboard and the first route";
   const handoffDirections = onboarding.welcomeHandoff?.directions.map((direction) => {
     if (locale === "ru") {
       switch (direction) {
@@ -56,13 +73,22 @@ export function OnboardingScreen() {
       ? "Сохраним этот старт и соберём твой личный трек"
       : "Save this start and build your personal track";
   const handoffDescription =
-    locale === "ru"
-      ? "Ты уже прошёл первый живой мини-урок. Теперь создадим твоё учебное пространство, сохраним этот результат и сразу соберём продолжение под твою цель."
-      : "You already completed the first live mini-lesson. Next we create your learning space, save this result, and immediately build the continuation around your goal.";
+    isProofLessonBridge
+      ? locationState?.routeEntryReason ??
+        (locale === "ru"
+          ? "Пробный урок уже дал живой старт. Теперь создадим твоё учебное пространство, сохраним этот результат и сразу соберём продолжение под твою цель."
+          : "The proof lesson already created a live start. Next we create your learning space, save this result, and immediately build the continuation around your goal.")
+      : locale === "ru"
+        ? "Ты уже прошёл первый живой мини-урок. Теперь создадим твоё учебное пространство, сохраним этот результат и сразу соберём продолжение под твою цель."
+        : "You already completed the first live mini-lesson. Next we create your learning space, save this result, and immediately build the continuation around your goal.";
   const handoffCoachMessage =
-    locale === "ru"
-      ? "Мы уже увидели твой первый результат. Теперь осталось сохранить этот старт, уточнить цель и собрать для тебя персональный трек обучения."
-      : "We already saw your first result. Next we save this start, clarify your goal, and build a personal learning track around it.";
+    isProofLessonBridge
+      ? locale === "ru"
+        ? "Пробный урок уже сработал как старт маршрута. Здесь мы не начинаем заново: только сохраняем этот результат, уточняем цель и открываем личный трек."
+        : "The proof lesson already worked as the start of the route. We do not restart from zero here: we save that result, clarify the goal, and open the personal track."
+      : locale === "ru"
+        ? "Мы уже увидели твой первый результат. Теперь осталось сохранить этот старт, уточнить цель и собрать для тебя персональный трек обучения."
+        : "We already saw your first result. Next we save this start, clarify your goal, and build a personal learning track around it.";
   const handoffReplayCta =
     locale === "ru" ? "Послушать план ещё раз" : "Hear the plan again";
   const handoffNextSteps =
@@ -88,6 +114,27 @@ export function OnboardingScreen() {
       ? "Создать пространство и собрать трек"
       : "Create my space and build the track"
     : tr("Create workspace");
+  const routeFlowCurrentLabel =
+    onboarding.step === onboarding.steps.length - 1
+      ? locale === "ru"
+        ? "Финальная проверка"
+        : "Final review"
+      : onboarding.activeStep.title;
+  const routeFlowNextLabel = nextStepTitle;
+  const routeFlowSummary =
+    locale === "ru"
+      ? onboarding.step === onboarding.steps.length - 1
+        ? "После этой проверки Лиза откроет dashboard и соберёт первый связанный маршрут вместо случайного набора экранов."
+        : `Сейчас мы закрываем шаг "${routeFlowCurrentLabel}", а затем переходим к "${routeFlowNextLabel}", чтобы сохранить continuity от пробного урока до первого личного маршрута.`
+      : onboarding.step === onboarding.steps.length - 1
+        ? "After this review, Liza opens the dashboard and builds the first connected route instead of dropping you into a random set of screens."
+        : `Right now we close "${routeFlowCurrentLabel}", then move into "${routeFlowNextLabel}" so continuity holds from the proof lesson into the first personal route.`;
+  const draftStatusLabel =
+    onboarding.journeySessionId && !onboarding.isHydratingSession
+      ? locale === "ru"
+        ? "Черновик пути уже сохраняется в journey session"
+        : "The route draft is already being saved in the journey session"
+      : null;
 
   return (
     <div className="space-y-6">
@@ -105,6 +152,11 @@ export function OnboardingScreen() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
+              {locationState?.routeEntryStageLabel ? (
+                <span className="rounded-full border border-coral/20 bg-coral/10 px-3 py-1 text-xs font-semibold text-coral">
+                  {locationState.routeEntryStageLabel}
+                </span>
+              ) : null}
               <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
                 {locale === "ru"
                   ? `Понятность речи: ${onboarding.welcomeHandoff.clarityStatusLabel}`
@@ -168,6 +220,28 @@ export function OnboardingScreen() {
                 ))}
               </div>
             </div>
+
+            <div className="mt-6 rounded-[26px] border border-accent/15 bg-accent/[0.06] p-5">
+              <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-coral">
+                {locale === "ru" ? "Route continuity" : "Route continuity"}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-accent">
+                  {locale === "ru" ? "Сейчас" : "Now"}: {locale === "ru" ? "Сохраняем твой старт" : "Save your start"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-coral">
+                  {locale === "ru" ? "Потом" : "Then"}: {locale === "ru" ? "Уточняем цель и ритм" : "Clarify goal and rhythm"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                  {locale === "ru" ? "Далее" : "Next"}: {locationState?.routeEntryFollowUpLabel ?? (locale === "ru" ? "Открываем первый маршрут" : "Open the first route")}
+                </span>
+              </div>
+              <div className="mt-3 text-sm leading-6 text-slate-700">
+                {locale === "ru"
+                  ? "Этот onboarding не начинает всё заново. Он подхватывает результат пробного урока и переводит его в личный учебный маршрут."
+                  : "This onboarding does not start everything over. It picks up the proof-lesson result and turns it into your personal learning route."}
+              </div>
+            </div>
           </Card>
 
           <div className="xl:sticky xl:top-6">
@@ -207,6 +281,10 @@ export function OnboardingScreen() {
                 <div className="mt-3 max-w-[46rem] text-sm leading-6 text-slate-600">
                   {onboarding.activeStep.description}
                 </div>
+                <div className="mt-4 rounded-[22px] border border-accent/15 bg-accent/[0.05] px-4 py-3 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">{locale === "ru" ? "Текущий переход" : "Current handoff"}:</span>{" "}
+                  {routeFlowSummary}
+                </div>
               </div>
               <div className="min-w-[220px] rounded-[24px] bg-white/70 px-4 py-4">
                 <div className="flex items-center justify-between text-sm text-slate-600">
@@ -234,6 +312,18 @@ export function OnboardingScreen() {
               <div className="space-y-2">
                 {onboarding.activeStepHelper ? (
                   <div className="text-sm leading-6 text-slate-500">{onboarding.activeStepHelper}</div>
+                ) : null}
+                <div className="text-sm leading-6 text-slate-600">
+                  <span className="font-semibold text-ink">{locale === "ru" ? "Сейчас" : "Now"}:</span> {routeFlowCurrentLabel}
+                  {routeFlowNextLabel ? (
+                    <>
+                      {" "}
+                      <span className="font-semibold text-ink">{locale === "ru" ? "→ потом" : "-> then"}:</span> {routeFlowNextLabel}
+                    </>
+                  ) : null}
+                </div>
+                {draftStatusLabel ? (
+                  <div className="text-sm leading-6 text-slate-500">{draftStatusLabel}</div>
                 ) : null}
                 {onboarding.submitError ? (
                   <div className="text-sm font-medium text-coral">{onboarding.submitError}</div>

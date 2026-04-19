@@ -17,6 +17,7 @@ export type LessonBlockType =
   | "speaking_block"
   | "pronunciation_block"
   | "listening_block"
+  | "reading_block"
   | "writing_block"
   | "profession_block"
   | "reflection_block"

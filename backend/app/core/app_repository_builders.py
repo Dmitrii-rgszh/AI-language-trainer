@@ -43,6 +43,7 @@ def build_app_repositories(session_factory: SessionFactory = SessionLocal) -> Ap
             mistake_repository,
             vocabulary_repository,
             progress_repository,
+            JourneyRepository(session_factory),
         ),
         speaking_attempt_repository=SpeakingAttemptRepository(session_factory),
         user_account_repository=UserAccountRepository(session_factory),

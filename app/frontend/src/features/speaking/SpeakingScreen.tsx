@@ -1,12 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { routes } from "../../shared/constants/routes";
 import { apiClient } from "../../shared/api/client";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { AITextFeedback, SpeakingAttempt } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
+import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
 import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
@@ -16,7 +20,9 @@ import { livingDepthSectionIds } from "../../widgets/living-background/livingBac
 export function SpeakingScreen() {
   const { tr, tt, formatDateTime, locale } = useLocale();
   const scenarios = useAppStore((state) => state.speakingScenarios);
+  const bootstrap = useAppStore((state) => state.bootstrap);
   const dashboard = useAppStore((state) => state.dashboard);
+  const navigate = useNavigate();
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(scenarios[0]?.id ?? null);
   const [transcript, setTranscript] = useState(
     "I have worked with sales teams across several product launches, and recently I have focused more on feedback design for managers.",
@@ -48,15 +54,24 @@ export function SpeakingScreen() {
         )
       : 0;
   const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "speaking";
+  const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.speaking, tr);
   const coachMessage =
     locale === "ru"
       ? `Сейчас speaking нужен не сам по себе. Я использую этот экран, чтобы проверить, как у тебя держится живой ответ вокруг фокуса ${currentFocusArea}, а потом перенесу сигнал в следующий шаг.`
       : `Speaking here is not isolated practice. I use this screen to test how your live response holds around ${currentFocusArea}, then carry that signal into the next step.`;
   const coachSupportingText =
-    dashboard?.journeyState?.currentStrategySummary ??
+    routeGovernance.isPriorityReentry
+      ? routeGovernance.summary
+      : routeGovernance.isDeferred
+      ? tr("Speaking is still useful here, but during a protected return it should support today's route instead of opening a parallel track.")
+      : dashboard?.journeyState?.currentStrategySummary ??
     (locale === "ru"
       ? "Исправления из speaking сразу попадают в общую learning memory, поэтому этот модуль влияет не только на речь, но и на следующий daily loop."
       : "Speaking corrections feed the shared learning memory right away, so this module shapes not only speech, but also the next daily loop.");
+  const microflowGuardMessage =
+    routeGovernance.state === "sequenced_hold"
+      ? tr("Speaking practice will reopen later in the re-entry sequence, after the focused support surface has been used first.")
+      : tr("Speaking practice is visible here, but active analysis should wait until the protected return route is finished.");
   const nextSpeakingStep =
     dashboard?.journeyState?.nextBestAction ??
     (locale === "ru"
@@ -119,7 +134,19 @@ export function SpeakingScreen() {
         feedbackLanguage: "ru",
       });
       setFeedback(nextFeedback);
-      await loadAttempts();
+      const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.speaking });
+      await Promise.all([loadAttempts(), bootstrap()]);
+      const transition = resolveRouteFollowUpTransition(updatedState, routes.speaking, tr);
+      if (transition) {
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Speaking feedback failed");
     } finally {
@@ -181,7 +208,19 @@ export function SpeakingScreen() {
       });
       setTranscript(response.transcript);
       setFeedback(response.feedback);
-      await loadAttempts();
+      const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.speaking });
+      await Promise.all([loadAttempts(), bootstrap()]);
+      const transition = resolveRouteFollowUpTransition(updatedState, routes.speaking, tr);
+      if (transition) {
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
+      }
       if (autoplayTutorVoice) {
         await playFeedbackVoice(response.feedback);
       }
@@ -248,6 +287,8 @@ export function SpeakingScreen() {
         description={tr("Use text and voice practice to train clarity, confidence, and faster self-correction.")}
       />
 
+      <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+
       <LivingDepthSection id={livingDepthSectionIds.speakingCoach}>
         <LizaCoachPanel
           locale={locale}
@@ -258,13 +299,19 @@ export function SpeakingScreen() {
           spokenLanguage={locale}
           replayCta={tr("Послушать ещё раз")}
           primaryAction={(
-            <button type="button" onClick={() => void requestFeedback()} className="proof-lesson-primary-button">
-              {tr("Получить speaking feedback")}
-            </button>
+            routeGovernance.isDeferred ? (
+              <Link to={routeGovernance.primaryRoute} className="proof-lesson-primary-button">
+                {routeGovernance.primaryLabel}
+              </Link>
+            ) : (
+              <button type="button" onClick={() => void requestFeedback()} className="proof-lesson-primary-button">
+                {tr("Получить speaking feedback")}
+              </button>
+            )
           )}
           secondaryAction={(
-            <Link to={routes.dailyLoop} className="proof-lesson-secondary-action">
-              {tr("Открыть daily loop")}
+            <Link to={routeGovernance.isDeferred ? routeGovernance.secondaryRoute : routes.dailyLoop} className="proof-lesson-secondary-action">
+              {routeGovernance.isDeferred ? routeGovernance.secondaryLabel : tr("Открыть daily loop")}
             </Link>
           )}
           supportingText={coachSupportingText}
@@ -309,9 +356,10 @@ export function SpeakingScreen() {
                 <button
                   type="button"
                   onClick={() => setActiveScenarioId(scenario.id)}
+                  disabled={routeGovernance.isMicroflowLocked}
                   className={`rounded-2xl px-3 py-2 text-xs ${
                     activeScenarioId === scenario.id ? "bg-ink text-white" : "bg-white/70 text-slate-600"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   {activeScenarioId === scenario.id ? tr("Active") : tr("Use")}
                 </button>
@@ -348,9 +396,22 @@ export function SpeakingScreen() {
 
           <Card className="space-y-4">
             <div className="text-lg font-semibold text-ink">{tr("Live transcript")}</div>
+            {routeGovernance.isDeferred ? (
+              <RouteMicroflowGuard
+                tr={tr}
+                label={routeGovernance.badgeLabel}
+                dayShapeTitle={routeGovernance.dayShapeTitle}
+                dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
+                dayShapeSummary={routeGovernance.dayShapeSummary}
+                dayShapeExpansionStageLabel={routeGovernance.dayShapeExpansionStageLabel}
+                dayShapeExpansionWindowLabel={routeGovernance.dayShapeExpansionWindowLabel}
+                message={microflowGuardMessage}
+              />
+            ) : null}
             <textarea
               value={transcript}
               onChange={(event) => setTranscript(event.target.value)}
+              disabled={routeGovernance.isMicroflowLocked}
               className="min-h-40 w-full rounded-2xl border border-sand-dark/40 bg-white/80 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-coral"
             />
             <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
@@ -361,6 +422,7 @@ export function SpeakingScreen() {
                 type="checkbox"
                 checked={autoplayTutorVoice}
                 onChange={(event) => setAutoplayTutorVoice(event.target.checked)}
+                disabled={routeGovernance.isMicroflowLocked}
               />
               {tr("Autoplay tutor voice after voice analysis")}
             </label>
@@ -368,7 +430,7 @@ export function SpeakingScreen() {
               <button
                 type="button"
                 onClick={() => void requestFeedback()}
-                disabled={isLoading || !activeScenario}
+                disabled={routeGovernance.isMicroflowLocked || isLoading || !activeScenario}
                 className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {isLoading ? tr("Analyzing...") : tr("Get AI feedback")}
@@ -384,7 +446,7 @@ export function SpeakingScreen() {
               <button
                 type="button"
                 onClick={() => void (isRecording ? stopRecordingAndAnalyze() : startRecording())}
-                disabled={isLoading || !activeScenario}
+                disabled={routeGovernance.isMicroflowLocked || isLoading || !activeScenario}
                 className="rounded-full bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {isRecording ? tr("Stop & analyze voice") : tr("Record voice")}
@@ -442,6 +504,7 @@ export function SpeakingScreen() {
                       <button
                         type="button"
                         onClick={() => reuseAttemptTranscript(attempt)}
+                        disabled={routeGovernance.isMicroflowLocked}
                         className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                       >
                         {tr("Reuse transcript")}

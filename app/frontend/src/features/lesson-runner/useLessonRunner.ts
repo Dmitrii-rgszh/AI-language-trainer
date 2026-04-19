@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { useAppStore } from "../../shared/store/app-store";
-import { getListeningBlockState, getPronunciationTargets } from "./lesson-runner-blocks";
+import { getListeningBlockState, getPronunciationTargets, getReadingBlockState } from "./lesson-runner-blocks";
 import { useLessonAudio } from "./useLessonAudio";
 import { usePronunciationAssessment } from "./usePronunciationAssessment";
 
@@ -61,6 +61,13 @@ export function useLessonRunner() {
         listeningVariants: [],
         selectedListeningVariant: null,
       };
+  const readingState = activeBlock
+    ? getReadingBlockState(activeBlock)
+    : {
+        readingPassage: null,
+        readingQuestions: [],
+        readingTitle: null,
+      };
   const pronunciationTargets = activeBlock ? getPronunciationTargets(activeBlock) : [];
   const responseValue = activeBlockId ? (blockResponses[activeBlockId] ?? "") : "";
   const isLastBlock = lesson ? selectedBlockIndex === lesson.blocks.length - 1 : false;
@@ -114,12 +121,41 @@ export function useLessonRunner() {
 
   async function discardDraft() {
     await discardLessonRun();
-    navigate(routes.dashboard);
+    const updatedDashboard = useAppStore.getState().dashboard;
+    navigate(routes.dashboard, {
+      state: {
+        routeEntryReason:
+          updatedDashboard?.journeyState?.currentFocusArea
+            ? `The draft was closed, but the route itself is still alive around ${updatedDashboard.journeyState.currentFocusArea}. The dashboard is opening so you can re-enter through the strongest next step instead of starting from scratch.`
+            : "The draft was closed, but the route itself is still alive. The dashboard is opening so you can re-enter through the strongest next step instead of starting from scratch.",
+        routeEntrySource: "lesson_discard",
+        routeEntryFollowUpLabel:
+          updatedDashboard?.journeyState?.nextBestAction ??
+          updatedDashboard?.dailyLoopPlan?.nextStepHint ??
+          "updated route",
+        routeEntryStageLabel: "Route preserved",
+      },
+    });
   }
 
   async function completeCurrentLesson() {
     await completeLesson();
-    navigate(routes.lessonResults);
+    const updatedDashboard = useAppStore.getState().dashboard;
+    const nextBestAction =
+      updatedDashboard?.journeyState?.nextBestAction ??
+      updatedDashboard?.dailyLoopPlan?.nextStepHint ??
+      "updated dashboard";
+    navigate(routes.lessonResults, {
+      state: {
+        routeEntryReason:
+          updatedDashboard?.journeyState?.currentFocusArea
+            ? `The route has already been recalculated around ${updatedDashboard.journeyState.currentFocusArea}, so results open first to explain the shift before the next step starts.`
+            : "The route has already been recalculated, so results open first to explain the shift before the next step starts.",
+        routeEntrySource: "lesson_completion",
+        routeEntryFollowUpLabel: nextBestAction,
+        routeEntryStageLabel: "Route updated",
+      },
+    });
   }
 
   return {
@@ -134,6 +170,9 @@ export function useLessonRunner() {
     listeningQuestions: listeningState.listeningQuestions,
     listeningTranscript: listeningState.listeningTranscript,
     listeningVariants: listeningState.listeningVariants,
+    readingPassage: readingState.readingPassage,
+    readingQuestions: readingState.readingQuestions,
+    readingTitle: readingState.readingTitle,
     nextBlock,
     playListeningPrompt,
     playPronunciationModel,

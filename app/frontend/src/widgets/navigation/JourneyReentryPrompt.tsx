@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
+import { buildRouteFollowUpHint } from "../../shared/journey/route-entry-orchestration";
+import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
 import {
   readDismissedJourneyReentryKey,
   writeDismissedJourneyReentryKey,
@@ -46,32 +48,99 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
   const resumeLesson = dashboard.resumeLesson;
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
+  const skillTrajectory = journeyState?.strategySnapshot.skillTrajectory ?? null;
+  const strategyMemory = journeyState?.strategySnapshot.strategyMemory ?? null;
+  const routeCadenceMemory = journeyState?.strategySnapshot.routeCadenceMemory ?? null;
+  const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
+  const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
+  const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const dayShape = dailyLoopPlan
+    ? describeRouteDayShape(dailyLoopPlan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr)
+    : null;
+  const routeEntryResetLabel =
+    routeEntryMemory?.activeNextRoute && (routeEntryMemory.activeNextRouteVisits ?? 0) >= 2
+      ? {
+          "/grammar": tr("grammar support"),
+          "/vocabulary": tr("vocabulary support"),
+          "/speaking": tr("speaking support"),
+          "/pronunciation": tr("pronunciation support"),
+          "/writing": tr("writing support"),
+          "/profession": tr("professional support"),
+        }[routeEntryMemory.activeNextRoute] ?? routeEntryMemory.activeNextRoute
+      : null;
+  const routeEntryReleaseLabel =
+    routeEntryMemory?.activeNextRoute && routeEntryMemory.readyToReopenActiveNextRoute
+      ? {
+          "/grammar": tr("grammar support"),
+          "/vocabulary": tr("vocabulary support"),
+          "/speaking": tr("speaking support"),
+          "/pronunciation": tr("pronunciation support"),
+          "/writing": tr("writing support"),
+          "/profession": tr("professional support"),
+        }[routeEntryMemory.activeNextRoute] ?? routeEntryMemory.activeNextRoute
+      : null;
+  const followUpHint = buildRouteFollowUpHint(dashboard, tr);
 
   if (resumeLesson) {
     return {
       id: `resume:${resumeLesson.runId}:${journeyState?.updatedAt ?? "stable"}`,
       title: tr("Your route is already in progress"),
       description: tr("You already have an active guided session. The strongest move right now is to return to it, not switch into a new module."),
-      detail: `${tr("Current block")}: ${tr(resumeLesson.currentBlockTitle)}. ${tr("Progress")}: ${resumeLesson.completedBlocks}/${resumeLesson.totalBlocks}.`,
+      detail:
+        `${tr("Current block")}: ${tr(resumeLesson.currentBlockTitle)}. ${tr("Progress")}: ${resumeLesson.completedBlocks}/${resumeLesson.totalBlocks}.` +
+        (dayShape ? ` ${tr("Day shape")}: ${dayShape.title} · ${dayShape.compactnessLabel}.` : ""),
       primaryActionKind: "resume",
       primaryLabel: tr("Resume route"),
       secondaryHref: routes.dashboard,
-      secondaryLabel: tr("Open dashboard"),
+      secondaryLabel: tr("Open route home"),
       toneClassName: "border-accent/20 bg-accent/8",
     };
   }
 
   if (dailyLoopPlan && !dailyLoopPlan.lessonRunId && !dailyLoopPlan.completedAt) {
+    const isRouteRescue = routeCadenceMemory?.status === "route_rescue";
+    const isGentleReentry = routeCadenceMemory?.status === "gentle_reentry";
+    const isSteadyReturn = routeCadenceMemory?.status === "steady_return";
     return {
       id: `waiting:${dailyLoopPlan.id}:${journeyState?.updatedAt ?? "stable"}`,
-      title: tr("Today's route is waiting for you"),
-      description: journeyState?.nextBestAction ?? dailyLoopPlan.nextStepHint,
-      detail: `${tr("Focus")}: ${dailyLoopPlan.focusArea}. ${tr("Session")}: ${dailyLoopPlan.recommendedLessonTitle}.`,
+      title: routeEntryReleaseLabel
+        ? dayShape?.substageLabel === tr("Ready to widen")
+          ? tr("Your support route is stable enough to widen")
+          : dayShape?.substageLabel === tr("Settling pass")
+            ? tr("Your support route is settling back in")
+            : tr("Your support route is ready to reopen")
+        : isRouteRescue
+          ? tr("Your route is ready for a gentle restart")
+          : isGentleReentry
+            ? tr("Your route is ready to reopen")
+            : isSteadyReturn
+              ? tr("Today's route is ready to keep the rhythm")
+              : tr("Today's route is waiting for you"),
+      description: routeCadenceMemory?.summary ?? journeyState?.nextBestAction ?? dailyLoopPlan.nextStepHint,
+      detail:
+        `${tr("Focus")}: ${dailyLoopPlan.focusArea}. ${tr("Session")}: ${dailyLoopPlan.recommendedLessonTitle}.` +
+        (dayShape ? ` ${tr("Day shape")}: ${dayShape.title} · ${dayShape.compactnessLabel}.` : "") +
+        (dayShape?.substageLabel ? ` ${tr("Reopen stage")}: ${dayShape.substageLabel}.` : "") +
+        (dayShape?.expansionStageLabel ? ` ${tr("Expansion stage")}: ${dayShape.expansionStageLabel}.` : "") +
+        (dayShape?.expansionWindowLabel ? ` ${dayShape.expansionWindowLabel}.` : "") +
+        (dayShape?.sequenceLabel ? ` ${tr("Re-entry step")}: ${dayShape.sequenceLabel}.` : "") +
+        (followUpHint ? ` ${followUpHint}` : "") +
+        (routeEntryResetLabel ? ` ${tr("Reset target")}: ${routeEntryResetLabel}.` : "") +
+        (routeEntryReleaseLabel ? ` ${tr("Ready to reopen")}: ${routeEntryReleaseLabel}.` : "") +
+        (routeCadenceMemory?.actionHint ? ` ${routeCadenceMemory.actionHint}` : "") +
+        (routeRecoveryMemory
+          ? ` ${tr("Recovery arc")}: ${routeRecoveryMemory.summary}`
+          : "") +
+        (strategyMemory
+          ? ` ${tr("Long memory")}: ${strategyMemory.focusSkill} ${strategyMemory.persistenceLevel}.`
+          : skillTrajectory
+            ? ` ${tr("Multi-day memory")}: ${skillTrajectory.focusSkill} ${skillTrajectory.direction}.`
+            : ""),
       primaryActionKind: "start",
-      primaryLabel: tr("Start today’s route"),
+      primaryLabel: isRouteRescue ? tr("Restart gently") : tr("Start today’s route"),
       secondaryHref: routes.dailyLoop,
-      secondaryLabel: tr("Review the route"),
-      toneClassName: "border-coral/20 bg-white/78",
+      secondaryLabel: tr("Open route preview"),
+      toneClassName: isRouteRescue ? "border-accent/20 bg-accent/8" : "border-coral/20 bg-white/78",
     };
   }
 
@@ -81,11 +150,23 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
       id: `tomorrow:${dailyLoopPlan.id}:${journeyState?.updatedAt ?? "stable"}`,
       title: tr("Today's route is complete"),
       description: sessionSummary?.headline ?? tomorrowPreview.headline,
-      detail: practiceShift ?? sessionSummary?.strategyShift ?? tomorrowPreview.nextStepHint,
+      detail:
+        (dayShape
+          ? `${tr("Day shape")}: ${dayShape.title} · ${dayShape.compactnessLabel}. `
+          : "") +
+        (
+          practiceShift ??
+          routeRecoveryMemory?.summary ??
+          sessionSummary?.strategyShift ??
+          routeCadenceMemory?.summary ??
+          strategyMemory?.summary ??
+          skillTrajectory?.summary ??
+          tomorrowPreview.nextStepHint
+        ),
       primaryActionKind: "open_dashboard",
       primaryLabel: tr("Review tomorrow’s route"),
       secondaryHref: routes.activity,
-      secondaryLabel: tr("Open activity trail"),
+      secondaryLabel: tr("Open the route trail"),
       toneClassName: "border-accent/20 bg-accent/8",
     };
   }

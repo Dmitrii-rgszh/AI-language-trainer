@@ -9,6 +9,9 @@ export interface QuickAction {
   title: string;
   description: string;
   route: string;
+  tone?: "primary" | "support" | "default";
+  disabled?: boolean;
+  disabledReason?: string | null;
 }
 
 export interface ResumeLessonCard {
@@ -40,6 +43,33 @@ export interface DailyLoopStep {
   durationMinutes: number;
 }
 
+export interface DailyRitualStage {
+  id: string;
+  title: string;
+  summary: string;
+  emphasis: string;
+  required: boolean;
+}
+
+export interface DailyRitual {
+  headline: string;
+  promise: string;
+  completionRule: string;
+  closureRule: string;
+  stages: DailyRitualStage[];
+}
+
+export interface TaskDrivenInput {
+  inputRoute: string;
+  inputLabel: string;
+  responseRoute: string;
+  responseLabel: string;
+  title: string;
+  summary: string;
+  bridge: string;
+  closure: string;
+}
+
 export interface DailyLoopPlan {
   id: string;
   planDateKey: string;
@@ -59,6 +89,8 @@ export interface DailyLoopPlan {
   lessonRunId?: string | null;
   completedAt?: string | null;
   steps: DailyLoopStep[];
+  ritual?: DailyRitual | null;
+  taskDrivenInput?: TaskDrivenInput | null;
 }
 
 export interface JourneyTomorrowPreview {
@@ -110,6 +142,96 @@ export interface SkillTrajectoryMemory {
   signals: SkillTrajectorySignal[];
 }
 
+export interface StrategyMemorySignal {
+  skill: string;
+  persistenceLevel: string;
+  averageScore: number;
+  latestScore: number;
+  lowHits: number;
+  summary: string;
+}
+
+export interface StrategyMemory {
+  focusSkill: string;
+  persistenceLevel: string;
+  summary: string;
+  observedSnapshots: number;
+  signals: StrategyMemorySignal[];
+}
+
+export interface RouteCadenceMemory {
+  status: string;
+  observedPlans: number;
+  completedPlans: number;
+  missedPlans: number;
+  idleDays: number;
+  summary: string;
+  actionHint: string;
+}
+
+export interface RouteRecoveryMemory {
+  phase: string;
+  horizonDays: number;
+  focusSkill?: string | null;
+  supportPracticeTitle?: string | null;
+  sessionShape: string;
+  summary: string;
+  actionHint: string;
+  nextPhaseHint: string;
+  reopenTargetLabel?: string | null;
+  reopenTargetRoute?: string | null;
+  reopenReady?: boolean | null;
+  reopenStage?: string | null;
+  reopenDayCount?: number | null;
+  expansionReady?: boolean | null;
+  followUpCompletionCount?: number | null;
+  decisionBias?: string | null;
+  decisionWindowDays?: number | null;
+  decisionWindowStage?: string | null;
+  decisionWindowRemainingDays?: number | null;
+}
+
+export interface RouteReentryProgressMemory {
+  sequenceKey: string;
+  phase: string;
+  focusSkill?: string | null;
+  orderedRoutes: string[];
+  completedRoutes: string[];
+  nextRoute?: string | null;
+  status: string;
+}
+
+export interface RouteEntryMemoryItem {
+  route: string;
+  source: string;
+  enteredAt: string;
+  stage?: string | null;
+  recoveryPhase?: string | null;
+  sessionShape?: string | null;
+  nextRoute?: string | null;
+}
+
+export interface RouteEntryMemory {
+  recentEntries: RouteEntryMemoryItem[];
+  lastRoute?: string | null;
+  lastSource?: string | null;
+  repeatedRouteCount?: number | null;
+  activeNextRoute?: string | null;
+  activeNextRouteVisits?: number | null;
+  connectedResetVisits?: number | null;
+  readyToReopenActiveNextRoute?: boolean | null;
+}
+
+export interface RouteFollowUpMemory {
+  currentRoute?: string | null;
+  currentLabel?: string | null;
+  followUpRoute?: string | null;
+  followUpLabel?: string | null;
+  stageLabel?: string | null;
+  status?: string | null;
+  summary?: string | null;
+}
+
 export interface JourneySessionSummary {
   outcomeBand: string;
   headline: string;
@@ -132,6 +254,39 @@ export interface JourneyActivePlanSeed {
   sessionKind?: string | null;
 }
 
+export interface LearningBlueprintPillar {
+  id: string;
+  title: string;
+  reason: string;
+  source: string;
+}
+
+export interface LearningBlueprintCheckpoint {
+  id: string;
+  title: string;
+  summary: string;
+  successSignal: string;
+}
+
+export interface LearningBlueprint {
+  version: string;
+  generatedAt: string;
+  headline: string;
+  northStar: string;
+  strategicSummary: string;
+  learnerSnapshot: string;
+  routeMode: string;
+  currentPhase: string;
+  currentPhaseLabel: string;
+  currentFocus: string;
+  successSignal: string;
+  lizaRole: string;
+  focusPillars: LearningBlueprintPillar[];
+  checkpoints: LearningBlueprintCheckpoint[];
+  rhythmContract: string[];
+  guardrails: string[];
+}
+
 export interface JourneyStrategySnapshot {
   primaryGoal?: string;
   preferredMode?: string;
@@ -146,7 +301,14 @@ export interface JourneyStrategySnapshot {
   completedLesson?: JourneyCompletedLessonSignal | null;
   sessionSummary?: JourneySessionSummary | null;
   skillTrajectory?: SkillTrajectoryMemory | null;
+  strategyMemory?: StrategyMemory | null;
+  routeCadenceMemory?: RouteCadenceMemory | null;
+  routeRecoveryMemory?: RouteRecoveryMemory | null;
+  routeReentryProgress?: RouteReentryProgressMemory | null;
+  routeEntryMemory?: RouteEntryMemory | null;
+  routeFollowUpMemory?: RouteFollowUpMemory | null;
   activePlanSeed?: JourneyActivePlanSeed | null;
+  learningBlueprint?: LearningBlueprint | null;
 }
 
 export interface LearnerJourneyState {
@@ -224,6 +386,14 @@ export interface AdaptiveStrategyAlignment {
   liveProgressScore?: number | null;
   liveProgressReason?: string | null;
   skillTrajectory?: SkillTrajectoryMemory | null;
+  strategyMemory?: StrategyMemory | null;
+  routeCadenceMemory?: RouteCadenceMemory | null;
+  routeRecoveryMemory?: RouteRecoveryMemory | null;
+  routeReentryFocus?: string | null;
+  routeReentryNextRoute?: string | null;
+  routeReentryNextLabel?: string | null;
+  routeReentryCompletedSteps?: number | null;
+  routeReentryTotalSteps?: number | null;
 }
 
 export interface AdaptiveStudyLoop {

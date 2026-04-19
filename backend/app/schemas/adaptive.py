@@ -77,6 +77,52 @@ class SkillTrajectoryMemory(ApiModel):
     signals: list[SkillTrajectorySignal]
 
 
+class StrategyMemorySignal(ApiModel):
+    skill: str
+    persistence_level: str
+    average_score: int
+    latest_score: int
+    low_hits: int
+    summary: str
+
+
+class StrategyMemory(ApiModel):
+    focus_skill: str
+    persistence_level: str
+    summary: str
+    observed_snapshots: int
+    signals: list[StrategyMemorySignal]
+
+
+class RouteCadenceMemory(ApiModel):
+    status: str
+    observed_plans: int
+    completed_plans: int
+    missed_plans: int
+    idle_days: int
+    summary: str
+    action_hint: str
+
+
+class RouteRecoveryMemory(ApiModel):
+    phase: str
+    horizon_days: int
+    focus_skill: str | None = None
+    support_practice_title: str | None = None
+    session_shape: str
+    summary: str
+    action_hint: str
+    next_phase_hint: str
+    reopen_stage: str | None = None
+    reopen_day_count: int | None = None
+    expansion_ready: bool | None = None
+    follow_up_completion_count: int | None = None
+    decision_bias: str | None = None
+    decision_window_days: int | None = None
+    decision_window_stage: str | None = None
+    decision_window_remaining_days: int | None = None
+
+
 class AdaptiveStrategyAlignment(ApiModel):
     focus_area: str
     route_title: str
@@ -92,6 +138,14 @@ class AdaptiveStrategyAlignment(ApiModel):
     live_progress_score: int | None = None
     live_progress_reason: str | None = None
     skill_trajectory: SkillTrajectoryMemory | None = None
+    strategy_memory: StrategyMemory | None = None
+    route_cadence_memory: RouteCadenceMemory | None = None
+    route_recovery_memory: RouteRecoveryMemory | None = None
+    route_reentry_focus: str | None = None
+    route_reentry_next_route: str | None = None
+    route_reentry_next_label: str | None = None
+    route_reentry_completed_steps: int | None = None
+    route_reentry_total_steps: int | None = None
 
 
 class AdaptiveStudyLoop(ApiModel):

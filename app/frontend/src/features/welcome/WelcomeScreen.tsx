@@ -26,8 +26,8 @@ const HERO_TRACKPAD_MICRO_SCROLL_THRESHOLD = 6;
 const HERO_TRACKPAD_EVENT_DELTA_MAX = 32;
 
 const heroPrimaryCtaLabel = {
-  ru: "Просто попробовать урок",
-  en: "Build the first lesson",
+  ru: "Открыть живой пробный урок",
+  en: "Open the live proof lesson",
 } as const;
 
 const heroScrollCueAriaLabel = {

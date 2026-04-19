@@ -7,6 +7,8 @@ export const navigationItems = [
   { label: "Daily Loop", to: routes.dailyLoop },
   { label: "Activity", to: routes.activity },
   { label: "Vocabulary", to: routes.vocabulary },
+  { label: "Listening", to: routes.listening },
+  { label: "Reading", to: routes.reading },
   { label: "Lesson Runner", to: routes.lessonRunner },
   { label: "Grammar", to: routes.grammar },
   { label: "Speaking", to: routes.speaking },

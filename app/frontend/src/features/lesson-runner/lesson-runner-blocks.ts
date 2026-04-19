@@ -7,6 +7,11 @@ export type ListeningVariant = {
   questions?: Array<{ prompt?: string; acceptable_answers?: string[] }>;
 };
 
+export type ReadingQuestionRule = {
+  prompt?: string;
+  acceptable_answers?: string[];
+};
+
 export function getListeningVariants(block: LessonBlock): ListeningVariant[] {
   return Array.isArray(block.payload.audio_variants)
     ? block.payload.audio_variants.filter((item): item is ListeningVariant => Boolean(item && typeof item === "object"))
@@ -51,4 +56,41 @@ export function getPronunciationTargets(block: LessonBlock): string[] {
     ...((block.payload.phraseDrills as string[] | undefined) ?? []),
     ...((block.payload.phrase_drills as string[] | undefined) ?? []),
   ].filter(Boolean);
+}
+
+export function getReadingBlockState(block: LessonBlock) {
+  const readingQuestions =
+    Array.isArray(block.payload.questions)
+      ? block.payload.questions
+          .map((item) => {
+            if (typeof item === "string") {
+              return item;
+            }
+            if (item && typeof item === "object" && "prompt" in item && typeof item.prompt === "string") {
+              return item.prompt;
+            }
+            return null;
+          })
+          .filter((item): item is string => Boolean(item))
+      : [];
+
+  const readingPassage =
+    typeof block.payload.passage === "string"
+      ? block.payload.passage
+      : typeof block.payload.transcript === "string"
+        ? block.payload.transcript
+        : null;
+
+  const readingTitle =
+    typeof block.payload.passageTitle === "string"
+      ? block.payload.passageTitle
+      : typeof block.payload.passage_title === "string"
+        ? block.payload.passage_title
+        : null;
+
+  return {
+    readingPassage,
+    readingQuestions,
+    readingTitle,
+  };
 }

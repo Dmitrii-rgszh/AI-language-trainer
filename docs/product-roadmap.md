@@ -12,6 +12,9 @@
 - dashboard теперь также отдаёт `journey_state`, чтобы ключевые экраны могли объяснять текущую стратегию и next-best-action из одного источника;
 - `journey_state.strategy_snapshot` теперь также хранит `sessionSummary`, `tomorrowPreview` и completed-lesson signal после завершения daily loop;
 - `journey_state.strategy_snapshot` теперь также может хранить `skillTrajectory`, то есть короткую multi-day memory по skill-verticals из последних progress snapshots;
+- поверх этого `journey_state.strategy_snapshot` теперь также хранит `strategyMemory`, то есть более длинный 5-snapshot signal о persistent / recurring / emerging pressure по skill-verticals;
+- `journey_state.strategy_snapshot` теперь также хранит `routeCadenceMemory`, чтобы маршрут учитывал не только skill-pressure, но и то, как стабильно пользователь возвращается в daily ritual;
+- поверх cadence и longer-memory `journey_state.strategy_snapshot` теперь также хранит `routeRecoveryMemory`, чтобы система вела пользователя не только через один re-entry, а через короткую multi-day recovery arc на 2-3 маршрута вперёд;
 - grammar, vocabulary, speaking, pronunciation, writing, profession, progress, activity и settings работают как отдельные продуктовые поверхности поверх общей persistence-модели;
 - `Liza layer` уже покрывает `dashboard`, `daily loop`, `grammar`, `vocabulary`, `pronunciation`, `writing`, `speaking`, `progress`, `activity`, `settings`, `lesson results`;
 - на ключевых экранах появились interactive explain-actions: `объясни проще`, `почему это важно`, `что важнее всего`, `следующий лучший шаг`;
@@ -30,8 +33,72 @@
 Сейчас продукт находится между поздней `Phase 2` и ранней `Phase 3` roadmap:
 
 - `Phase 1. Product Onboarding Flow` - по сути закрыта для первого сильного пути: есть route-level flow, step navigation, review step, handoff из proof lesson, persistent draft save и отдельное хранение onboarding answers.
-- `Phase 2. Learning Blueprint Engine` - продвинулась: профиль уже влияет на recommendation, dashboard, diagnostic roadmap, adaptive loop, recovery lessons и первый persisted daily loop plan, но стартовый blueprint ещё не оформлен как отдельная прозрачная сущность.
+- `Phase 2. Learning Blueprint Engine` - уже materially built как отдельный слой: `learningBlueprint` теперь persistится в `journey_state.strategy_snapshot`, собирается из onboarding/profile + learner memory + recovery/re-entry signals, показывается на dashboard как explainable personal strategy и доезжает до guided lesson context.
+- `Unified Daily Learning Ritual` - уже formalized как отдельный execution layer поверх `daily_loop_plan`: ritual имеет собственные stages / completion rule / closure rule, показывается на dashboard и daily loop, доезжает до guided lesson context и начинает закрывать `lesson runner -> results` как один канонический daily scenario.
 - `Phase 3. Monetization Readiness` - архитектурно не начата: есть user/onboarding persistence, но нет сегментных presets, free/premium depth и аналитического слоя повторного запуска.
+
+## Strong Function Audit - 2026-04-19
+
+После повторной сверки roadmap и master plan видно, что у продукта уже есть сильный skeleton, но ещё не все сильные функции дошли до `serious test ready`.
+
+### Уже реально сильные и materially implemented
+
+- `Proof lesson` как flagship entrance:
+  есть voice-first flow, correction, retry, pronunciation layer и handoff в onboarding.
+- `Connected first path`:
+  `proof lesson -> onboarding -> dashboard -> daily loop / lesson runner -> lesson results -> updated dashboard` уже работает как связанный маршрут, а не как набор разрозненных экранов.
+- `Global Liza layer` как продуктовый слой:
+  guidance, explain-actions, continuity hints и route-entry/re-entry объяснения уже протянуты через основные экраны.
+- `Route-first dashboard and continuity`:
+  dashboard, activity, progress, shell re-entry и results уже подчинены одному main route.
+- `Learner memory + route orchestration`:
+  `sessionSummary`, `tomorrowPreview`, `skillTrajectory`, `strategyMemory`, `routeCadenceMemory`, `routeRecoveryMemory`, `routeReentryProgress`, `routeEntryMemory`, `routeFollowUpMemory`.
+- `Adaptive guided lesson composition`:
+  lesson engine уже умеет подхватывать route context, practice mix, support-step sequencing и recovery/widening logic.
+- `Task-driven mission contract`:
+  `daily_loop_plan` теперь может не только фронтово намекать на `reading/listening` вход, но и реально нести backend-level `taskDrivenInput`, который доезжает до guided lesson context и делает input-first миссию частью самого маршрута.
+  Completion таких `reading/listening` mini-missions теперь тоже persistится в `journey_state`: backend переводит маршрут в response-step и обновляет `routeFollowUpMemory / next_best_action`, так что следующие 1-2 route decisions уже читают этот handoff как часть общей оркестрации.
+  Плюс этот `task-driven handoff` теперь не теряется сразу на route-entry: он переживает вход в response-surface, поднимает `focus_area` следующего daily plan и смещает guided `practice mix` в сторону `input -> response` дуги.
+  Поверх этого post-lesson `sessionSummary` и `tomorrowPreview` теперь уже оценивают и качество самого переноса `input -> response`: маршрут различает, когда reading/listening сигнал реально удержался в writing/speaking, а когда transfer ещё хрупкий и response-lane нужно защищать ещё один день.
+
+### Сильные функции, которые уже начаты, но ещё не закрыты как продуктовые differentiators
+
+- `Unified daily learning ritual`:
+  это уже не просто идея: `DailyLoopPlan` теперь хранит явный `ritual`, dashboard и daily loop показывают канонический ритм дня, guided lesson context знает ritual headline/promise/stage path, а runner/results уже начинают закрывать сессию как один connected daily scenario. Плюс маршрут уже умеет открываться через task-driven `reading/listening input`, когда день реально требует такого старта, и переводить этот input в следующий response-step как отдельную мини-миссию. Но слой всё ещё нужно дотянуть до более глубокого multi-skill execution и richer vertical coverage.
+- `Learning Blueprint Engine`:
+  базовый explainable engine теперь уже собран как отдельная blueprint-entity и перестал быть только скрытым влиянием profile/recommendation. Следующий шаг здесь уже не “сделать blueprint”, а углубить его до richer editing, stronger daily ritual coupling и later task/track branching.
+- `Deep skill verticals`:
+  grammar / speaking / pronunciation / writing / vocabulary уже заметные; listening теперь тоже поднят из скрытого support-layer в отдельную governed route-surface с history/trend memory и follow-up orchestration, а reading уже существует не только в lesson engine через `reading_block`, но и как отдельная governed route-surface. Поверх этого daily route уже умеет поднимать `task-driven input surface` как реальный первый шаг дня, а сами `reading/listening` уже умеют вести в следующий response-step как task-driven mini-missions. Но listening/reading ещё нужно дотянуть до уровня самостоятельных сильных режимов и richer task-driven loops.
+- `Conversational Liza layer`:
+  explainable guidance сильная, но это всё ещё больше intelligent UI layer, чем настоящий persistent conversational teacher layer.
+- `Real-life task mode`:
+  архитектурная база есть, но полноценные task-driven flows пока не собраны как отдельный сильный срез.
+
+### Крупные сильные функции, которые ещё по сути не начаты
+
+- `Monetization readiness`:
+  free vs premium depth, paid personalization, package logic.
+- `Gamification and retention architecture`:
+  кроме streak/progress/continuity signals, тяжёлый retention layer ещё не строился.
+- `Dedicated exam / relocation / travel / work tracks`:
+  пока нет как полноценных route families.
+- `Event and analytics layer`:
+  roadmap-level observability, serious funnel tracking и product analytics ещё не подняты.
+- `Frontend quality system`:
+  нет полноценного e2e / visual regression / flagship-path quality harness.
+
+## Main Strategic Correction - 2026-04-19
+
+Да, после повторной сверки видно, что дальше не стоит бесконечно углубляться только в polishing.
+
+Следующий правильный крупный implementation focus:
+
+1. `Finish Unified Daily Learning Ritual`
+   не только continuity around sessions, а сам канонический multi-skill daily experience.
+2. `Deepen Missing Skill Verticals`
+   в первую очередь listening / reading и task-driven integration.
+3. `Only then continue broad polish`
+   polishing дальше должен усиливать уже закрытые сильные функции, а не подменять их.
 
 ## Current Practical Focus
 
@@ -67,6 +134,58 @@
 - recommendation engine и adaptive loop теперь тоже начинают использовать живой learner model: при ослаблении recovery pressure и в non-recovery сценариях свежий `progress snapshot` может смещать `focus area` и strategy alignment в сторону реально проседающего skill.
 - adaptive surfaces теперь начали показывать этот progress-aware signal явно: dashboard и activity loop объясняют не только `recommended module`, но и `live learner signal`, который подтолкнул систему к текущему фокусу.
 - поверх live signal теперь начинает работать и multi-day strategy memory: система собирает `skillTrajectory` из последних progress snapshots, сохраняет её в `journey_state`, использует в adaptive alignment и guided route, а UI уже показывает не только моментальный слабый сигнал, но и более длинную траекторию по skill-verticals.
+- `skillTrajectory` теперь начинает влиять и на поведение маршрута: recommendation engine, adaptive loop, next-day `daily_loop_plan`, next-best-action и re-entry surfaces могут подхватывать multi-day slipping/stable skill даже тогда, когда один свежий snapshot сам по себе уже не даёт достаточно сильного live-focus сигнала.
+- поверх короткой trajectory-memory теперь появляется и longer-horizon `strategyMemory`: она помогает recommendation, adaptive alignment и next-day copy держать в фокусе не только последние 2-3 колебания, но и более устойчивую learner pressure-memory по grammar / speaking / listening / writing / pronunciation / profession.
+- next-day plan, re-entry prompt и guided route теперь начинают учитывать и `routeCadenceMemory`: система различает `steady return`, `gentle re-entry` и `route rescue after break`, а значит может мягче открывать маршрут после пропусков и не вести пользователя как будто вчера ничего не произошло.
+- cadence-layer теперь влияет уже не только на continuity copy, но и на сам adaptive loop: strategy alignment, recommended module reason, focus recovery и module rotation умеют смягчаться для `gentle re-entry` и `route rescue`, чтобы возвращение после паузы не ощущалось как преждевременное давление.
+- поверх этого появился `routeRecoveryMemory`: cadence, strategy memory и session outcome теперь собираются в короткую recovery arc (`route rebuild / protected return / skill repair cycle / targeted stabilization`), которая меняет headline, next-step, daily steps, guided route context и surfaces маршрута на несколько дней вперёд, а не только на одну следующую сессию.
+- recommendation engine теперь тоже начал читать `routeRecoveryMemory`: при `route_rebuild / protected_return` система может предпочесть connected main-route recommendation вместо преждевременного hard-recovery path, а при `skill_repair_cycle / targeted_stabilization` — удерживать multi-day focus внутри самого выбора следующего урока.
+- dashboard, activity и progress теперь тоже начали читать recovery-aware route priority: их главный CTA, supporting summary и порядок `daily loop` step-cards могут смещаться в `restart gently / protected return / repair cycle`, чтобы интерфейс вел пользователя в тот же режим, который уже выбрал strategy layer.
+- quick actions и top-level navigation теперь тоже начали подстраиваться под этот route priority: dashboard сначала поднимает `main path`, supportive surfaces идут следом, а верхний rail перестаёт визуально спорить с фазой `protected return / route rebuild`.
+- поверх этого появился и мягкий navigation protection layer: в фазах `route_rebuild / protected_return` конкурирующие side-modules остаются видимыми, но переводятся в `later in the route`, чтобы продукт не только советовал главный путь, но и последовательно защищал его от преждевременных ответвлений.
+- этот protection layer теперь дошёл и до самих secondary skill-surfaces: `grammar`, `vocabulary`, `speaking`, `pronunciation`, `writing`, `profession` и `mistakes` показывают route-governance notice и в чувствительных фазах переводят свои coach CTA обратно в главный маршрут, а не в соседние side-paths.
+- поверх этого route governance уже начала управлять и внутренними micro-flows: на `vocabulary`, `speaking`, `pronunciation` и `writing` активные practice-действия теперь мягко блокируются в `protected return`, а экран остаётся доступным как explainable supportive surface, а не как competing route.
+- следующий слой над этим уже включён: side-surfaces теперь различают не только `protected hold`, но и `priority re-entry / sequenced hold`, поэтому после protected route поддерживающие практики возвращаются в правильной очередности, а не открываются все одновременно без стратегии.
+- sequence-aware re-entry уже стал stateful и persisted: выполнение `vocabulary / speaking / pronunciation / writing` support-step теперь обновляет `journey_state.strategy_snapshot.routeReentryProgress`, а `grammar / profession` могут вручную подтвердить завершение support-pass через тот же backend journey-endpoint, чтобы recovery-последовательность переживала перезаходы и не жила только во фронте.
+- следующий слой над этим тоже уже включён: активный `routeReentryProgress.nextRoute` теперь влияет не только на UI-governance, но и на backend recommendation plus `daily_loop_plan`, поэтому следующий маршрут реально может сместиться, например, в `writing support`, если именно этот sequenced support-step ещё не пройден.
+- этот же sequence-сигнал теперь дошёл и до adaptive loop: `AdaptiveStrategyAlignment`, `moduleRotation`, `summary`, `generationRationale` и adaptive surfaces на `dashboard/activity` уже умеют поднимать конкретный `next support step`, а не только общую recovery-phase.
+- поверх этого `routeReentryProgress.nextRoute` теперь уже влияет и на сам guided lesson composition: `practice mix` поднимает активный sequenced support-step как отдельный strategy signal, а guided route умеет вставлять, например, `writing support` block и поднимать его ближе к ответу, если именно этот шаг должен открыться следующим.
+- `route day shape` теперь перестал жить только на главных route-panels: `activity`, `progress`, shell-level `re-entry prompt` и screen-level `route governance` тоже начали говорить языком `gentle restart / protected return / focused support`, чтобы secondary surfaces не выбивались из общего recovery-ритма.
+- этот же язык дня теперь дошёл и до локальных `microflow guards` на `vocabulary / speaking / pronunciation / writing`, чтобы даже внутри заблокированных practice-зон пользователь видел, какой именно ритм дня сейчас защищает система.
+- navigation-слой тоже начал подчиняться этому ритму: `top rail`, `quick actions` и shell-level navigation copy теперь показывают `day shape`, так что пользователь получает один и тот же recovery signal не только в содержимом экранов, но и в самих путях перемещения по продукту.
+- поверх navigation-copy теперь появился и shell-level `route entry orchestration`: при новом входе приложение может один раз переводить пользователя не в нейтральный `dashboard`, а сразу в `daily loop`, `lesson runner` или нужный sequenced support-surface, если recovery-phase уже явно говорит, где должен начаться следующий шаг.
+- этот автопереход теперь ещё и объясняется в UI: после smart re-entry shell показывает короткий `route entry notice`, чтобы пользователь видел, почему система открыла именно эту surface, а не воспринимал переход как немой редирект.
+- поверх этого появился и persisted `routeEntryMemory`: shell теперь регистрирует реальные входы в `daily loop / lesson runner / support surfaces`, а re-entry orchestration может учитывать, не пытается ли система слишком настойчиво снова открыть один и тот же sequenced step вместо более безопасного возврата в main route.
+- `routeEntryMemory` теперь влияет уже не только на shell re-entry: backend recommendation и следующий `daily_loop_plan` тоже умеют замечать повторяющиеся открытия одного и того же support-step и мягко сбрасывать день в calmer main route, прежде чем снова вести пользователя в тот же side-surface.
+- guided route composition теперь тоже подчиняется этому reset-сигналу: после повторного re-entry один и тот же support-block больше не форсится механически, а `practice mix` и lesson composition сначала возвращают вес в calmer main lesson flow и только потом снова поднимают тот же side-surface.
+- поверх этого repeated re-entry теперь влияет уже и на короткую multi-day recovery arc: `routeRecoveryMemory` и adaptive alignment умеют переводить маршрут в connected reset mode на ближайшие 2-3 сессии, а не только принять одноразовое решение на один lesson run.
+- route surfaces теперь тоже умеют показать этот режим как отдельный `Connected reset` день: dashboard, daily loop, route intelligence, shell re-entry reminder и top-level day-shape копия больше не маскируют такой сценарий под generic `protected return`.
+- после connected reset появился и явный `support reopen ready` слой: когда calmer main-route проходы уже выполнены, интерфейс теперь прямо показывает, что конкретный support-step снова готов вернуться в connected route, а не снимает reset молча.
+- поверх этого backend тоже начал держать отдельную reopen-дугу: после connected reset маршрут теперь может войти в `support_reopen_arc`, где recommendation, `daily_loop_plan` и recovery-memory уже заранее перестраивают ближайшие 2-3 маршрута вокруг осознанного возврата support-step, а не только вокруг текущего дня.
+- эту reopen-дугу я уже начал делать поведенческой, а не только смысловой: `daily_loop_plan` теперь даёт такому дню отдельный tempo, более длинный controlled session и более явную опору на connected route вместо мгновенного отката либо в reset, либо в side-surface deep dive.
+- поверх этого она уже начала читать и недавнюю историю reopen-дней: если support-step уже возвращался 1-2 маршрута подряд, система умеет различать `first reopen / settling back in / ready to widen`, а значит маршрут начинает заранее понимать, когда support ещё нужно удержать в connected route, а когда уже можно снова мягко расширяться.
+- этот reopen-substage теперь уже поднят и во фронт: `dashboard`, `daily loop`, `route intelligence` и shell `re-entry prompt` перестали показывать один и тот же generic reopen-state и начали явно различать первый controlled return, settling pass и widen-ready момент.
+- теперь этот reopen-substage влияет уже и на route priority: hero CTA, quick actions, `activity/progress` primary route handlers и top rail начинают по-разному вести пользователя в `first reopen / settling pass / ready to widen`, так что reopened support-surface может становиться реальным главным входом дня, а не только пояснением в copy.
+- shell-level re-entry orchestration теперь тоже стал substage-aware: на fresh return система не только открывает более сильную стартовую surface, но и передаёт explainable `what comes next` mini-sequence, чтобы было понятно, когда после reopened support-step маршрут вернётся в connected daily route, а когда наоборот сначала widening идёт через main path.
+- этот `what comes next` слой теперь уже поднят и в сами route-surfaces: `dashboard continuity`, `daily loop`, `route intelligence` и shell `re-entry prompt` начали показывать один и тот же follow-up hint, чтобы продукт объяснял не только текущую точку входа, но и ближайший следующий шаг после неё.
+- поверх этого follow-up sequence теперь стал persisted backend-side: `journey_state.strategy_snapshot` начал хранить `routeFollowUpMemory`, поэтому следующий шаг после re-entry/progression переживает перезагрузки и обновляется вместе с `routeReentryProgress`, а не вычисляется только локально на фронте.
+- следующий слой над этим теперь уже поведенческий: `grammar / vocabulary / speaking / writing / pronunciation / profession` после реального completion support-step умеют читать persisted `routeFollowUpMemory` и мягко переводить пользователя в следующий ожидаемый route surface, так что recovery-дуга начинает двигаться не только в copy, но и в фактической навигации.
+- теперь этот же persisted follow-up signal дошёл и до backend strategy builders: recommendation goal, `daily_loop_plan` copy и `next_best_action` уже могут подхватывать ту же дугу `куда сейчас -> что потом`, так что маршрут не распадается на отдельную фронтовую навигацию и backend-логику.
+- поверх этого completion reopened support-step теперь уже продвигает и backend-side reopen arc: после реального support-pass система умеет переводить `support_reopen_arc` из `first reopen` в `settling pass`, а затем в `ready to widen`, не дожидаясь только истории прошлых daily plans.
+- теперь widening после reopen уже влияет и на следующий execution slice продукта: `recommendation`, `adaptive loop` и `guided lesson composition` начали различать `settling pass` и `ready to widen`, поэтому reopened support-step больше не тащит одинаково весь день на себе и в нужный момент уступает лидерство более широкому connected route.
+- следующий слой над этим тоже уже включён: `routeRecoveryMemory.sessionShape` теперь начинает менять и фактическую форму `daily_loop_plan`, так что `gentle_restart / protected_mix / focused_support / guided_balance / forward_mix` влияют на длительность дня, компактность шагов и ранний приоритет sequenced support-step, а не только на explanation copy.
+- этот же day-shape слой уже поднят и во фронт: dashboard, daily loop screen, route continuity и route intelligence теперь прямо показывают пользователю, какой сегодня тип дня (`gentle restart / protected return / focused support / forward extension`) и насколько маршрут компактный или расширенный.
+- walkthrough-полировка теперь тоже продвинулась: `RouteEntryNotice`, dashboard hero и lesson results начали показывать один и тот же mini-flow `сейчас -> потом`, так что smart re-entry, route CTA и post-lesson continuity ощущаются как одна живая дуга, а не как разрозненные explain-blocks.
+- onboarding-handoff теперь тоже усилен как часть этой дуги: экран онбординга явно подхватывает proof-lesson result, показывает `route continuity` и текущий `handoff` шаг, так что переход `proof lesson -> onboarding -> dashboard` ощущается как одно непрерывное сопровождение Лизы.
+- сам переход `proof lesson -> onboarding` теперь тоже идёт с явным route-entry handoff state, поэтому onboarding встречает пользователя как продолжение живого урока, а не как холодный reset в отдельный flow.
+- shell и post-lesson CTA теперь тоже подписывают эти handoff-события единым языком маршрута, так что proof lesson, results и updated dashboard меньше ощущаются как отдельные страницы со случайной навигацией.
+- финал пробного урока теперь тоже явно показывает mini-route `сейчас -> потом -> дальше`, а daily-loop CTA на dashboard говорит языком `today's route`, а не безличного loop-state.
+- welcome hero и post-lesson CTA тоже сдвинуты в язык `живой пробный урок` и `следующий шаг маршрута`, чтобы самые частые кнопки не выбивали пользователя обратно в лексику отдельных экранов.
+- continuity, re-entry и route-intelligence surfaces тоже постепенно уводятся от более технической лексики вроде `loop/trail/dashboard state` в единый язык маршрута, следующего шага и route-home.
+- bridge `complete onboarding -> dashboard` тоже теперь прогрет: после submit shell сохраняет onboarding-handoff notice, пропускает обычный smart re-entry один раз и открывает dashboard как точку входа в уже готовый первый personal route, а не как нейтральную домашнюю страницу.
+- первый запуск маршрута после dashboard тоже теперь прогрет: route CTA и daily-loop start передают в lesson runner explainable launch-state, а сам lesson runner встречает пользователя как следующий живой шаг уже собранного пути, а не как обезличенный `lesson engine` экран.
+- конец первого guided loop тоже теперь теплее: завершение урока передаёт explainable handoff в `lesson results`, а `results -> updated dashboard` уже работает как мост к следующему витку маршрута, а не как возврат к старому состоянию.
+- walkthrough-полировка конца сессии стала ещё глубже: lesson runner теперь заранее показывает mini-дугу после последнего блока, `discard draft` возвращает не в пустой dashboard, а в сохранённый route-context, а `lesson results` больше не опирается на случайный `history.back()`, а последовательно ведёт в обновлённый dashboard-state.
 
 ## Keep As Is
 
@@ -168,6 +287,17 @@
 
 Статус на `2026-04-13`: materially implemented для первого сильного пути.
 
+Текущий backend-слой маршрута уже различает post-lesson reopen evaluation:
+- `settling pass` и `ready to widen` теперь различаются не только по history memory, но и по фактическому результату завершённого reopen-урока;
+- `sessionSummary` и `tomorrowPreview` уже умеют переводить support reopen arc в более широкий следующий день, если connected reopen pass действительно удержался.
+- widening после reopen теперь живёт как короткое `decision window`, так что ближайшие route decisions и daily-plan copy могут держать controlled expansion, а не просто один widen-ready флаг.
+- этот `decision window` теперь доезжает и до guided lesson composition: в widen-ready окне `practice mix` и block payload уже отдают лидерство broader `lesson` flow и не форсят тот же reopened support-block раньше времени.
+- поверх этого widening-window теперь стало staged: backend различает `first widening pass`, `stabilizing widening` и `ready for extension`, так что recommendation, daily-plan copy, adaptive alignment и guided route уже начинают учитывать не просто факт widen-ready, а прогресс ближайших 2-3 route decisions внутри controlled expansion.
+- этот staged widening уже поднят и во фронт: `dashboard`, `daily loop`, `route continuity`, `route intelligence` и shell `re-entry prompt` теперь показывают конкретный этап controlled expansion и остаток widening-window, а не только общий `ready to widen`.
+- поверх этого widening-substages теперь уже влияют и на shell-level route behavior: `route priority`, `quick actions`, `top rail` и smart `route entry orchestration` различают `first widening pass / stabilizing widening / ready for extension`, поэтому CTA и стартовая surface уже меняются по реальному этапу controlled expansion.
+- теперь этот же staged expansion дошёл и до secondary surfaces: `activity`, `progress`, `route governance` и `microflow guards` уже объясняют текущую фазу widening в coach-copy и next-best-action, а не только повторяют общий `ready to widen`.
+- поверх этого widening-stage теперь уже меняет и локальные CTA/ordering в `activity loop` и `progress diagnostic`: secondary surfaces начинают поднимать более уместный `primary route` и перестраивать supportive actions под текущую фазу `first widening pass / stabilizing widening / ready for extension`, а не оставаться нейтральными.
+
 - новый route-level onboarding flow с progress bar и step navigation;
 - короткий onboarding вместо длинного интервью;
 - draft save между шагами и перезагрузками;
@@ -184,7 +314,7 @@
 
 ### Phase 2. Learning Blueprint Engine
 
-Статус на `2026-04-13`: частично реализована через recommendation, adaptive loop, diagnostic roadmap, recovery lessons и первый persisted daily loop plan, но ещё не оформлена как отдельный explainable blueprint engine.
+Статус на `2026-04-19`: базовый explainable engine уже реализован. `Learning Blueprint` теперь формализован как отдельная persisted strategy-entity внутри `journey_state.strategy_snapshot`, выводится на dashboard как личная стратегическая карта и доезжает до guided lesson context как long-plan explanation.
 
 - вычисление стартового learner profile из ответов;
 - генерация стартовых priorities по grammar/reading/vocabulary/speaking/writing;
@@ -192,6 +322,8 @@
   мягкий старт или checkpoint-first;
 - стартовый profession pack и initial vocabulary pack.
 - универсальный `general communication` lane для тех, кому не нужен pure professional track.
+- explainable `learning blueprint` panel на dashboard;
+- blueprint-aware `guided lesson context`, чтобы long-plan logic была видна и внутри lesson run.
 
 ### Phase 3. Monetization Readiness
 
@@ -278,3 +410,9 @@
 5. Добавить лёгкий retention layer: resume session, next best action, мягкое напоминание о незавершённой траектории.
 
 Статус на `2026-04-14`: retention slice уже перешёл из purely explainable в partially behavioral. `dashboard`, `AppShell`, `activity` и `progress` умеют возвращать пользователя в маршрут, завершённая session формирует persisted `sessionSummary` и richer `tomorrowPreview`, новый день уже может строить `daily_loop_plan` из этого continuity seed, recommended lesson run запускается через guided-route overlay, а сам route уже начал влиять на block composition и strategy-aware module rotation; следующий шаг здесь сделать content mix ещё точнее согласованными с learner strategy уже не на уровне нескольких усиленных эвристик, а как более цельный composition engine.
+
+Дополнительный walkthrough-прогресс на `2026-04-19`:
+
+- welcome, proof lesson, onboarding, dashboard и lesson/results всё заметнее говорят единым языком `живой старт -> маршрут -> следующий шаг`, а не языком отдельных экранов;
+- continuity, re-entry и route-intelligence surfaces уже меньше опираются на техничную лексику вроде `loop / trail / dashboard state`;
+- top rail, adaptive route support и next-action surfaces тоже начинают звучать как один наставляемый путь, а не как набор системных блоков.

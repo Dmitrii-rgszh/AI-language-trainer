@@ -157,6 +157,131 @@ def append_progress_focus_context(
     return f"{base_goal} {suffix}"
 
 
+def append_skill_trajectory_context(
+    base_goal: str,
+    *,
+    focus_area: str,
+    direction: str,
+    summary: str,
+) -> str:
+    suffix = (
+        f"Recent multi-day learner memory keeps pointing to {focus_area} as a {direction} signal, so the route should continue to support it deliberately."
+        if direction in {"slipping", "stable"}
+        else f"Recent learner memory shows {focus_area} improving, so the route can build from that momentum without losing it."
+    )
+    return f"{base_goal} {suffix} {summary}"
+
+
+def append_strategy_memory_context(
+    base_goal: str,
+    *,
+    focus_area: str,
+    persistence_level: str,
+    summary: str,
+) -> str:
+    suffix = (
+        f"Longer learner memory now treats {focus_area} as a persistent strategy signal, so the route should keep coming back to it even when one session looks better."
+        if persistence_level == "persistent"
+        else f"Longer learner memory keeps seeing {focus_area} as a recurring pressure point, so the route should revisit it deliberately."
+        if persistence_level == "recurring"
+        else f"Longer learner memory sees {focus_area} emerging as a future weak area, so the route should start protecting it early."
+    )
+    return f"{base_goal} {suffix} {summary}"
+
+
+def append_route_recovery_context(
+    base_goal: str,
+    *,
+    phase: str,
+    focus_area: str | None,
+    summary: str | None,
+    action_hint: str | None,
+    decision_bias: str | None = None,
+    decision_window_days: int | None = None,
+    decision_window_stage: str | None = None,
+    decision_window_remaining_days: int | None = None,
+) -> str:
+    resolved_focus = focus_area or "the protected route signal"
+    suffix = (
+        f"Multi-day recovery strategy is in route_rebuild, so the next recommendation should reopen gently around {resolved_focus} instead of pushing back into hard pressure."
+        if phase == "route_rebuild"
+        else f"Multi-day recovery strategy is in protected_return, so the next recommendation should stay connected and calm around {resolved_focus} before it widens again."
+        if phase == "protected_return"
+        else f"Multi-day recovery strategy is in support_reopen_arc, so the next recommendation should let {resolved_focus} come back inside the connected route without turning into another side-track."
+        if phase == "support_reopen_arc"
+        else f"Multi-day recovery strategy is in skill_repair_cycle, so the next recommendation should keep returning to {resolved_focus} on purpose across several sessions."
+        if phase == "skill_repair_cycle"
+        else f"Multi-day recovery strategy is in targeted_stabilization, so the next recommendation should keep {resolved_focus} protected before broadening again."
+        if phase == "targeted_stabilization"
+        else f"Multi-day recovery strategy is in steady_extension, so the next recommendation can keep moving forward while still protecting {resolved_focus}."
+    )
+    window_suffix = (
+        f" Use the next route as the first widening pass: let the broader daily route lead while {resolved_focus} stays available inside the mix."
+        if decision_bias == "widening_window" and decision_window_stage == "first_widening_pass"
+        else f" Use the next route as a stabilizing widening pass: keep the broader daily route leading while {resolved_focus} stays connected inside the mix."
+        if decision_bias == "widening_window" and decision_window_stage == "stabilizing_widening"
+        else f" The controlled widening window has already held, so the next route can extend forward again while {resolved_focus} stays available as quiet support."
+        if decision_bias == "widening_window" and decision_window_stage == "ready_for_extension"
+        else f" For the next {decision_window_remaining_days or decision_window_days} route decisions, keep the broader daily route leading while {resolved_focus} stays available inside the mix."
+        if decision_bias == "widening_window" and decision_window_days
+        else f" For the next {decision_window_days} route decision, keep {resolved_focus} inside one more connected settling pass before the route widens again."
+        if decision_bias == "settling_window" and decision_window_days
+        else ""
+    )
+    extra = " ".join(part for part in [summary, action_hint] if part)
+    return f"{base_goal} {suffix}{window_suffix} {extra}".strip()
+
+
+def append_route_reentry_context(
+    base_goal: str,
+    *,
+    next_route_label: str,
+    completed_steps: int,
+    total_steps: int,
+) -> str:
+    suffix = (
+        f"Sequenced recovery progression has already cleared {completed_steps} of {total_steps} support steps, "
+        f"so the route should reopen through {next_route_label} next."
+        if total_steps > 0
+        else f"Sequenced recovery progression should reopen through {next_route_label} next."
+    )
+    return f"{base_goal} {suffix}".strip()
+
+
+def append_route_entry_memory_context(
+    base_goal: str,
+    *,
+    active_next_route_label: str,
+    active_next_route_visits: int,
+) -> str:
+    suffix = (
+        f"{active_next_route_label.capitalize()} has already reopened {active_next_route_visits} times in recent returns, "
+        "so the route should reset through the calmer main path before it tries the same support surface again."
+    )
+    return f"{base_goal} {suffix}".strip()
+
+
+def append_route_follow_up_context(
+    base_goal: str,
+    *,
+    current_label: str | None,
+    follow_up_label: str | None,
+    stage_label: str | None,
+    summary: str | None,
+) -> str:
+    stage_prefix = f"{stage_label}. " if stage_label else ""
+    if current_label and follow_up_label:
+        suffix = (
+            f"{stage_prefix}The route should move through {current_label} now, then continue through {follow_up_label} so the sequence stays connected."
+        )
+    elif follow_up_label:
+        suffix = f"{stage_prefix}The next connected step should continue through {follow_up_label}."
+    else:
+        suffix = stage_prefix.strip()
+    extra = f" {summary}" if summary else ""
+    return f"{base_goal} {suffix}{extra}".strip()
+
+
 def pick_variant(variants: Sequence[str], *seed_parts: object) -> str:
     if not variants:
         return ""

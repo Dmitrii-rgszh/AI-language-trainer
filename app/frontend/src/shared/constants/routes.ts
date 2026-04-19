@@ -7,6 +7,8 @@ export const routes = {
   dailyLoop: "/daily-loop",
   activity: "/activity",
   vocabulary: "/vocabulary",
+  listening: "/listening",
+  reading: "/reading",
   lessonRunner: "/lesson-runner",
   lessonResults: "/lesson-results",
   grammar: "/grammar",

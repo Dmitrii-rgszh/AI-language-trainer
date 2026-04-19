@@ -345,7 +345,18 @@ export function useOnboardingFlow() {
       });
       clearWelcomeProofLessonHandoff();
       clearStoredJourneySessionId();
-      navigate(routes.dashboard);
+      navigate(routes.dashboard, {
+        state: {
+          routeEntryReason:
+            locale === "ru"
+              ? "Лиза уже сохранила твой старт, цель и ритм обучения, поэтому dashboard открывается как точка входа в первый личный маршрут, а не как общий список экранов."
+              : "Liza has already saved your start, goal, and learning rhythm, so the dashboard opens as the entry into your first personal route instead of a generic list of screens.",
+          routeEntrySource: "onboarding_completion",
+          routeEntryFollowUpLabel: locale === "ru" ? "первый daily route" : "first daily route",
+          routeEntryStageLabel: locale === "ru" ? "Первый маршрут готов" : "First route ready",
+          skipRouteEntryOrchestrationOnce: true,
+        },
+      });
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setSubmitError(tr("This login or email is already linked to another account."));

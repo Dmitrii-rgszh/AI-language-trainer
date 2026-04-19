@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { VocabularyHub } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
+import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
@@ -14,6 +18,8 @@ import { livingDepthSectionIds } from "../../widgets/living-background/livingBac
 export function VocabularyScreen() {
   const { locale, tr, tt } = useLocale();
   const bootstrap = useAppStore((state) => state.bootstrap);
+  const dashboard = useAppStore((state) => state.dashboard);
+  const navigate = useNavigate();
   const [hub, setHub] = useState<VocabularyHub | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
@@ -36,7 +42,19 @@ export function VocabularyScreen() {
     setReviewingId(itemId);
     try {
       await apiClient.reviewVocabularyItem(itemId, successful);
+      const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.vocabulary });
       await Promise.all([loadHub(), bootstrap()]);
+      const transition = resolveRouteFollowUpTransition(updatedState, routes.vocabulary, tr);
+      if (transition) {
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
+      }
     } finally {
       setReviewingId(null);
     }
@@ -47,6 +65,7 @@ export function VocabularyScreen() {
   const dueCount = hub?.summary.dueCount ?? 0;
   const weakestCategory = hub?.summary.weakestCategory ? tt(hub.summary.weakestCategory) : null;
   const firstDueWord = hub?.dueItems[0]?.word ?? null;
+  const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.vocabulary, tr);
   const coachMessage =
     locale === "ru"
       ? dueCount > 0
@@ -64,7 +83,11 @@ export function VocabularyScreen() {
         ? `The best vocabulary move right now is your due queue. Let us take ${firstDueWord ?? "the first word"} and move it back into real context right away.`
         : "I will help turn vocabulary into a living memory system instead of a random list of words.";
   const coachSupportingText =
-    locale === "ru"
+    routeGovernance.isPriorityReentry
+      ? routeGovernance.summary
+      : routeGovernance.isDeferred
+      ? tr("Vocabulary still matters here, but today it should feed the protected return instead of becoming a separate study branch.")
+      : locale === "ru"
       ? weakestCategory
         ? `Сейчас самая нагруженная категория — ${weakestCategory}. Это хороший сигнал для умной vocabulary-стратегии: не расширять всё сразу, а удерживать слабые зоны до реальной автоматизации.`
         : "Лиза здесь должна связывать словарь с ошибками, writing, speaking и повторением, чтобы пользователь чувствовал не review queue, а умную языковую память."
@@ -82,6 +105,8 @@ export function VocabularyScreen() {
         )}
       />
 
+      <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+
       <LivingDepthSection id={livingDepthSectionIds.vocabularyCoach}>
         <LizaCoachPanel
           locale={locale}
@@ -92,13 +117,21 @@ export function VocabularyScreen() {
           spokenLanguage={locale}
           replayCta={replayCta}
           primaryAction={(
-            <Link to={routes.speaking} className="proof-lesson-primary-button">
-              {locale === "ru" ? "Перенести слова в speaking" : "Move words into speaking"}
+            <Link to={routeGovernance.isDeferred ? routeGovernance.primaryRoute : routes.speaking} className="proof-lesson-primary-button">
+              {routeGovernance.isDeferred
+                ? routeGovernance.primaryLabel
+                : locale === "ru"
+                  ? "Перенести слова в speaking"
+                  : "Move words into speaking"}
             </Link>
           )}
           secondaryAction={(
-            <Link to={routes.writing} className="proof-lesson-secondary-action">
-              {locale === "ru" ? "Использовать в writing" : "Use them in writing"}
+            <Link to={routeGovernance.isDeferred ? routeGovernance.secondaryRoute : routes.writing} className="proof-lesson-secondary-action">
+              {routeGovernance.isDeferred
+                ? routeGovernance.secondaryLabel
+                : locale === "ru"
+                  ? "Использовать в writing"
+                  : "Use them in writing"}
             </Link>
           )}
           supportingText={coachSupportingText}
@@ -164,6 +197,22 @@ export function VocabularyScreen() {
           <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
             <Card className="space-y-3">
               <div className="text-lg font-semibold text-ink">{tr("Due vocabulary queue")}</div>
+              {routeGovernance.isDeferred ? (
+                <RouteMicroflowGuard
+                  tr={tr}
+                  label={routeGovernance.badgeLabel}
+                  dayShapeTitle={routeGovernance.dayShapeTitle}
+                  dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
+                  dayShapeSummary={routeGovernance.dayShapeSummary}
+                  dayShapeExpansionStageLabel={routeGovernance.dayShapeExpansionStageLabel}
+                  dayShapeExpansionWindowLabel={routeGovernance.dayShapeExpansionWindowLabel}
+                  message={
+                    routeGovernance.state === "sequenced_hold"
+                      ? tr("Vocabulary review will reopen later in the re-entry sequence, after the focused support surface has been used first.")
+                      : tr("Vocabulary review stays visible, but active marking should wait until today's protected return is complete.")
+                  }
+                />
+              ) : null}
               {hub.dueItems.length === 0 ? (
                 <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-600">{tr("No due items right now.")}</div>
               ) : (
@@ -190,7 +239,7 @@ export function VocabularyScreen() {
                       <button
                         type="button"
                         onClick={() => void handleReview(item.id, true)}
-                        disabled={reviewingId === item.id}
+                        disabled={routeGovernance.isMicroflowLocked || reviewingId === item.id}
                         className="rounded-full bg-ink px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-ink/85 disabled:opacity-60"
                       >
                         {reviewingId === item.id ? tr("Saving...") : tr("Mark correct")}
@@ -198,7 +247,7 @@ export function VocabularyScreen() {
                       <button
                         type="button"
                         onClick={() => void handleReview(item.id, false)}
-                        disabled={reviewingId === item.id}
+                        disabled={routeGovernance.isMicroflowLocked || reviewingId === item.id}
                         className="rounded-full bg-sand px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-[#ddccb6] disabled:opacity-60"
                       >
                         {tr("Need review")}

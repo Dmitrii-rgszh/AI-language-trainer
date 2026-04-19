@@ -35,6 +35,20 @@ class SaveOnboardingSessionDraftRequest(ApiModel):
     current_step: int = Field(default=0, ge=0, le=12)
 
 
+class CompleteRouteReentrySupportStepRequest(ApiModel):
+    route: str
+
+
+class CompleteTaskDrivenStepRequest(ApiModel):
+    input_route: str
+    response_route: str
+
+
+class RegisterRouteEntryRequest(ApiModel):
+    route: str
+    source: str = "surface_visit"
+
+
 class OnboardingSession(ApiModel):
     id: str
     user_id: str | None = None
@@ -57,6 +71,33 @@ class DailyLoopStep(ApiModel):
     duration_minutes: int = Field(ge=1, le=60)
 
 
+class DailyRitualStage(ApiModel):
+    id: str
+    title: str
+    summary: str
+    emphasis: str
+    required: bool = True
+
+
+class DailyRitual(ApiModel):
+    headline: str
+    promise: str
+    completion_rule: str
+    closure_rule: str
+    stages: list[DailyRitualStage] = Field(default_factory=list)
+
+
+class TaskDrivenInput(ApiModel):
+    input_route: str
+    input_label: str
+    response_route: str
+    response_label: str
+    title: str
+    summary: str
+    bridge: str
+    closure: str
+
+
 class DailyLoopPlan(ApiModel):
     id: str
     plan_date_key: str
@@ -76,6 +117,8 @@ class DailyLoopPlan(ApiModel):
     lesson_run_id: str | None = None
     completed_at: str | None = None
     steps: list[DailyLoopStep] = Field(default_factory=list)
+    ritual: DailyRitual | None = None
+    task_driven_input: TaskDrivenInput | None = None
 
 
 class LearnerJourneyState(ApiModel):

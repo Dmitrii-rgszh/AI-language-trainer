@@ -40,6 +40,7 @@ import type {
   SpeakingAttempt,
   SpeakingScenario,
   SpeakingVoiceFeedback,
+  LearnerJourneyState,
   VocabularyReviewItem,
   WelcomeTutorStatus,
   VocabularyHub,
@@ -233,6 +234,30 @@ export const apiClient = {
       },
       false,
     ),
+  completeRouteReentrySupportStep: (payload: { route: string }) =>
+    request<LearnerJourneyState>("/api/journey/reentry-support-step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  completeTaskDrivenStep: (payload: { inputRoute: string; responseRoute: string }) =>
+    request<LearnerJourneyState>("/api/journey/task-driven-step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input_route: payload.inputRoute,
+        response_route: payload.responseRoute,
+      }),
+    }),
+  registerRouteEntry: (payload: { route: string; source?: string }) =>
+    request<LearnerJourneyState>("/api/journey/route-entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        route: payload.route,
+        source: payload.source ?? "surface_visit",
+      }),
+    }),
   completeOnboarding: (payload: CompleteOnboardingRequest) =>
     request<CompleteOnboardingResponse>(
       "/api/onboarding/complete",

@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
+import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
+import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
+import { resolveTaskDrivenInputSurface } from "../../shared/journey/task-driven-input";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { buildBiasedQuickActions, buildRoutePriorityView } from "../../shared/journey/route-priority";
 import { useAppStore } from "../../shared/store/app-store";
 import type { PronunciationTrend, ProviderStatus, QuickAction, SpeakingAttempt } from "../../shared/types/app-data";
 
@@ -179,34 +183,138 @@ export function useDashboardScreen() {
     Boolean(dashboard?.dailyLoopPlan) && dashboard?.dailyLoopPlan?.completedAt == null;
   const hasActiveDailyRoute =
     Boolean(dashboard?.dailyLoopPlan?.lessonRunId) && dashboard?.dailyLoopPlan?.completedAt == null;
-  const primaryRouteLabel = hasActiveDailyRoute
-    ? tr("Resume today’s route")
-    : hasAvailableDailyRoute
-      ? tr("Start today’s route")
-      : tr("Start lesson");
+  const routePriorityView = buildRoutePriorityView(dashboard ?? null, tr);
+  const biasedQuickActions = buildBiasedQuickActions(dashboard ?? null, extendedQuickActions, tr);
+  const primaryRouteLabel = routePriorityView.label;
+  const routeDayShape = dashboard?.dailyLoopPlan
+    ? describeRouteDayShape(
+        dashboard.dailyLoopPlan,
+        dashboard.journeyState?.strategySnapshot.routeRecoveryMemory ?? null,
+        dashboard.journeyState?.strategySnapshot.routeReentryProgress ?? null,
+        dashboard.journeyState?.strategySnapshot.routeEntryMemory ?? null,
+        tr,
+      )
+    : null;
+  const routeFollowUpHint = buildRouteFollowUpHintFromState(
+    dashboard?.dailyLoopPlan ?? null,
+    dashboard?.journeyState ?? null,
+    tr,
+  );
+  const taskDrivenInputSurface = resolveTaskDrivenInputSurface(
+    dashboard?.dailyLoopPlan ?? null,
+    dashboard?.journeyState ?? null,
+    tr,
+  );
+
+  function buildLessonRunnerLaunchState() {
+    const routeStageLabel =
+      routeDayShape?.expansionStageLabel ??
+      routeDayShape?.substageLabel ??
+      routePriorityView.expansionStageLabel ??
+      routePriorityView.reopenStageLabel ??
+      null;
+    const reason =
+      dashboard?.dailyLoopPlan
+        ? locale === "ru"
+          ? `Маршрут уже собран вокруг ${dashboard.dailyLoopPlan.focusArea}. Сейчас lesson runner открывается не как отдельный режим, а как следующий живой шаг твоего daily route.`
+          : `The route is already assembled around ${dashboard.dailyLoopPlan.focusArea}. The lesson runner opens now not as a separate mode, but as the next live step in your daily route.`
+        : locale === "ru"
+          ? "Сейчас lesson runner открывается как основной guided step, а не как отдельный экран урока."
+          : "The lesson runner opens now as the main guided step rather than as a separate lesson screen.";
+
+    return {
+      routeEntryReason: reason,
+      routeEntrySource: "dashboard_route_launch",
+      routeEntryFollowUpLabel:
+        dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
+        routeFollowUpHint ??
+        (locale === "ru" ? "обновлённый следующий шаг" : "the updated next step"),
+      routeEntryStageLabel: routeStageLabel,
+    };
+  }
+
+  function buildTaskDrivenInputLaunchState() {
+    if (!taskDrivenInputSurface) {
+      return null;
+    }
+
+    return {
+      routeEntryReason:
+        locale === "ru"
+          ? `Сегодняшний маршрут должен начаться через ${taskDrivenInputSurface.label}. Сначала возьми входной сигнал, а потом переходи в guided route.`
+          : `Today's route should begin through ${taskDrivenInputSurface.label}. Take the input signal first, then continue into the guided route.`,
+      routeEntrySource: "dashboard_route_launch",
+      routeEntryFollowUpLabel: tr("guided route"),
+      routeEntryStageLabel: tr("Task-driven input"),
+    };
+  }
+
+  function openPrimaryRouteSurface() {
+    navigate(routePriorityView.primaryRoute);
+  }
 
   async function handleStartLesson() {
+    if (routePriorityView.primaryRoute !== routes.dailyLoop && routePriorityView.primaryRoute !== routes.lessonRunner) {
+      openPrimaryRouteSurface();
+      return;
+    }
+
+    if (taskDrivenInputSurface && dashboard?.dailyLoopPlan && !dashboard.dailyLoopPlan.lessonRunId) {
+      navigate(taskDrivenInputSurface.route, { state: buildTaskDrivenInputLaunchState() });
+      return;
+    }
+
     if (hasAvailableDailyRoute) {
       await startTodayDailyLoop();
     } else {
       await startLesson();
     }
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, { state: buildLessonRunnerLaunchState() });
   }
 
   async function handleStartDailyLoop() {
+    if (routePriorityView.primaryRoute !== routes.dailyLoop && routePriorityView.primaryRoute !== routes.lessonRunner) {
+      openPrimaryRouteSurface();
+      return;
+    }
+    if (taskDrivenInputSurface && dashboard?.dailyLoopPlan && !dashboard.dailyLoopPlan.lessonRunId) {
+      navigate(taskDrivenInputSurface.route, { state: buildTaskDrivenInputLaunchState() });
+      return;
+    }
     await startTodayDailyLoop();
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, { state: buildLessonRunnerLaunchState() });
   }
 
   async function handleStartRecoveryLesson() {
     await startRecoveryLesson();
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, {
+      state: {
+        routeEntryReason:
+          locale === "ru"
+            ? "Сейчас система запускает более узкий recovery-step, чтобы маршрут не распался на случайные модули и сначала стабилизировал нужный сигнал."
+            : "The system is opening a narrower recovery step now so the route does not fragment into random modules and can stabilize the needed signal first.",
+        routeEntrySource: "dashboard_route_launch",
+        routeEntryFollowUpLabel:
+          routeFollowUpHint ?? (locale === "ru" ? "возврат в основной маршрут" : "return to the main route"),
+        routeEntryStageLabel: routePriorityView.reopenStageLabel ?? null,
+      },
+    });
   }
 
   async function handleStartDiagnosticCheckpoint() {
     await startDiagnosticCheckpoint();
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, {
+      state: {
+        routeEntryReason:
+          locale === "ru"
+            ? "Сейчас запускается checkpoint, чтобы система уточнила твой маршрут и не вела тебя дальше по неточному предположению."
+            : "A checkpoint is starting now so the system can refine your route instead of pushing you forward on an imprecise assumption.",
+        routeEntrySource: "dashboard_route_launch",
+        routeEntryFollowUpLabel:
+          routeFollowUpHint ?? (locale === "ru" ? "обновлённый personal route" : "the updated personal route"),
+        routeEntryStageLabel: locale === "ru" ? "Точность маршрута" : "Route precision",
+      },
+    });
   }
 
   async function handleVocabularyReview(itemId: string) {
@@ -228,7 +336,7 @@ export function useDashboardScreen() {
   }
 
   function openLessonRunner() {
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, { state: buildLessonRunnerLaunchState() });
   }
 
   return {
@@ -239,7 +347,7 @@ export function useDashboardScreen() {
     dashboard,
     diagnosticRoadmap,
     disabledProviders,
-    extendedQuickActions,
+    extendedQuickActions: biasedQuickActions,
     fallbackProviders,
     formatDateTime,
     handleDiscardLessonRun,
@@ -252,6 +360,8 @@ export function useDashboardScreen() {
     locale,
     openLessonRunner,
     pronunciationTrend,
+    routePriorityView,
+    taskDrivenInputSurface,
     providers,
     primaryRouteLabel,
     readyProviders,

@@ -64,6 +64,7 @@ class SkillArea(str, Enum):
     GRAMMAR = "grammar"
     SPEAKING = "speaking"
     LISTENING = "listening"
+    READING = "reading"
     PRONUNCIATION = "pronunciation"
     WRITING = "writing"
     VOCABULARY = "vocabulary"
@@ -162,6 +163,13 @@ class ListeningBlockPayload(ApiModel):
     slow_mode_allowed: bool = True
 
 
+class ReadingBlockPayload(ApiModel):
+    passage_title: str
+    passage: str
+    questions: list[str]
+    answer_key: list[str] = Field(default_factory=list)
+
+
 class WritingBlockPayload(ApiModel):
     task_id: str
     brief: str
@@ -231,6 +239,11 @@ class ListeningLessonBlock(LessonBlockCommon):
     payload: ListeningBlockPayload
 
 
+class ReadingLessonBlock(LessonBlockCommon):
+    block_type: Literal["reading_block"]
+    payload: ReadingBlockPayload
+
+
 class WritingLessonBlock(LessonBlockCommon):
     block_type: Literal["writing_block"]
     payload: WritingBlockPayload
@@ -259,6 +272,7 @@ LessonBlockBlueprint = Annotated[
     | SpeakingLessonBlock
     | PronunciationLessonBlock
     | ListeningLessonBlock
+    | ReadingLessonBlock
     | WritingLessonBlock
     | ProfessionLessonBlock
     | ReflectionLessonBlock

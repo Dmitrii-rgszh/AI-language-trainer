@@ -1,6 +1,8 @@
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
+import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
@@ -12,6 +14,7 @@ import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
 import { JourneySessionSummaryPanel } from "../../widgets/journey/JourneySessionSummaryPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
+import { DailyRitualPanel } from "../../widgets/journey/DailyRitualPanel";
 
 function deltaLabel(before: number | undefined, after: number, tr: (value: string) => string) {
   if (before === undefined) {
@@ -30,11 +33,16 @@ function deltaLabel(before: number | undefined, after: number, tr: (value: strin
 
 export function LessonResultsScreen() {
   const { tr, formatDateTime, locale } = useLocale();
+  const location = useLocation();
   const result = useAppStore((state) => state.lastLessonResult);
   const dashboard = useAppStore((state) => state.dashboard);
   const startLesson = useAppStore((state) => state.startLesson);
   const startRecoveryLesson = useAppStore((state) => state.startRecoveryLesson);
   const navigate = useNavigate();
+  const locationState = (location.state ?? null) as {
+    routeEntrySource?: string;
+  } | null;
+  const isLessonCompletionBridge = locationState?.routeEntrySource === "lesson_completion";
 
   if (!result) {
     return <Navigate to={routes.dashboard} replace />;
@@ -46,17 +54,54 @@ export function LessonResultsScreen() {
     } else {
       await startLesson();
     }
-    navigate(routes.lessonRunner);
+    navigate(routes.lessonRunner, {
+      state: {
+        routeEntryReason:
+          locale === "ru"
+            ? `Итог уже разобран, а следующий шаг пересчитан. Теперь lesson runner открывается как продолжение обновлённого маршрута вокруг ${currentFocusArea}.`
+            : `The result has already been unpacked and the next step has been recalculated. The lesson runner now opens as the continuation of the updated route around ${currentFocusArea}.`,
+        routeEntrySource: "results_follow_up",
+        routeEntryFollowUpLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
+          nextResultStep,
+        routeEntryStageLabel:
+          locale === "ru" ? "Следующий виток маршрута" : "Next route pass",
+      },
+    });
+  };
+  const handleOpenUpdatedDashboard = () => {
+    navigate(routes.dashboard, {
+      state: {
+        routeEntryReason:
+          locale === "ru"
+            ? `Dashboard уже перестроен после этой сессии. Он открывается сейчас не как возврат назад, а как обновлённая точка входа в следующий шаг вокруг ${currentFocusArea}.`
+            : `The dashboard is already rebuilt after this session. It opens now not as a step back, but as the updated entry point into the next step around ${currentFocusArea}.`,
+        routeEntrySource: "results_to_dashboard",
+        routeEntryFollowUpLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
+          nextResultStep,
+        routeEntryStageLabel: locale === "ru" ? "Маршрут обновлён" : "Route updated",
+      },
+    });
   };
   const diagnosticMilestoneDeltas =
     result.milestoneDeltas?.filter((item) => item.readinessAfter !== item.readinessBefore) ?? [];
   const isCheckpointResult = result.title.toLowerCase().includes("checkpoint");
   const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "next step";
   const coachMessage =
-    locale === "ru"
+    isLessonCompletionBridge
+      ? locale === "ru"
+        ? `Сессия завершена, а маршрут уже обновлён. Сейчас results нужны не как финальная точка, а как короткий мост между пройденным уроком и следующим шагом вокруг ${currentFocusArea}.`
+        : `The session is complete and the route is already updated. Results are not the end point here, but a short bridge between the lesson you just finished and the next step around ${currentFocusArea}.`
+      : locale === "ru"
       ? `Сессия завершена. Сейчас важно не просто посмотреть на score, а понять, как этот результат сдвинул твой маршрут вокруг ${currentFocusArea} и что я рекомендую следующим шагом.`
       : `The session is complete. What matters now is not only the score, but how this result shifted your route around ${currentFocusArea} and what I recommend next.`;
   const coachSupportingText =
+    (isLessonCompletionBridge
+      ? locale === "ru"
+        ? "Этот экран уже работает как route-bridge: сначала Лиза объясняет, что изменилось, а потом переводит тебя в обновлённый следующий шаг."
+        : "This screen now acts as a route bridge: first Liza explains what changed, then she moves you into the updated next step."
+      : null) ??
     dashboard?.journeyState?.currentStrategySummary ??
     (locale === "ru"
       ? "Lesson results должны закрывать сессию не сухими цифрами, а понятным объяснением: что получилось, что просело и как это меняет следующий шаг."
@@ -69,7 +114,25 @@ export function LessonResultsScreen() {
       : "Open the dashboard and launch the next guided step so continuity stays intact.");
   const tomorrowPreview = dashboard?.journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = dashboard?.journeyState?.strategySnapshot.sessionSummary ?? null;
+  const routeRecoveryMemory = dashboard?.journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
+  const routeReentryProgress = dashboard?.journeyState?.strategySnapshot.routeReentryProgress ?? null;
+  const routeEntryMemory = dashboard?.journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const routeFollowUpMemory = dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory ?? null;
+  const dayShape =
+    dashboard?.dailyLoopPlan && dashboard.journeyState
+      ? describeRouteDayShape(
+          dashboard.dailyLoopPlan,
+          routeRecoveryMemory,
+          routeReentryProgress,
+          routeEntryMemory,
+          tr,
+        )
+      : null;
+  const routeFlowSummary =
+    buildRouteFollowUpHintFromState(dashboard?.dailyLoopPlan ?? null, dashboard?.journeyState ?? null, tr) ??
+    nextResultStep;
   const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
+  const ritual = dashboard?.dailyLoopPlan?.ritual ?? null;
   const strongestShift = [
     {
       label: tr("Grammar"),
@@ -139,7 +202,11 @@ export function LessonResultsScreen() {
       <SectionHeading
         eyebrow={tr("Results")}
         title={tr(result.title)}
-        description={tr("Итоги lesson run: score, найденные ошибки, обновление progress и следующий рекомендуемый шаг.")}
+        description={
+          isLessonCompletionBridge
+            ? tr("Итоги lesson run теперь работают как bridge: что изменилось в маршруте, почему это важно и куда система ведёт тебя дальше.")
+            : tr("Итоги lesson run: score, найденные ошибки, обновление progress и следующий рекомендуемый шаг.")
+        }
       />
 
       <LivingDepthSection id={livingDepthSectionIds.lessonResultsCoach}>
@@ -151,11 +218,11 @@ export function LessonResultsScreen() {
           spokenMessage={coachMessage}
           spokenLanguage={locale}
           replayCta={tr("Послушать ещё раз")}
-          primaryAction={<Button onClick={() => void handleContinueRoadmap()} className="proof-lesson-primary-button">{tr("Продолжить roadmap")}</Button>}
+          primaryAction={<Button onClick={() => void handleContinueRoadmap()} className="proof-lesson-primary-button">{tr("Открыть следующий шаг маршрута")}</Button>}
           secondaryAction={(
-            <Link to={routes.dashboard} className="proof-lesson-secondary-action">
-              {tr("Открыть dashboard")}
-            </Link>
+            <button type="button" onClick={handleOpenUpdatedDashboard} className="proof-lesson-secondary-action">
+              {tr("Вернуться в обновлённый dashboard")}
+            </button>
           )}
           supportingText={coachSupportingText}
         />
@@ -195,6 +262,27 @@ export function LessonResultsScreen() {
         />
       ) : null}
 
+      {dashboard?.dailyLoopPlan && ritual ? (
+        <Card className="space-y-4 border border-coral/15 bg-white/80">
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-coral">{tr("Ritual closure")}</div>
+          <div className="text-lg font-semibold text-ink">{ritual.headline}</div>
+          <div className="rounded-2xl bg-coral/6 p-4 text-sm leading-6 text-slate-700">
+            {locale === "ru"
+              ? "Эта сессия считается завершённой не просто по score, а потому что Лиза уже закрыла ритуал, объяснила session shift и перевела маршрут в следующий шаг."
+              : "This session is complete not only because of the score, but because Liza has already closed the ritual, unpacked the session shift, and moved the route into the next step."}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl bg-white/84 p-4 text-sm leading-6 text-slate-700">
+              <span className="font-semibold text-ink">{tr("Completion rule")}:</span> {ritual.completionRule}
+            </div>
+            <div className="rounded-2xl bg-white/84 p-4 text-sm leading-6 text-slate-700">
+              <span className="font-semibold text-ink">{tr("Closure rule")}:</span> {ritual.closureRule}
+            </div>
+          </div>
+          <DailyRitualPanel plan={dashboard.dailyLoopPlan} tr={tr} />
+        </Card>
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="space-y-4">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">{tr("Lesson summary")}</div>
@@ -213,6 +301,10 @@ export function LessonResultsScreen() {
           <div className="flex flex-wrap gap-3">
             <Link
               to={routes.dashboard}
+              onClick={(event) => {
+                event.preventDefault();
+                handleOpenUpdatedDashboard();
+              }}
               className="rounded-2xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
             >
               {tr("Back to dashboard")}
@@ -297,15 +389,47 @@ export function LessonResultsScreen() {
               ) : null}
             </div>
           ) : null}
-          <Button onClick={() => void handleContinueRoadmap()}>{tr("Continue personal roadmap")}</Button>
+          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || dayShape ? (
+            <div className="rounded-2xl border border-coral/15 bg-coral/8 p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-coral">{tr("Route continuity")}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {routeFollowUpMemory?.currentLabel ? (
+                  <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-accent">
+                    {tr("Now")}: {routeFollowUpMemory.currentLabel}
+                  </span>
+                ) : null}
+                {routeFollowUpMemory?.followUpLabel ? (
+                  <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-coral">
+                    {tr("Then")}: {routeFollowUpMemory.followUpLabel}
+                  </span>
+                ) : null}
+                {dayShape?.substageLabel ? (
+                  <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                    {dayShape.substageLabel}
+                  </span>
+                ) : null}
+                {dayShape?.expansionStageLabel ? (
+                  <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                    {dayShape.expansionStageLabel}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 text-sm leading-6 text-slate-700">{routeFlowSummary}</div>
+            </div>
+          ) : null}
+          <Button onClick={() => void handleContinueRoadmap()}>{tr("Открыть следующий шаг маршрута")}</Button>
           <Link
             to={routes.dashboard}
+            onClick={(event) => {
+              event.preventDefault();
+              handleOpenUpdatedDashboard();
+            }}
             className="block rounded-2xl bg-white/70 p-4 text-sm font-semibold text-ink transition-colors hover:bg-white"
           >
-            {tr("Open dashboard recommendation")}
+            {tr("Открыть обновлённый dashboard")}
           </Link>
-          <Button onClick={() => window.history.back()} variant="ghost">
-            {tr("Back")}
+          <Button onClick={handleOpenUpdatedDashboard} variant="ghost">
+            {tr("Вернуться в обновлённый dashboard")}
           </Button>
         </Card>
       </div>

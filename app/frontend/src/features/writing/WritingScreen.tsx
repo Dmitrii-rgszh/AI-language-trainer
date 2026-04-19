@@ -1,19 +1,26 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { AITextFeedback, WritingAttempt } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
+import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function WritingScreen() {
   const { locale, tr, formatDateTime } = useLocale();
+  const bootstrap = useAppStore((state) => state.bootstrap);
+  const dashboard = useAppStore((state) => state.dashboard);
+  const navigate = useNavigate();
   const writingTask = useAppStore((state) => state.writingTask);
   const [draft, setDraft] = useState(
     "Hello team, I am writing to share that our onboarding workshop was helpful and people feels more confident after the session.",
@@ -38,6 +45,7 @@ export function WritingScreen() {
   const activeTask = writingTask;
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
   const latestAttempt = attempts[0] ?? null;
+  const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.writing, tr);
   const coachMessage =
     locale === "ru"
       ? feedback
@@ -55,13 +63,21 @@ export function WritingScreen() {
         ? "You already have the review. Now let us turn it into a stronger second version instead of just reading the notes."
         : `Write a short draft for ${tr(activeTask.title)} first, then I will help strengthen it in meaning, language, and tone.`;
   const coachSupportingText =
-    locale === "ru"
+    routeGovernance.isPriorityReentry
+      ? routeGovernance.summary
+      : routeGovernance.isDeferred
+      ? tr("Writing is still available, but during a protected return it should support today's route instead of becoming a separate branch.")
+      : locale === "ru"
       ? latestAttempt
         ? `Последняя сохранённая версия уже показывает рабочий цикл: draft -> review -> stronger version. Следующий шаг — сделать writing частью общей стратегии, а не отдельной проверки текста.`
         : "Writing здесь должен работать как поддерживающий коучинг: легко начать, легко понять правку, легко собрать более сильную вторую версию и передать это в общий learning loop."
       : latestAttempt
         ? "Your latest saved version already shows the working loop: draft -> review -> stronger version. The next step is to make writing part of one learning strategy, not an isolated text check."
         : "Writing here should feel like supportive coaching: easy to start, easy to understand the correction, easy to build a stronger second version, and easy to feed back into the shared learning loop.";
+  const microflowGuardMessage =
+    routeGovernance.state === "sequenced_hold"
+      ? tr("Writing review will reopen later in the re-entry sequence, after the focused support surface has been used first.")
+      : tr("Writing review stays available for context, but new review passes should wait until the protected return route is complete.");
 
   async function loadAttempts() {
     setIsHistoryLoading(true);
@@ -86,7 +102,19 @@ export function WritingScreen() {
         feedbackLanguage: "ru",
       });
       setFeedback(nextFeedback);
-      await loadAttempts();
+      const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.writing });
+      await Promise.all([loadAttempts(), bootstrap()]);
+      const transition = resolveRouteFollowUpTransition(updatedState, routes.writing, tr);
+      if (transition) {
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Writing review failed");
     } finally {
@@ -148,6 +176,8 @@ export function WritingScreen() {
         description={tr("Draft, revise, and reuse stronger versions while the app keeps track of recurring writing issues.")}
       />
 
+      <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+
       <LivingDepthSection id={livingDepthSectionIds.writingCoach}>
         <LizaCoachPanel
           locale={locale}
@@ -158,26 +188,36 @@ export function WritingScreen() {
           spokenLanguage={locale}
           replayCta={replayCta}
           primaryAction={(
-            <Button
-              type="button"
-              onClick={() => void requestReview()}
-              disabled={isLoading || draft.trim().length === 0}
-              className="proof-lesson-primary-button"
-            >
-              {isLoading
-                ? tr("Reviewing...")
-                : feedback
-                  ? locale === "ru"
-                    ? "Получить следующий review"
-                    : "Get the next review"
-                  : locale === "ru"
-                    ? "Отправить draft на review"
-                    : "Send the draft for review"}
-            </Button>
+            routeGovernance.isDeferred ? (
+              <Link to={routeGovernance.primaryRoute} className="proof-lesson-primary-button">
+                {routeGovernance.primaryLabel}
+              </Link>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => void requestReview()}
+                disabled={isLoading || draft.trim().length === 0}
+                className="proof-lesson-primary-button"
+              >
+                {isLoading
+                  ? tr("Reviewing...")
+                  : feedback
+                    ? locale === "ru"
+                      ? "Получить следующий review"
+                      : "Get the next review"
+                    : locale === "ru"
+                      ? "Отправить draft на review"
+                      : "Send the draft for review"}
+              </Button>
+            )
           )}
           secondaryAction={(
-            <Link to={routes.grammar} className="proof-lesson-secondary-action">
-              {locale === "ru" ? "Открыть grammar support" : "Open grammar support"}
+            <Link to={routeGovernance.isDeferred ? routeGovernance.secondaryRoute : routes.grammar} className="proof-lesson-secondary-action">
+              {routeGovernance.isDeferred
+                ? routeGovernance.secondaryLabel
+                : locale === "ru"
+                  ? "Открыть grammar support"
+                  : "Open grammar support"}
             </Link>
           )}
           supportingText={coachSupportingText}
@@ -191,6 +231,18 @@ export function WritingScreen() {
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="space-y-4">
           <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">{activeTask.brief}</div>
+          {routeGovernance.isDeferred ? (
+            <RouteMicroflowGuard
+              tr={tr}
+              label={routeGovernance.badgeLabel}
+              dayShapeTitle={routeGovernance.dayShapeTitle}
+              dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
+              dayShapeSummary={routeGovernance.dayShapeSummary}
+              dayShapeExpansionStageLabel={routeGovernance.dayShapeExpansionStageLabel}
+              dayShapeExpansionWindowLabel={routeGovernance.dayShapeExpansionWindowLabel}
+              message={microflowGuardMessage}
+            />
+          ) : null}
           <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">{tr("Tone")}: {activeTask.tone}</div>
           <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
             {activeTask.checklist.map((item) => (
@@ -200,13 +252,14 @@ export function WritingScreen() {
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
+            disabled={routeGovernance.isMicroflowLocked}
             className="min-h-52 w-full rounded-2xl border border-sand-dark/40 bg-white/80 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-coral"
           />
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => void requestReview()}
-              disabled={isLoading}
+              disabled={routeGovernance.isMicroflowLocked || isLoading}
               className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {isLoading ? tr("Reviewing...") : tr("Get AI review")}
@@ -225,6 +278,7 @@ export function WritingScreen() {
                 setDraft("");
                 setFeedback(null);
               }}
+              disabled={routeGovernance.isMicroflowLocked}
               className="rounded-full border border-ink/15 bg-white/70 px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink/35"
             >
               {tr("Clear draft")}
@@ -287,6 +341,7 @@ export function WritingScreen() {
                       <button
                         type="button"
                         onClick={() => reuseAttempt(attempt)}
+                        disabled={routeGovernance.isMicroflowLocked}
                         className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/85"
                       >
                         {tr("Reuse draft")}

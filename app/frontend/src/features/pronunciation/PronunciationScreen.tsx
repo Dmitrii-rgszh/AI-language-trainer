@@ -1,19 +1,26 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { PronunciationAssessment, PronunciationAttempt, PronunciationTrend } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
+import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
+import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 
 export function PronunciationScreen() {
   const { locale, tr, formatDateTime } = useLocale();
+  const bootstrap = useAppStore((state) => state.bootstrap);
+  const dashboard = useAppStore((state) => state.dashboard);
+  const navigate = useNavigate();
   const drills = useAppStore((state) => state.pronunciationDrills);
   const providers = useAppStore((state) => state.providers);
   const [activePhrase, setActivePhrase] = useState<string | null>(null);
@@ -37,6 +44,7 @@ export function PronunciationScreen() {
   const featuredPhrase = featuredDrill?.phrases[0] ?? null;
   const dominantWeakSound = trends?.weakestSounds[0]?.label ?? null;
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
+  const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.pronunciation, tr);
 
   async function loadPronunciationHistory() {
     try {
@@ -80,13 +88,21 @@ export function PronunciationScreen() {
           ? `The best focus right now is the sound ${dominantWeakSound}, but only inside a real phrase, not in isolation.`
           : "I will help turn pronunciation from an isolated check into part of more natural speech.";
   const coachSupportingText =
-    locale === "ru"
+    routeGovernance.isPriorityReentry
+      ? routeGovernance.summary
+      : routeGovernance.isDeferred
+      ? tr("Pronunciation is still useful here, but right now it should support the protected return instead of widening the route.")
+      : locale === "ru"
       ? dominantWeakSound
         ? `Слабый звук ${dominantWeakSound} должен связываться со speaking, а не жить отдельно. Именно поэтому следующий шаг после lab — перенос в более живую реплику.`
         : "Лиза здесь должна объяснять не только что плохо, но и что именно повторить дальше, чтобы pronunciation реально поднимал speaking и общую уверенность."
       : dominantWeakSound
         ? `The weak sound ${dominantWeakSound} should connect back into speaking rather than living alone. That is why the next move after the lab should be transfer into a more alive phrase.`
         : "Liza should not only explain what is weak here, but also what to repeat next so pronunciation actually lifts speaking and confidence.";
+  const microflowGuardMessage =
+    routeGovernance.state === "sequenced_hold"
+      ? tr("Pronunciation drills will reopen later in the re-entry sequence, after the focused support surface has been used first.")
+      : tr("Pronunciation drills stay visible, but active scoring should wait until today's protected return route is complete.");
 
   async function playPhrase(phrase: string) {
     setPlaybackError(null);
@@ -177,7 +193,19 @@ export function PronunciationScreen() {
         audio: recordedBlob,
       });
       setAssessment(result);
-      await loadPronunciationHistory();
+      const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.pronunciation });
+      await Promise.all([loadPronunciationHistory(), bootstrap()]);
+      const transition = resolveRouteFollowUpTransition(updatedState, routes.pronunciation, tr);
+      if (transition) {
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
+      }
     } catch (error) {
       setPlaybackError(error instanceof Error ? error.message : "Pronunciation assessment failed");
     } finally {
@@ -193,6 +221,8 @@ export function PronunciationScreen() {
         description={tr("Теперь lab хранит историю попыток и показывает повторяющиеся слабые звуки и слова, а не только последний verdict.")}
       />
 
+      <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+
       <LivingDepthSection id={livingDepthSectionIds.pronunciationCoach}>
         <LizaCoachPanel
           locale={locale}
@@ -202,18 +232,26 @@ export function PronunciationScreen() {
           spokenMessage={coachSpokenMessage}
           spokenLanguage={locale}
           replayCta={replayCta}
-          primaryAction={featuredPhrase ? (
-            <Button
-              type="button"
-              onClick={() => void playPhrase(featuredPhrase)}
-              className="proof-lesson-primary-button"
-            >
-              {locale === "ru" ? "Послушать модельную фразу" : "Hear the model phrase"}
-            </Button>
-          ) : undefined}
+          primaryAction={routeGovernance.isDeferred ? (
+            <Link to={routeGovernance.primaryRoute} className="proof-lesson-primary-button">
+              {routeGovernance.primaryLabel}
+            </Link>
+          ) : featuredPhrase ? (
+              <Button
+                type="button"
+                onClick={() => void playPhrase(featuredPhrase)}
+                className="proof-lesson-primary-button"
+              >
+                {locale === "ru" ? "Послушать модельную фразу" : "Hear the model phrase"}
+              </Button>
+            ) : undefined}
           secondaryAction={(
-            <Link to={routes.speaking} className="proof-lesson-secondary-action">
-              {locale === "ru" ? "Перенести в speaking" : "Move it into speaking"}
+            <Link to={routeGovernance.isDeferred ? routeGovernance.secondaryRoute : routes.speaking} className="proof-lesson-secondary-action">
+              {routeGovernance.isDeferred
+                ? routeGovernance.secondaryLabel
+                : locale === "ru"
+                  ? "Перенести в speaking"
+                  : "Move it into speaking"}
             </Link>
           )}
           supportingText={coachSupportingText}
@@ -397,6 +435,18 @@ export function PronunciationScreen() {
             </div>
 
             <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{drill.focus}</div>
+            {routeGovernance.isDeferred ? (
+              <RouteMicroflowGuard
+                tr={tr}
+                label={routeGovernance.badgeLabel}
+                dayShapeTitle={routeGovernance.dayShapeTitle}
+                dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
+                dayShapeSummary={routeGovernance.dayShapeSummary}
+                dayShapeExpansionStageLabel={routeGovernance.dayShapeExpansionStageLabel}
+                dayShapeExpansionWindowLabel={routeGovernance.dayShapeExpansionWindowLabel}
+                message={microflowGuardMessage}
+              />
+            ) : null}
             <div className="space-y-2 rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
               {drill.phrases.map((phrase) => (
                 <div key={phrase} className="flex items-center justify-between gap-3 rounded-2xl bg-white/50 px-3 py-2">
@@ -418,7 +468,7 @@ export function PronunciationScreen() {
                             : startRecording(phrase, drill.id, drill.sound)
                         )
                       }
-                      disabled={isAssessing}
+                      disabled={routeGovernance.isMicroflowLocked || isAssessing}
                       className="rounded-full bg-coral px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-coral/85 disabled:opacity-60"
                     >
                       {isRecording && assessmentTarget === phrase

@@ -26,10 +26,11 @@ Lesson blocks являются базовой единицей lesson engine. О
 5. `speaking_block`
 6. `pronunciation_block`
 7. `listening_block`
-8. `writing_block`
-9. `profession_block`
-10. `reflection_block`
-11. `summary_block`
+8. `reading_block`
+9. `writing_block`
+10. `profession_block`
+11. `reflection_block`
+12. `summary_block`
 
 ## Validation Rules
 
@@ -89,6 +90,13 @@ Lesson blocks являются базовой единицей lesson engine. О
 - comprehension questions
 - флаг `slowModeAllowed`
 
+### `reading_block`
+
+- содержит `passageTitle`
+- содержит `passage`
+- comprehension questions
+- опциональный `answerKey`
+
 ### `writing_block`
 
 - содержит `taskId`
@@ -125,4 +133,3 @@ Lesson blocks являются базовой единицей lesson engine. О
 
 - Pydantic blueprint: `backend/app/schemas/blueprint.py`
 - generated JSON schema: `docs/schemas/lesson-block.schema.json`
-

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import type { DashboardData, MistakeResolutionSignal } from "../../shared/types/app-data";
 import { routes } from "../../shared/constants/routes";
+import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
+import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { ScoreBadge } from "../../shared/ui/ScoreBadge";
@@ -12,6 +14,7 @@ type DashboardHeroSectionProps = {
   fallbackProviders: number;
   onStartLesson: () => Promise<void>;
   primaryRouteLabel: string;
+  primaryRouteSummary: string;
   readyProviders: number;
   recommendationGoal: string;
   recoveringSignals: MistakeResolutionSignal[];
@@ -27,6 +30,7 @@ export function DashboardHeroSection({
   fallbackProviders,
   onStartLesson,
   primaryRouteLabel,
+  primaryRouteSummary,
   readyProviders,
   recommendationGoal,
   recoveringSignals,
@@ -38,6 +42,21 @@ export function DashboardHeroSection({
   const routeDuration = dashboard.dailyLoopPlan?.estimatedMinutes ?? dashboard.recommendation.duration;
   const routeFocus = dashboard.dailyLoopPlan?.focusArea ?? dashboard.recommendation.focusArea;
   const eyebrow = dashboard.dailyLoopPlan ? tr("Today's route") : tr("Recommended lesson");
+  const routeRecoveryMemory = dashboard.journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
+  const routeReentryProgress = dashboard.journeyState?.strategySnapshot.routeReentryProgress ?? null;
+  const routeEntryMemory = dashboard.journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const routeFollowUpMemory = dashboard.journeyState?.strategySnapshot.routeFollowUpMemory ?? null;
+  const dayShape = dashboard.dailyLoopPlan
+    ? describeRouteDayShape(
+        dashboard.dailyLoopPlan,
+        routeRecoveryMemory,
+        routeReentryProgress,
+        routeEntryMemory,
+        tr,
+      )
+    : null;
+  const routeFlowSummary =
+    buildRouteFollowUpHintFromState(dashboard.dailyLoopPlan, dashboard.journeyState, tr) ?? primaryRouteSummary;
 
   return (
     <>
@@ -48,6 +67,35 @@ export function DashboardHeroSection({
           </div>
           <div className="text-2xl font-[700] tracking-[-0.03em] text-ink">{tr(routeTitle)}</div>
           <div className="text-sm leading-6 text-slate-600">{recommendationGoal}</div>
+          <div className="rounded-2xl bg-accent/8 p-4 text-sm text-slate-700">{primaryRouteSummary}</div>
+          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || dayShape ? (
+            <div className="rounded-2xl border border-accent/15 bg-white/78 p-4 text-sm text-slate-700">
+              <div className="text-[0.68rem] uppercase tracking-[0.18em] text-coral">{tr("Route flow")}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {routeFollowUpMemory?.currentLabel ? (
+                  <span className="rounded-full bg-accent/10 px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-accent">
+                    {tr("Now")}: {routeFollowUpMemory.currentLabel}
+                  </span>
+                ) : null}
+                {routeFollowUpMemory?.followUpLabel ? (
+                  <span className="rounded-full bg-coral/10 px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-coral">
+                    {tr("Then")}: {routeFollowUpMemory.followUpLabel}
+                  </span>
+                ) : null}
+                {dayShape?.substageLabel ? (
+                  <span className="rounded-full bg-sand px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-ink">
+                    {dayShape.substageLabel}
+                  </span>
+                ) : null}
+                {dayShape?.expansionStageLabel ? (
+                  <span className="rounded-full bg-white px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-slate-600">
+                    {dayShape.expansionStageLabel}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 leading-6 text-slate-700">{routeFlowSummary}</div>
+            </div>
+          ) : null}
           <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
             {tr("Duration")}: {routeDuration} min. {tr("Focus")}:{" "}
             {tl(routeFocus.split(","))}.

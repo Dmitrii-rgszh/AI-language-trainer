@@ -45,6 +45,7 @@ def build_app_runtime(
         repositories.mistake_repository,
         repositories.vocabulary_repository,
         repositories.progress_repository,
+        repositories.journey_repository,
     )
     journey_service = JourneyService(
         repositories.journey_repository,

@@ -99,6 +99,42 @@ function extractListeningQuestionSets(block: Lesson["blocks"][number]) {
   ];
 }
 
+function extractReadingQuestionSet(block: Lesson["blocks"][number]) {
+  const questionRules = Array.isArray(block.payload.questions)
+    ? block.payload.questions
+        .map((item) => {
+          if (typeof item === "string") {
+            return { prompt: item, acceptableAnswers: [] as string[] };
+          }
+          return parseListeningQuestionRule(item);
+        })
+        .filter((item): item is ListeningQuestionRule => item !== null)
+    : [];
+  const fallbackAnswers = Array.isArray(block.payload.answer_key)
+    ? block.payload.answer_key.filter((item): item is string => typeof item === "string")
+    : Array.isArray(block.payload.answerKey)
+      ? block.payload.answerKey.filter((item): item is string => typeof item === "string")
+      : [];
+
+  if (questionRules.length > 0) {
+    return questionRules.map((question, index) => ({
+      prompt: question.prompt,
+      acceptableAnswers:
+        question.acceptableAnswers.length > 0
+          ? question.acceptableAnswers
+          : fallbackAnswers[index]
+            ? [fallbackAnswers[index]]
+            : fallbackAnswers,
+    }));
+  }
+
+  if (fallbackAnswers.length === 0) {
+    return [];
+  }
+
+  return [{ prompt: "Reading answer", acceptableAnswers: fallbackAnswers }];
+}
+
 function scoreListeningResponse(
   block: Lesson["blocks"][number],
   responseText: string,
@@ -128,6 +164,25 @@ function scoreListeningResponse(
   return Math.max(25, Math.min(95, Math.round(Math.max(baseScore - 8, coverageScore + completenessBoost) - revealPenalty)));
 }
 
+function scoreReadingResponse(block: Lesson["blocks"][number], responseText: string, baseScore: number) {
+  const questionRules = extractReadingQuestionSet(block);
+  if (questionRules.length === 0) {
+    return Math.max(30, Math.min(95, Math.round(baseScore)));
+  }
+
+  const matchedQuestions = questionRules.filter((question) => {
+    if (question.acceptableAnswers.length === 0) {
+      return false;
+    }
+    return countKeywordMatches(responseText, question.acceptableAnswers) > 0;
+  }).length;
+  const coverage = matchedQuestions / questionRules.length;
+  const coverageScore = 45 + coverage * 44;
+  const completenessBoost = responseText.trim().length > 0 ? Math.min(10, responseText.trim().split(/\s+/).length) : 0;
+
+  return Math.max(30, Math.min(95, Math.round(Math.max(baseScore - 4, coverageScore + completenessBoost))));
+}
+
 export function buildBlockScore(params: {
   lessonType: Lesson["lessonType"];
   block: Lesson["blocks"][number];
@@ -146,6 +201,9 @@ export function buildBlockScore(params: {
 
   if (block.blockType === "listening_block") {
     return scoreListeningResponse(block, trimmedResponse, transcriptRevealed, baseScore);
+  }
+  if (block.blockType === "reading_block") {
+    return scoreReadingResponse(block, trimmedResponse, baseScore);
   }
 
   if (lessonType !== "diagnostic") {

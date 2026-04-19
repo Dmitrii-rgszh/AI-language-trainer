@@ -272,6 +272,22 @@ class LessonRepository:
         }
         practice_mix = cls._build_practice_mix_map(route_context)
         lead_module = cls._resolve_guided_route_lead_module(route_context, practice_mix)
+        route_entry_reset_active = bool(route_context.get("routeEntryResetActive"))
+        route_entry_reset_label = (
+            str(route_context.get("routeEntryResetLabel"))
+            if route_context.get("routeEntryResetLabel")
+            else None
+        )
+        route_recovery_decision_bias = str(route_context.get("routeRecoveryDecisionBias") or "")
+        route_recovery_decision_window_days = (
+            int(route_context.get("routeRecoveryDecisionWindowDays"))
+            if route_context.get("routeRecoveryDecisionWindowDays") is not None
+            else 0
+        )
+        widening_window_active = (
+            route_recovery_decision_bias == "widening_window"
+            and route_recovery_decision_window_days > 0
+        )
         elevated_modules = {
             module_key
             for module_key, item in practice_mix.items()
@@ -282,6 +298,17 @@ class LessonRepository:
             )
         }
         target_support_modules = module_rotation_keys | elevated_modules
+        input_lane = str(route_context.get("inputLane") or "")
+        if input_lane in {"listening", "reading"}:
+            target_support_modules.add(input_lane)
+        if route_entry_reset_active and route_entry_reset_label:
+            reset_module = cls._map_route_label_to_module_key(route_entry_reset_label)
+            if reset_module:
+                target_support_modules.discard(reset_module)
+        if widening_window_active:
+            target_support_modules.discard("writing")
+            target_support_modules.discard("speaking")
+            target_support_modules.discard("pronunciation")
 
         if "vocabulary" in target_support_modules and due_vocabulary and not any(
             spec["block_type"] == "vocab_block" for spec in specs
@@ -305,6 +332,19 @@ class LessonRepository:
             )
             specs.insert(insert_at, cls._build_guided_grammar_support_block(route_context))
 
+        if "writing" in target_support_modules and not any(
+            spec["block_type"] == "writing_block" for spec in specs
+        ):
+            insert_before = next(
+                (
+                    index
+                    for index, spec in enumerate(specs)
+                    if spec["block_type"] in {"speaking_block", "profession_block", "summary_block"}
+                ),
+                len(specs),
+            )
+            specs.insert(insert_before, cls._build_guided_writing_support_block(route_context))
+
         if "listening" in target_support_modules and not any(
             spec["block_type"] == "listening_block" for spec in specs
         ):
@@ -317,6 +357,19 @@ class LessonRepository:
                 len(specs),
             )
             specs.insert(insert_before, cls._build_guided_listening_support_block(route_context))
+
+        if "reading" in target_support_modules and not any(
+            spec["block_type"] == "reading_block" for spec in specs
+        ):
+            insert_before = next(
+                (
+                    index
+                    for index, spec in enumerate(specs)
+                    if spec["block_type"] in {"writing_block", "speaking_block", "profession_block", "summary_block"}
+                ),
+                len(specs),
+            )
+            specs.insert(insert_before, cls._build_guided_reading_support_block(route_context))
 
         if "profession" in target_support_modules and not any(
             spec["block_type"] == "profession_block" for spec in specs
@@ -348,7 +401,19 @@ class LessonRepository:
             specs = cls._prefer_text_first_response(specs, route_context)
 
         specs = cls._rebalance_guided_route_sequence(specs, lead_module=lead_module)
-        return cls._rebalance_guided_route_block_minutes(specs, practice_mix=practice_mix)
+        return cls._rebalance_guided_route_block_minutes(specs, practice_mix=practice_mix, route_context=route_context)
+
+    @staticmethod
+    def _map_route_label_to_module_key(route_label: str | None) -> str | None:
+        return {
+            "grammar support": "grammar",
+            "vocabulary support": "vocabulary",
+            "speaking support": "speaking",
+            "pronunciation support": "pronunciation",
+            "writing support": "writing",
+            "reading support": "reading",
+            "professional support": "profession",
+        }.get(route_label or "")
 
     @staticmethod
     def _build_guided_vocab_support_block(
@@ -413,6 +478,33 @@ class LessonRepository:
         }
 
     @staticmethod
+    def _build_guided_reading_support_block(route_context: dict) -> dict:
+        focus_area = route_context.get("focusArea") or "today's route"
+        primary_goal = route_context.get("primaryGoal") or "your main goal"
+        carry_over = route_context.get("carryOverSignalLabel") or focus_area
+        watch_signal = route_context.get("watchSignalLabel") or focus_area
+        passage = (
+            f"Today's route stays centered on {focus_area}. "
+            f"Carry {carry_over} into the next response and keep watching whether {watch_signal} still needs support."
+        )
+        return {
+            "block_type": "reading_block",
+            "title": "Reading route support",
+            "instructions": f"Read the short route note, extract the key signal, and use it to prepare a clearer response around {primary_goal}.",
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "payload": {
+                "passageTitle": "Route support note",
+                "passage": passage,
+                "questions": [
+                    "What is the route centered on?",
+                    "What still needs watching before the response?",
+                ],
+                "answerKey": [str(focus_area), str(watch_signal)],
+            },
+        }
+
+    @staticmethod
     def _build_guided_grammar_support_block(route_context: dict) -> dict:
         focus_area = route_context.get("focusArea") or "today's route"
         primary_goal = route_context.get("primaryGoal") or "your main goal"
@@ -436,6 +528,34 @@ class LessonRepository:
                     f"Rewrite one sentence so {watch_signal} does not slip back in.",
                 ],
                 "target_error_types": weak_spot_categories,
+            },
+        }
+
+    @staticmethod
+    def _build_guided_writing_support_block(route_context: dict) -> dict:
+        focus_area = route_context.get("focusArea") or "today's route"
+        primary_goal = route_context.get("primaryGoal") or "your main goal"
+        reentry_label = route_context.get("routeReentryNextLabel") or "writing support"
+        next_step = route_context.get("nextBestAction") or "keep the route moving"
+        return {
+            "block_type": "writing_block",
+            "title": "Sequenced writing support",
+            "instructions": (
+                f"Use a short written pass to reopen {reentry_label} before the route widens again, "
+                f"keeping {focus_area} useful for {primary_goal}."
+            ),
+            "estimated_minutes": 4,
+            "feedback_mode": FeedbackMode.AFTER_BLOCK,
+            "payload": {
+                "task_id": "guided-route-writing-support",
+                "brief": "Write 2-3 lines that stabilize the next support step before the live response.",
+                "prompts": [
+                    f"Write one short response that keeps {focus_area} clear and useful for {primary_goal}.",
+                    f"Add one line that prepares the route for {reentry_label}.",
+                ],
+                "checklist": ["clarity", "structure", "carry the next support step"],
+                "tone": "clear and steady",
+                "nextStepHint": next_step,
             },
         }
 
@@ -817,6 +937,28 @@ class LessonRepository:
             for item in route_context.get("practiceMix", [])
             if isinstance(item, dict) and item.get("moduleKey")
         ][:5]
+        route_recovery_decision_bias = (
+            str(route_context.get("routeRecoveryDecisionBias"))
+            if route_context.get("routeRecoveryDecisionBias")
+            else None
+        )
+        route_recovery_decision_window_days = (
+            int(route_context.get("routeRecoveryDecisionWindowDays"))
+            if route_context.get("routeRecoveryDecisionWindowDays") is not None
+            else None
+        )
+        route_recovery_decision_window_stage = (
+            str(route_context.get("routeRecoveryDecisionWindowStage"))
+            if route_context.get("routeRecoveryDecisionWindowStage")
+            else None
+        )
+        route_recovery_decision_window_remaining_days = (
+            int(route_context.get("routeRecoveryDecisionWindowRemainingDays"))
+            if route_context.get("routeRecoveryDecisionWindowRemainingDays") is not None
+            else None
+        )
+        if route_recovery_decision_bias == "widening_window" and route_recovery_decision_window_days:
+            practice_mix = cls._normalize_practice_mix_for_widening_window(practice_mix)
         weak_spot_categories = [
             str(item)
             for item in route_context.get("weakSpotCategories", [])
@@ -855,6 +997,82 @@ class LessonRepository:
             if route_context.get("skillTrajectoryDirection")
             else None
         )
+        strategy_memory_summary = (
+            str(route_context.get("strategyMemorySummary"))
+            if route_context.get("strategyMemorySummary")
+            else None
+        )
+        strategy_memory_focus = (
+            str(route_context.get("strategyMemoryFocus"))
+            if route_context.get("strategyMemoryFocus")
+            else None
+        )
+        strategy_memory_level = (
+            str(route_context.get("strategyMemoryLevel"))
+            if route_context.get("strategyMemoryLevel")
+            else None
+        )
+        route_cadence_summary = (
+            str(route_context.get("routeCadenceSummary"))
+            if route_context.get("routeCadenceSummary")
+            else None
+        )
+        route_cadence_status = (
+            str(route_context.get("routeCadenceStatus"))
+            if route_context.get("routeCadenceStatus")
+            else None
+        )
+        route_recovery_summary = (
+            str(route_context.get("routeRecoverySummary"))
+            if route_context.get("routeRecoverySummary")
+            else None
+        )
+        route_recovery_phase = (
+            str(route_context.get("routeRecoveryPhase"))
+            if route_context.get("routeRecoveryPhase")
+            else None
+        )
+        route_recovery_action_hint = (
+            str(route_context.get("routeRecoveryActionHint"))
+            if route_context.get("routeRecoveryActionHint")
+            else None
+        )
+        route_recovery_next_phase_hint = (
+            str(route_context.get("routeRecoveryNextPhaseHint"))
+            if route_context.get("routeRecoveryNextPhaseHint")
+            else None
+        )
+        route_recovery_stage = (
+            str(route_context.get("routeRecoveryStage"))
+            if route_context.get("routeRecoveryStage")
+            else None
+        )
+        route_reentry_progress = (
+            route_context.get("routeReentryProgress")
+            if isinstance(route_context.get("routeReentryProgress"), dict)
+            else None
+        )
+        route_reentry_next_route = (
+            str(route_context.get("routeReentryNextRoute"))
+            if route_context.get("routeReentryNextRoute")
+            else None
+        )
+        route_reentry_next_label = (
+            str(route_context.get("routeReentryNextLabel"))
+            if route_context.get("routeReentryNextLabel")
+            else None
+        )
+        route_entry_memory = (
+            route_context.get("routeEntryMemory")
+            if isinstance(route_context.get("routeEntryMemory"), dict)
+            else None
+        )
+        route_entry_reset_active = bool(route_context.get("routeEntryResetActive"))
+        route_entry_reset_label = (
+            str(route_context.get("routeEntryResetLabel"))
+            if route_context.get("routeEntryResetLabel")
+            else None
+        )
 
         enriched_payload["routeContext"] = {
             "focusArea": focus_area,
@@ -867,13 +1085,42 @@ class LessonRepository:
             "routeSeedSource": route_context.get("routeSeedSource"),
             "inputLane": route_context.get("inputLane"),
             "outputLane": route_context.get("outputLane"),
+            "taskDrivenInput": route_context.get("taskDrivenInput"),
             "moduleRotationKeys": module_rotation_keys,
             "moduleRotationTitles": module_rotation_titles,
             "practiceMix": practice_mix,
             "skillTrajectory": route_context.get("skillTrajectory"),
+            "strategyMemory": route_context.get("strategyMemory"),
+            "routeCadenceMemory": route_context.get("routeCadenceMemory"),
+            "routeRecoveryMemory": route_context.get("routeRecoveryMemory"),
             "skillTrajectorySummary": skill_trajectory_summary,
             "skillTrajectoryFocus": skill_trajectory_focus,
             "skillTrajectoryDirection": skill_trajectory_direction,
+            "strategyMemorySummary": strategy_memory_summary,
+            "strategyMemoryFocus": strategy_memory_focus,
+            "strategyMemoryLevel": strategy_memory_level,
+            "routeCadenceSummary": route_cadence_summary,
+            "routeCadenceStatus": route_cadence_status,
+            "routeRecoverySummary": route_recovery_summary,
+            "routeRecoveryPhase": route_recovery_phase,
+            "routeRecoveryActionHint": route_recovery_action_hint,
+            "routeRecoveryNextPhaseHint": route_recovery_next_phase_hint,
+            "routeRecoveryStage": route_recovery_stage,
+            "routeRecoveryDecisionBias": route_recovery_decision_bias,
+            "routeRecoveryDecisionWindowDays": route_recovery_decision_window_days,
+            "routeRecoveryDecisionWindowStage": route_recovery_decision_window_stage,
+            "routeRecoveryDecisionWindowRemainingDays": route_recovery_decision_window_remaining_days,
+            "routeReentryProgress": route_reentry_progress,
+            "routeReentryNextRoute": route_reentry_next_route,
+            "routeReentryNextLabel": route_reentry_next_label,
+            "routeEntryMemory": route_entry_memory,
+            "routeEntryResetActive": route_entry_reset_active,
+            "routeEntryResetLabel": route_entry_reset_label,
+            "learningBlueprintHeadline": route_context.get("learningBlueprintHeadline"),
+            "learningBlueprintNorthStar": route_context.get("learningBlueprintNorthStar"),
+            "learningBlueprintPhaseLabel": route_context.get("learningBlueprintPhaseLabel"),
+            "learningBlueprintSuccessSignal": route_context.get("learningBlueprintSuccessSignal"),
+            "learningBlueprintPillars": route_context.get("learningBlueprintPillars"),
             "practiceShiftSummary": practice_shift_summary,
             "leadPracticeTitle": lead_practice_title,
             "weakestPracticeTitle": weakest_practice_title,
@@ -911,6 +1158,16 @@ class LessonRepository:
                 keys=("reviewItems", "review_items"),
                 additions=[practice_shift_summary] if practice_shift_summary else [],
             )
+            cls._merge_payload_list(
+                enriched_payload,
+                keys=("reviewItems", "review_items"),
+                additions=[route_cadence_summary] if route_cadence_summary and route_cadence_status in {"route_rescue", "gentle_reentry"} else [],
+            )
+            cls._merge_payload_list(
+                enriched_payload,
+                keys=("reviewItems", "review_items"),
+                additions=[route_recovery_summary] if route_recovery_summary and route_recovery_phase in {"route_rebuild", "protected_return", "skill_repair_cycle", "support_reopen_arc"} else [],
+            )
 
         if block_type == "grammar_block":
             cls._merge_payload_list(
@@ -933,6 +1190,32 @@ class LessonRepository:
                     (
                         f"Multi-day memory says {skill_trajectory_focus} has been {skill_trajectory_direction}, so keep this block steadier there."
                         if skill_trajectory_focus and skill_trajectory_direction in {"slipping", "stable"}
+                        else ""
+                    ),
+                    (
+                        f"Longer strategy memory says {strategy_memory_focus} is a {strategy_memory_level} route signal, so keep it in view."
+                        if strategy_memory_focus and strategy_memory_level in {"persistent", "recurring"}
+                        else ""
+                    ),
+                    (
+                        route_cadence_summary
+                        if route_cadence_summary and route_cadence_status in {"route_rescue", "gentle_reentry"}
+                        else ""
+                    ),
+                    (
+                        "This is the settling reopen pass, so let this block land cleanly before the route widens."
+                        if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "settling_back_in"
+                        else ""
+                    ),
+                    (
+                        "The route is ready to widen again, so keep this support useful without letting it dominate the whole session."
+                        if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "ready_to_expand"
+                        else ""
+                    ),
+                    (
+                        f"This sits inside a controlled widening window for the next {route_context.get('routeRecoveryDecisionWindowDays')} route decisions, so keep the support light and integrated."
+                        if route_context.get("routeRecoveryDecisionBias") == "widening_window"
+                        and route_context.get("routeRecoveryDecisionWindowDays")
                         else ""
                     ),
                 ],
@@ -966,6 +1249,32 @@ class LessonRepository:
                         if skill_trajectory_summary and skill_trajectory_direction in {"slipping", "stable"}
                         else ""
                     ),
+                    (
+                        strategy_memory_summary
+                        if strategy_memory_summary and strategy_memory_level in {"persistent", "recurring"}
+                        else ""
+                    ),
+                    (
+                        route_cadence_summary
+                        if route_cadence_summary and route_cadence_status in {"route_rescue", "gentle_reentry"}
+                        else ""
+                    ),
+                    (
+                        "This response is part of the settling reopen pass, so keep it connected and controlled before the route widens."
+                        if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "settling_back_in"
+                        else ""
+                    ),
+                    (
+                        "This response belongs to the wider route again, so keep the reopened support lane available without letting it take over."
+                        if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "ready_to_expand"
+                        else ""
+                    ),
+                    (
+                        f"This response belongs to a controlled widening window for the next {route_context.get('routeRecoveryDecisionWindowDays')} route decisions, so let the broader route lead."
+                        if route_context.get("routeRecoveryDecisionBias") == "widening_window"
+                        and route_context.get("routeRecoveryDecisionWindowDays")
+                        else ""
+                    ),
                 ],
             )
             cls._merge_payload_list(
@@ -989,6 +1298,10 @@ class LessonRepository:
                 enriched_payload["routePracticeShift"] = practice_shift_summary
             if skill_trajectory_summary:
                 enriched_payload["routeTrajectory"] = skill_trajectory_summary
+            if strategy_memory_summary:
+                enriched_payload["routeStrategyMemory"] = strategy_memory_summary
+            if route_cadence_summary:
+                enriched_payload["routeCadence"] = route_cadence_summary
 
         if block_type == "profession_block":
             cls._merge_payload_list(
@@ -1014,6 +1327,8 @@ class LessonRepository:
                         else ""
                     ),
                     skill_trajectory_summary or "",
+                    strategy_memory_summary or "",
+                    route_cadence_summary or "",
                 ],
             )
             next_best_action = route_context.get("nextBestAction")
@@ -1024,6 +1339,35 @@ class LessonRepository:
                     enriched_payload["next_step"] = next_best_action
 
         return enriched_payload
+
+    @staticmethod
+    def _normalize_practice_mix_for_widening_window(practice_mix: list[dict]) -> list[dict]:
+        normalized = [dict(item) for item in practice_mix if isinstance(item, dict)]
+        if not normalized:
+            return normalized
+
+        has_lesson = False
+        for item in normalized:
+            module_key = item.get("moduleKey")
+            if module_key == "lesson":
+                item["emphasis"] = "lead"
+                has_lesson = True
+            elif module_key in {"writing", "speaking", "pronunciation"} and item.get("emphasis") == "lead":
+                item["emphasis"] = "support"
+
+        if not has_lesson:
+            normalized.insert(
+                0,
+                {
+                    "moduleKey": "lesson",
+                    "title": "Daily route",
+                    "share": 32,
+                    "emphasis": "lead",
+                    "reason": "The broader route leads while reopened support stays connected inside the mix.",
+                },
+            )
+
+        return normalized[:5]
 
     @staticmethod
     def _build_practice_mix_map(route_context: dict) -> dict[str, dict]:
@@ -1043,6 +1387,10 @@ class LessonRepository:
         route_context: dict,
         practice_mix: dict[str, dict],
     ) -> str | None:
+        route_recovery_phase = str(route_context.get("routeRecoveryPhase") or "")
+        route_recovery_stage = str(route_context.get("routeRecoveryStage") or "")
+        if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "ready_to_expand":
+            return "lesson"
         lead_item = next(
             (
                 item
@@ -1074,8 +1422,12 @@ class LessonRepository:
 
         if lead_module == "grammar":
             return cls._move_block_before_types(specs, "grammar_block", {"listening_block", "speaking_block", "writing_block", "profession_block"})
+        if lead_module == "writing":
+            return cls._move_block_before_types(specs, "writing_block", {"speaking_block", "profession_block", "summary_block"})
         if lead_module == "listening":
             return cls._move_block_before_types(specs, "listening_block", {"speaking_block", "writing_block", "profession_block"})
+        if lead_module == "reading":
+            return cls._move_block_before_types(specs, "reading_block", {"writing_block", "speaking_block", "profession_block", "summary_block"})
         if lead_module == "profession":
             return cls._move_block_before_types(specs, "profession_block", {"speaking_block", "writing_block", "summary_block"})
         if lead_module == "pronunciation":
@@ -1108,6 +1460,7 @@ class LessonRepository:
         specs: list[dict],
         *,
         practice_mix: dict[str, dict],
+        route_context: dict | None = None,
     ) -> list[dict]:
         rebalanced: list[dict] = []
         lead_module = next(
@@ -1118,6 +1471,9 @@ class LessonRepository:
             ),
             None,
         )
+        route_recovery_phase = str((route_context or {}).get("routeRecoveryPhase") or "")
+        route_recovery_stage = str((route_context or {}).get("routeRecoveryStage") or "")
+        route_recovery_decision_bias = str((route_context or {}).get("routeRecoveryDecisionBias") or "")
 
         for spec in specs:
             module_key = cls._map_block_type_to_module_key(spec["block_type"])
@@ -1132,6 +1488,20 @@ class LessonRepository:
                 minutes += 1 if minutes <= 3 else 0
             elif share is not None and isinstance(share, int) and share <= 8 and module_key not in {"lesson"}:
                 minutes = max(2, minutes - 1)
+
+            if route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "settling_back_in":
+                if module_key not in {"lesson"} and module_key == lead_module:
+                    minutes += 1
+            elif route_recovery_phase == "support_reopen_arc" and route_recovery_stage == "ready_to_expand":
+                if module_key == "lesson":
+                    minutes += 1
+                elif module_key not in {"lesson"}:
+                    minutes = max(2, minutes - 1)
+            if route_recovery_decision_bias == "widening_window":
+                if module_key == "lesson":
+                    minutes += 1
+                elif module_key in {"writing", "speaking", "pronunciation"}:
+                    minutes = max(2, minutes - 1)
 
             if spec["block_type"] == "summary_block" and lead_module and lead_module != "lesson":
                 minutes = max(minutes, 4)

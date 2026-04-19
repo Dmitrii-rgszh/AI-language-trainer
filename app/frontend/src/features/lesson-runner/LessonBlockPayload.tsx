@@ -14,6 +14,16 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
           routeSeedSource?: string;
           inputLane?: string;
           outputLane?: string;
+          taskDrivenInput?: {
+            inputRoute?: string;
+            inputLabel?: string;
+            responseRoute?: string;
+            responseLabel?: string;
+            title?: string;
+            summary?: string;
+            bridge?: string;
+            closure?: string;
+          };
           moduleRotationKeys?: string[];
           moduleRotationTitles?: string[];
           practiceMix?: Array<{
@@ -36,9 +46,70 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
               summary?: string;
             }>;
           };
+          strategyMemory?: {
+            focusSkill?: string;
+            persistenceLevel?: string;
+            summary?: string;
+            observedSnapshots?: number;
+            signals?: Array<{
+              skill?: string;
+              persistenceLevel?: string;
+              averageScore?: number;
+              latestScore?: number;
+              lowHits?: number;
+              summary?: string;
+            }>;
+          };
+          routeCadenceMemory?: {
+            status?: string;
+            observedPlans?: number;
+            completedPlans?: number;
+            missedPlans?: number;
+            idleDays?: number;
+            summary?: string;
+            actionHint?: string;
+          };
+          routeRecoveryMemory?: {
+            phase?: string;
+            horizonDays?: number;
+            focusSkill?: string;
+            supportPracticeTitle?: string;
+            sessionShape?: string;
+            summary?: string;
+            actionHint?: string;
+            nextPhaseHint?: string;
+          };
           skillTrajectorySummary?: string;
           skillTrajectoryFocus?: string;
           skillTrajectoryDirection?: string;
+          strategyMemorySummary?: string;
+          strategyMemoryFocus?: string;
+          strategyMemoryLevel?: string;
+          routeCadenceSummary?: string;
+          routeCadenceStatus?: string;
+          routeRecoverySummary?: string;
+          routeRecoveryPhase?: string;
+          routeRecoveryActionHint?: string;
+          routeRecoveryNextPhaseHint?: string;
+          learningBlueprintHeadline?: string;
+          learningBlueprintNorthStar?: string;
+          learningBlueprintPhaseLabel?: string;
+          learningBlueprintSuccessSignal?: string;
+          learningBlueprintPillars?: string[];
+          dailyRitualHeadline?: string;
+          dailyRitualPromise?: string;
+          dailyRitualStageIds?: string[];
+          routeReentryProgress?: {
+            sequenceKey?: string;
+            phase?: string;
+            focusSkill?: string;
+            orderedRoutes?: string[];
+            completedRoutes?: string[];
+            nextRoute?: string;
+            status?: string;
+          };
+          routeReentryNextRoute?: string;
+          routeReentryNextLabel?: string;
           practiceShiftSummary?: string;
           leadPracticeTitle?: string;
           weakestPracticeTitle?: string;
@@ -103,6 +174,36 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
               </div>
             ) : null}
           </div>
+          {routeContext.taskDrivenInput ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">task-driven mission:</span>{" "}
+                {routeContext.taskDrivenInput.title ??
+                  `${routeContext.taskDrivenInput.inputLabel ?? "input"} -> ${routeContext.taskDrivenInput.responseLabel ?? "response"}`}
+              </div>
+              {routeContext.taskDrivenInput.summary ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">{routeContext.taskDrivenInput.summary}</div>
+              ) : null}
+              {(routeContext.taskDrivenInput.inputLabel || routeContext.taskDrivenInput.responseLabel) ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">mission path:</span>{" "}
+                  {[routeContext.taskDrivenInput.inputLabel, routeContext.taskDrivenInput.responseLabel]
+                    .filter(Boolean)
+                    .join(" -> ")}
+                </div>
+              ) : null}
+              {routeContext.taskDrivenInput.bridge ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">bridge:</span> {routeContext.taskDrivenInput.bridge}
+                </div>
+              ) : null}
+              {routeContext.taskDrivenInput.closure ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">closure:</span> {routeContext.taskDrivenInput.closure}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {routeContext.moduleRotationKeys?.length ? (
             <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
               <span className="font-semibold text-ink">module rotation:</span>{" "}
@@ -136,6 +237,46 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
               </div>
             </div>
           ) : null}
+          {routeContext.learningBlueprintHeadline ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">blueprint:</span> {routeContext.learningBlueprintHeadline}
+              </div>
+              {routeContext.learningBlueprintPhaseLabel ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">phase:</span> {routeContext.learningBlueprintPhaseLabel}
+                </div>
+              ) : null}
+              {routeContext.learningBlueprintNorthStar ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">{routeContext.learningBlueprintNorthStar}</div>
+              ) : null}
+              {routeContext.learningBlueprintPillars?.length ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">pillars:</span> {routeContext.learningBlueprintPillars.join(", ")}
+                </div>
+              ) : null}
+              {routeContext.learningBlueprintSuccessSignal ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">unlock:</span> {routeContext.learningBlueprintSuccessSignal}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.dailyRitualHeadline ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">daily ritual:</span> {routeContext.dailyRitualHeadline}
+              </div>
+              {routeContext.dailyRitualPromise ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">{routeContext.dailyRitualPromise}</div>
+              ) : null}
+              {routeContext.dailyRitualStageIds?.length ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">ritual path:</span> {routeContext.dailyRitualStageIds.join(" -> ")}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {routeContext.skillTrajectorySummary ? (
             <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
               <div>
@@ -152,6 +293,66 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
                       <div className="mt-1 text-sm leading-6 text-slate-700">{signal.summary}</div>
                     </div>
                   ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.strategyMemorySummary ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">longer strategy memory:</span> {routeContext.strategyMemorySummary}
+              </div>
+              {routeContext.strategyMemory?.signals?.length ? (
+                <div className="mt-3 grid gap-2">
+                  {routeContext.strategyMemory.signals.slice(0, 3).map((signal, index) => (
+                    <div key={`${signal.skill ?? "memory"}-${index}`} className="rounded-2xl bg-coral/6 p-3">
+                      <div className="text-sm font-semibold text-ink">
+                        {signal.skill ?? "skill"}
+                        {typeof signal.latestScore === "number" ? ` · ${signal.latestScore}/100` : ""}
+                      </div>
+                      <div className="mt-1 text-sm leading-6 text-slate-700">{signal.summary}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.routeCadenceSummary ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">route cadence:</span> {routeContext.routeCadenceSummary}
+              </div>
+              {routeContext.routeCadenceMemory?.actionHint ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">re-entry hint:</span> {routeContext.routeCadenceMemory.actionHint}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.routeRecoverySummary ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">recovery arc:</span> {routeContext.routeRecoverySummary}
+              </div>
+              {routeContext.routeRecoveryMemory?.actionHint ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">recovery hint:</span> {routeContext.routeRecoveryMemory.actionHint}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {routeContext.routeReentryNextLabel ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">re-entry sequence:</span> {routeContext.routeReentryNextLabel}
+                {Array.isArray(routeContext.routeReentryProgress?.completedRoutes) &&
+                Array.isArray(routeContext.routeReentryProgress?.orderedRoutes)
+                  ? ` · ${routeContext.routeReentryProgress.completedRoutes.length}/${routeContext.routeReentryProgress.orderedRoutes.length}`
+                  : ""}
+              </div>
+              {routeContext.routeReentryProgress?.status ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">sequence state:</span> {routeContext.routeReentryProgress.status}
                 </div>
               ) : null}
             </div>
@@ -214,6 +415,10 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
             !(
               block.blockType === "listening_block" &&
               ["transcript", "audio_asset_id", "audio_variants", "questions", "answer_key", "answerKey"].includes(key)
+            ) &&
+            !(
+              block.blockType === "reading_block" &&
+              ["passage", "passageTitle", "passage_title", "questions", "answer_key", "answerKey"].includes(key)
             ) && !["continuity", "routeContext"].includes(key),
         )
         .map(([key, value]) => {

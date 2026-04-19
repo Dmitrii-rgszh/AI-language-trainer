@@ -1,6 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
+import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
+import { resolveTaskDrivenInputSurface } from "../../shared/journey/task-driven-input";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
@@ -9,6 +12,7 @@ import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
 import { JourneySessionSummaryPanel } from "../../widgets/journey/JourneySessionSummaryPanel";
+import { DailyRitualPanel } from "../../widgets/journey/DailyRitualPanel";
 
 export function DailyLoopScreen() {
   const { tr, locale } = useLocale();
@@ -36,6 +40,15 @@ export function DailyLoopScreen() {
     journeyState?.nextBestAction ?? plan.nextStepHint;
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
+  const skillTrajectory = journeyState?.strategySnapshot.skillTrajectory ?? null;
+  const strategyMemory = journeyState?.strategySnapshot.strategyMemory ?? null;
+  const routeCadenceMemory = journeyState?.strategySnapshot.routeCadenceMemory ?? null;
+  const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
+  const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
+  const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const dayShape = describeRouteDayShape(plan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr);
+  const taskDrivenInput = resolveTaskDrivenInputSurface(plan, journeyState ?? null, tr);
+  const followUpHint = buildRouteFollowUpHintFromState(plan, journeyState ?? null, tr);
   const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const explainActions = [
     {
@@ -53,7 +66,10 @@ export function DailyLoopScreen() {
     {
       id: "daily-loop-why",
       label: locale === "ru" ? "Почему именно это" : "Why this now",
-      text: plan.completedAt && tomorrowPreview ? practiceShiftLine ?? tomorrowPreview.reason : plan.whyThisNow,
+      text:
+        plan.completedAt && tomorrowPreview
+          ? practiceShiftLine ?? routeCadenceMemory?.summary ?? tomorrowPreview.reason
+          : routeRecoveryMemory?.summary ?? routeCadenceMemory?.summary ?? plan.whyThisNow,
     },
     {
       id: "daily-loop-priority",
@@ -102,14 +118,14 @@ export function DailyLoopScreen() {
         currentLabel={locale === "ru" ? "Что сейчас происходит" : "What is happening now"}
         currentText={
           locale === "ru"
-            ? `Система уже собрала для тебя today-plan: ${plan.recommendedLessonTitle}, ${plan.estimatedMinutes} минут и ${plan.steps.length} связанных шагов.`
-            : `The system has already prepared your plan for today: ${plan.recommendedLessonTitle}, ${plan.estimatedMinutes} minutes, and ${plan.steps.length} connected steps.`
+            ? `Система уже собрала для тебя ${dayShape.title.toLowerCase()}: ${plan.recommendedLessonTitle}, ${plan.estimatedMinutes} минут и ${plan.steps.length} связанных шагов.`
+            : `The system has already prepared a ${dayShape.title.toLowerCase()} for today: ${plan.recommendedLessonTitle}, ${plan.estimatedMinutes} minutes, and ${plan.steps.length} connected steps.`
         }
         whyLabel={locale === "ru" ? "Почему это важно тебе" : "Why it matters for you"}
         whyText={
           locale === "ru"
-            ? `Этот loop строится вокруг ${plan.focusArea} и держит один объяснимый маршрут вместо разрозненных упражнений.`
-            : `This loop is built around ${plan.focusArea} and keeps one explainable route instead of disconnected exercises.`
+            ? `${dayShape.summary} Этот loop строится вокруг ${plan.focusArea} и держит один объяснимый маршрут вместо разрозненных упражнений.`
+            : `${dayShape.summary} This loop is built around ${plan.focusArea} and keeps one explainable route instead of disconnected exercises.`
         }
         nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
         nextText={nextLoopStep}
@@ -119,6 +135,8 @@ export function DailyLoopScreen() {
         title={locale === "ru" ? "Разобрать план с Лизой" : "Break down the plan with Liza"}
         actions={explainActions}
       />
+
+      <DailyRitualPanel plan={plan} tr={tr} />
 
       <div className="grid gap-4 xl:grid-cols-[1.12fr_0.88fr]">
         <Card className="space-y-4">
@@ -135,6 +153,53 @@ export function DailyLoopScreen() {
           <div className="rounded-[24px] bg-sand/70 p-4 text-sm leading-6 text-slate-700">
             {plan.whyThisNow}
           </div>
+
+          <div className="rounded-[24px] border border-white/70 bg-white/80 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{tr("Day shape")}</div>
+                <div className="mt-2 text-lg font-semibold text-ink">{dayShape.title}</div>
+                {dayShape.substageLabel ? (
+                  <div className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-coral">
+                    {dayShape.substageLabel}
+                  </div>
+                ) : null}
+                {dayShape.expansionStageLabel ? (
+                  <div className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                    {dayShape.expansionStageLabel}
+                  </div>
+                ) : null}
+              </div>
+              <div className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+                {dayShape.compactnessLabel}
+              </div>
+            </div>
+            <div className="mt-3 text-sm leading-6 text-slate-700">{dayShape.summary}</div>
+            {dayShape.expansionWindowLabel ? (
+              <div className="mt-3 text-xs text-slate-500">{dayShape.expansionWindowLabel}</div>
+            ) : null}
+          </div>
+
+          {skillTrajectory ? (
+            <div className="rounded-[24px] bg-white/76 p-4 text-sm leading-6 text-slate-700">
+              <span className="font-semibold text-ink">{tr("Multi-day memory")}:</span> {skillTrajectory.summary}
+            </div>
+          ) : null}
+      {strategyMemory ? (
+        <div className="rounded-[24px] bg-white/76 p-4 text-sm leading-6 text-slate-700">
+          <span className="font-semibold text-ink">{tr("Long strategy memory")}:</span> {strategyMemory.summary}
+        </div>
+      ) : null}
+      {routeCadenceMemory ? (
+        <div className="rounded-[24px] bg-white/76 p-4 text-sm leading-6 text-slate-700">
+          <span className="font-semibold text-ink">{tr("Route cadence")}:</span> {routeCadenceMemory.summary}
+        </div>
+      ) : null}
+      {routeRecoveryMemory ? (
+        <div className="rounded-[24px] bg-white/76 p-4 text-sm leading-6 text-slate-700">
+          <span className="font-semibold text-ink">{tr("Recovery arc")}:</span> {routeRecoveryMemory.summary}
+        </div>
+      ) : null}
 
           <div className="space-y-3">
             {plan.steps.map((step, index) => (
@@ -153,6 +218,23 @@ export function DailyLoopScreen() {
               </div>
             ))}
           </div>
+
+          {taskDrivenInput ? (
+            <div className="rounded-[24px] border border-accent/15 bg-accent/8 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-accent">{tr("Task-driven input")}</div>
+              <div className="mt-2 text-lg font-semibold text-ink">{taskDrivenInput.title}</div>
+              <div className="mt-3 text-sm leading-6 text-slate-700">{taskDrivenInput.summary}</div>
+              <div className="mt-3 rounded-[18px] bg-white/76 p-3 text-sm text-slate-700">{taskDrivenInput.bridge}</div>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link to={taskDrivenInput.route} className="proof-lesson-primary-button">
+                  {taskDrivenInput.title}
+                </Link>
+                <Link to={routes.lessonRunner} className="proof-lesson-secondary-action">
+                  {tr("Skip to guided route")}
+                </Link>
+              </div>
+            </div>
+          ) : null}
         </Card>
 
         <div className="space-y-4">
@@ -178,6 +260,20 @@ export function DailyLoopScreen() {
                 ? `Этот loop использует режим ${plan.preferredMode} и бюджет ${plan.timeBudgetMinutes} минут, чтобы связать recommendation, practice и следующий шаг в один сценарий.`
                 : `This loop uses ${plan.preferredMode} mode and a ${plan.timeBudgetMinutes}-minute budget to connect recommendation, practice, and the next step into one scenario.`}
             </div>
+            <div className="rounded-[22px] bg-white/76 p-4 text-sm leading-6 text-slate-700">
+              <span className="font-semibold text-ink">{tr("Route shape")}:</span> {dayShape.summary}
+            </div>
+            {dayShape.expansionStageLabel ? (
+              <div className="rounded-[22px] bg-accent/8 p-4 text-sm leading-6 text-slate-700">
+                <span className="font-semibold text-ink">{tr("Expansion stage")}:</span> {dayShape.expansionStageLabel}
+                {dayShape.expansionWindowLabel ? ` · ${dayShape.expansionWindowLabel}` : ""}
+              </div>
+            ) : null}
+            {followUpHint ? (
+              <div className="rounded-[22px] bg-accent/8 p-4 text-sm leading-6 text-slate-700">
+                <span className="font-semibold text-ink">{tr("What comes next")}:</span> {followUpHint}
+              </div>
+            ) : null}
             {plan.completedAt && sessionSummary ? (
               <JourneySessionSummaryPanel
                 summary={sessionSummary}

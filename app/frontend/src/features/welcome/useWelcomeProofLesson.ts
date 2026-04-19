@@ -770,7 +770,21 @@ export function useWelcomeProofLesson(locale: AppLocale) {
     } catch {
       // Local handoff remains as a fallback if session bootstrap fails.
     }
-    navigate(WELCOME_PROOF_LESSON_NEXT_ROUTE);
+    navigate(WELCOME_PROOF_LESSON_NEXT_ROUTE, {
+      state: {
+        routeEntryReason:
+          locale === "ru"
+            ? "Пробный урок уже дал живой старт. Теперь сохраняем этот результат в профиль и переводим его в первый личный маршрут."
+            : "The proof lesson already created a live start. Now we save that result in your profile and turn it into the first personal route.",
+        routeEntrySource: "proof_lesson_completion",
+        routeEntryFollowUpLabel:
+          locale === "ru"
+            ? "открыть первый личный dashboard"
+            : "open the first personal dashboard",
+        routeEntryStageLabel:
+          locale === "ru" ? "Переход из пробного урока" : "Proof-lesson handoff",
+      },
+    });
   }
 
   function showAnotherExample() {

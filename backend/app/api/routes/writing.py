@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.dependencies import require_profile
 from app.core.dependencies import writing_service
 from app.schemas.content import WritingTask
 from app.schemas.feedback import AITextFeedback, WritingAttempt, WritingReviewRequest
+from app.schemas.profile import UserProfile
 
 router = APIRouter(prefix="/writing", tags=["writing"])
 
@@ -14,9 +15,12 @@ def get_writing_task() -> WritingTask:
 
 
 @router.post("/review", response_model=AITextFeedback)
-def review_writing(payload: WritingReviewRequest) -> AITextFeedback:
+def review_writing(
+    payload: WritingReviewRequest,
+    profile: UserProfile = Depends(require_profile),
+) -> AITextFeedback:
     return writing_service.review_draft(
-        user_id=require_profile().id,
+        user_id=profile.id,
         task_id=payload.task_id,
         draft=payload.draft,
         feedback_language=payload.feedback_language,
@@ -24,5 +28,5 @@ def review_writing(payload: WritingReviewRequest) -> AITextFeedback:
 
 
 @router.get("/attempts", response_model=list[WritingAttempt])
-def get_writing_attempts() -> list[WritingAttempt]:
-    return writing_service.list_attempts(require_profile().id)
+def get_writing_attempts(profile: UserProfile = Depends(require_profile)) -> list[WritingAttempt]:
+    return writing_service.list_attempts(profile.id)

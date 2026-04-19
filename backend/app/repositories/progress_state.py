@@ -16,6 +16,7 @@ BLOCK_TYPE_TO_SKILL_AREA = {
     "pronunciation_block": SkillArea.PRONUNCIATION,
     "writing_block": SkillArea.WRITING,
     "listening_block": SkillArea.LISTENING,
+    "reading_block": SkillArea.READING,
     "profession_block": SkillArea.PROFESSION_ENGLISH,
 }
 

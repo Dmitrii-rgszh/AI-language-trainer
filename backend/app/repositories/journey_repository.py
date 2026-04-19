@@ -149,6 +149,17 @@ class JourneyRepository:
             model = session.scalar(statement)
             return self._to_daily_loop_plan(model) if model else None
 
+    def list_recent_daily_loop_plans(self, user_id: str, limit: int = 6) -> list[DailyLoopPlan]:
+        with self._session_factory() as session:
+            statement = (
+                select(DailyLoopPlanModel)
+                .where(DailyLoopPlanModel.user_id == user_id)
+                .order_by(DailyLoopPlanModel.plan_date_key.desc())
+                .limit(limit)
+            )
+            models = session.scalars(statement).all()
+            return [self._to_daily_loop_plan(model) for model in models]
+
     def upsert_daily_loop_plan(
         self,
         *,

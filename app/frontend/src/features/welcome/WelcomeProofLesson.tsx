@@ -351,6 +351,18 @@ export function WelcomeProofLesson({
       : "You already felt how Verba turns one live phrase into a usable skill. Next we save this start in your profile and build a personal track around it.";
   const resultJourneyTitle =
     locale === "ru" ? "Что будет дальше" : "What happens next";
+  const introRouteFlowTitle =
+    locale === "ru" ? "Как это превращается в маршрут" : "How this becomes a route";
+  const introRouteFlowSummary =
+    locale === "ru"
+      ? "Сейчас ты просто пробуешь живой урок. Если результат откликнется, Verba сразу сохранит этот старт и переведёт его в первый личный маршрут."
+      : "Right now you are just trying a live lesson. If the result clicks, Verba immediately saves that start and carries it into the first personal route.";
+  const resultRouteFlowTitle =
+    locale === "ru" ? "Маршрут после пробного урока" : "Route after the proof lesson";
+  const resultRouteFlowSummary =
+    locale === "ru"
+      ? "Пробный урок не заканчивается сам по себе. Следующий шаг уже собран: сохранить этот результат, быстро оформить профиль и открыть первый личный маршрут."
+      : "The proof lesson does not end on its own. The next step is already assembled: save this result, quickly create the profile, and open the first personal route.";
   const resultJourneySteps =
     locale === "ru"
       ? [
@@ -559,6 +571,26 @@ export function WelcomeProofLesson({
                   {runtime.detail}
                 </p>
               ) : null}
+            </ProofLessonSurface>
+
+            <ProofLessonSurface tone="accent">
+              <ProofLessonSectionLabel accent>
+                {introRouteFlowTitle}
+              </ProofLessonSectionLabel>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-accent">
+                  {locale === "ru" ? "Сейчас" : "Now"}: {locale === "ru" ? "живой пробный урок" : "live proof lesson"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-coral">
+                  {locale === "ru" ? "Потом" : "Then"}: {locale === "ru" ? "сохраняем удачный старт" : "save the strong start"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                  {locale === "ru" ? "Дальше" : "Next"}: {locale === "ru" ? "открываем личный маршрут" : "open the personal route"}
+                </span>
+              </div>
+              <p className="proof-lesson-supporting-copy mt-4">
+                {introRouteFlowSummary}
+              </p>
             </ProofLessonSurface>
           </div>
         ),
@@ -947,6 +979,26 @@ export function WelcomeProofLesson({
                 <ProofLessonAdviceList items={resultJourneySteps} />
               </div>
             </ProofLessonSurface>
+
+            <ProofLessonSurface tone="accent">
+              <ProofLessonSectionLabel accent>
+                {resultRouteFlowTitle}
+              </ProofLessonSectionLabel>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-accent">
+                  {locale === "ru" ? "Сейчас" : "Now"}: {locale === "ru" ? "сохраняем этот старт" : "save this start"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-coral">
+                  {locale === "ru" ? "Потом" : "Then"}: {locale === "ru" ? "оформляем профиль" : "create the profile"}
+                </span>
+                <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                  {locale === "ru" ? "Дальше" : "Next"}: {locale === "ru" ? "открываем первый маршрут" : "open the first route"}
+                </span>
+              </div>
+              <p className="proof-lesson-supporting-copy mt-4">
+                {resultRouteFlowSummary}
+              </p>
+            </ProofLessonSurface>
           </div>
         ),
         primaryAction: (
@@ -963,7 +1015,14 @@ export function WelcomeProofLesson({
             {lesson.scenario.result.secondaryCta}
           </ProofLessonSecondaryAction>
         ),
-        helperText: lesson.scenario.result.note,
+        helperText: (
+          <span>
+            {lesson.scenario.result.note}{" "}
+            {locale === "ru"
+              ? "Переход не сбрасывает тебя в новый продукт: Лиза просто переводит этот живой результат в твой личный маршрут."
+              : "This transition does not reset you into a different product: Liza simply carries this live result into your personal route."}
+          </span>
+        ),
       };
       break;
   }

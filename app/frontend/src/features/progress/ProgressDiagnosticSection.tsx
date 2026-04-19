@@ -4,7 +4,11 @@ import { Card } from "../../shared/ui/Card";
 
 type ProgressDiagnosticSectionProps = {
   diagnosticRoadmap: DiagnosticRoadmap | null;
+  expansionStageLabel?: string | null;
+  hasAvailableDailyRoute?: boolean;
   onStartCheckpoint: () => Promise<void>;
+  onStartPrimaryRoute?: (() => Promise<void>) | null;
+  primaryRouteLabel?: string | null;
   roadmapSummary: string | null;
   tl: (values: string[]) => string;
   tr: (value: string) => string;
@@ -12,7 +16,11 @@ type ProgressDiagnosticSectionProps = {
 
 export function ProgressDiagnosticSection({
   diagnosticRoadmap,
+  expansionStageLabel,
+  hasAvailableDailyRoute,
   onStartCheckpoint,
+  onStartPrimaryRoute,
+  primaryRouteLabel,
   roadmapSummary,
   tl,
   tr,
@@ -43,7 +51,20 @@ export function ProgressDiagnosticSection({
           {tr("Overall score")}: {diagnosticRoadmap.overallScore}. {tr("Weakest skills")}:{" "}
           {tl(diagnosticRoadmap.weakestSkills)}.
         </div>
-        <Button onClick={() => void onStartCheckpoint()}>{tr("Run diagnostic checkpoint")}</Button>
+        {hasAvailableDailyRoute && onStartPrimaryRoute ? (
+          <Button onClick={() => void onStartPrimaryRoute()}>
+            {primaryRouteLabel ??
+              (expansionStageLabel === tr("Ready for extension")
+                ? tr("Continue broader route")
+                : expansionStageLabel === tr("Stabilizing widening")
+                  ? tr("Stabilize wider route")
+                  : expansionStageLabel === tr("First widening pass")
+                    ? tr("Start widening pass")
+                    : tr("Start today’s route"))}
+          </Button>
+        ) : (
+          <Button onClick={() => void onStartCheckpoint()}>{tr("Run diagnostic checkpoint")}</Button>
+        )}
       </Card>
 
       <Card className="space-y-3">

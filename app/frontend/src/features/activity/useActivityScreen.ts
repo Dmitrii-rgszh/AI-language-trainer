@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import { useActivityInsights } from "../../shared/activity/useActivityInsights";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
+import { buildRoutePriorityView } from "../../shared/journey/route-priority";
 import { useAppStore } from "../../shared/store/app-store";
 
 export type ActivityEvent = {
@@ -20,7 +21,9 @@ export function useActivityScreen() {
   const { tr, tt, formatDateTime, formatDays, locale } = useLocale();
   const dashboard = useAppStore((state) => state.dashboard);
   const bootstrap = useAppStore((state) => state.bootstrap);
+  const startLesson = useAppStore((state) => state.startLesson);
   const startTodayDailyLoop = useAppStore((state) => state.startTodayDailyLoop);
+  const startDiagnosticCheckpoint = useAppStore((state) => state.startDiagnosticCheckpoint);
   const startRecoveryLesson = useAppStore((state) => state.startRecoveryLesson);
   const progress = useAppStore((state) => state.progress);
   const mistakes = useAppStore((state) => state.mistakes);
@@ -135,17 +138,23 @@ export function useActivityScreen() {
     Boolean(dashboard?.dailyLoopPlan) && dashboard?.dailyLoopPlan?.completedAt == null;
   const hasActiveDailyRoute =
     Boolean(dashboard?.dailyLoopPlan?.lessonRunId) && dashboard?.dailyLoopPlan?.completedAt == null;
-  const primaryRouteLabel = hasActiveDailyRoute
-    ? tr("Resume today’s route")
-    : hasAvailableDailyRoute
-      ? tr("Start today’s route")
-      : tr("Start recovery");
+  const routePriorityView = buildRoutePriorityView(dashboard ?? null, tr);
+  const primaryRouteLabel = routePriorityView.label;
 
   async function handleStartPrimaryRoute() {
+    if (routePriorityView.primaryRoute !== routes.dailyLoop && routePriorityView.primaryRoute !== routes.lessonRunner) {
+      navigate(routePriorityView.primaryRoute);
+      return;
+    }
+
     if (hasAvailableDailyRoute) {
       await startTodayDailyLoop();
-    } else {
+    } else if (routePriorityView.mode === "checkpoint") {
+      await startDiagnosticCheckpoint();
+    } else if (routePriorityView.mode === "recovery") {
       await startRecoveryLesson();
+    } else {
+      await startLesson();
     }
     navigate(routes.lessonRunner);
   }
@@ -169,6 +178,7 @@ export function useActivityScreen() {
     pronunciationTrend,
     recentEvents,
     reviewingVocabularyId,
+    routePriorityView,
     speakingAttempts,
     studyLoop: dashboard?.studyLoop ?? null,
     topMistakes,

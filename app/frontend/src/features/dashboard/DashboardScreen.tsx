@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { Button } from "../../shared/ui/Button";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
@@ -17,21 +17,45 @@ import { LivingDepthSection } from "../../widgets/living-background/LivingDepthS
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
 import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
+import { LearningBlueprintPanel } from "../../widgets/journey/LearningBlueprintPanel";
 import { RouteIntelligencePanel } from "../../widgets/journey/RouteIntelligencePanel";
 
 export function DashboardScreen() {
   const dashboardView = useDashboardScreen();
+  const location = useLocation();
 
   if (!dashboardView.dashboard) {
     return <Card>{dashboardView.tr("Подгружаю dashboard...")}</Card>;
   }
 
+  const locationState = (location.state ?? null) as {
+    routeEntrySource?: string;
+  } | null;
+  const isOnboardingBridge = locationState?.routeEntrySource === "onboarding_completion";
+  const isResultsBridge = locationState?.routeEntrySource === "results_to_dashboard";
+
   const weakestSpotTitle = dashboardView.dashboard.weakSpots[0]?.title;
   const coachMessage =
-    dashboardView.tr("Я уже собрала для тебя следующий шаг: начни с сегодняшнего маршрута, а потом закрепи один слабый сигнал, чтобы прогресс шёл как единая система.") +
+    (isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? "Мы уже сохранили твой старт и собрали первый личный маршрут. Сейчас не нужно разбираться в приложении по кускам: начни с сегодняшнего пути, и дальше я проведу тебя по следующему шагу."
+        : "We have already saved your start and assembled the first personal route. You do not need to decode the app piece by piece now: start with today's path and I will carry you into the next step."
+      : isResultsBridge
+        ? dashboardView.locale === "ru"
+          ? "Маршрут уже обновлён после последней сессии. Сейчас dashboard нужен не для возврата назад, а чтобы спокойно увидеть следующий собранный шаг и продолжить путь."
+          : "The route is already updated after the last session. The dashboard is not here to send you backward, but to show the next assembled step and let the route continue."
+      : dashboardView.tr("Я уже собрала для тебя следующий шаг: начни с сегодняшнего маршрута, а потом закрепи один слабый сигнал, чтобы прогресс шёл как единая система.")) +
     (dashboardView.recommendationGoal ? ` ${dashboardView.recommendationGoal}` : "");
   const coachSpokenMessage =
-    dashboardView.locale === "ru"
+    isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? `Мы уже сохранили твой старт и собрали первый личный маршрут. Начни с сегодняшнего пути, а дальше я поведу тебя по следующему шагу.`
+        : `We have already saved your start and prepared the first personal route. Start with today's path and I will guide you into the next step.`
+      : isResultsBridge
+        ? dashboardView.locale === "ru"
+          ? `Маршрут уже обновлён после последней сессии. Посмотри на следующий собранный шаг и продолжай путь без отката назад.`
+          : `The route is already updated after the last session. Review the next assembled step and continue without dropping back.`
+      : dashboardView.locale === "ru"
       ? `Я уже собрала для тебя следующий шаг. Начни с сегодняшнего маршрута, а потом закрепи ${
           weakestSpotTitle ? `слабое место ${weakestSpotTitle}` : "один слабый сигнал"
         }, чтобы прогресс шёл как единая система.`
@@ -39,9 +63,20 @@ export function DashboardScreen() {
           weakestSpotTitle ? `your weak spot ${weakestSpotTitle}` : "one weak signal"
         } so your progress keeps moving as one connected system.`;
   const coachSupportingText =
-    dashboardView.locale === "ru"
+    (isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? "Это первый личный dashboard-state после онбординга: маршрут уже собран, continuity сохранена, а следующий шаг не нужно искать вручную."
+        : "This is the first personal dashboard state after onboarding: the route is already assembled, continuity is preserved, and the next step does not need to be found manually."
+      : isResultsBridge
+        ? dashboardView.locale === "ru"
+          ? "Этот dashboard уже собран из результата последней сессии: здесь важен не возврат к старому состоянию, а мягкий вход в следующий обновлённый шаг."
+          : "This dashboard is already built from the last session result: what matters here is not returning to the old state, but entering the next updated step."
+      : null) ??
+    dashboardView.dashboard.journeyState?.currentStrategySummary ??
+    dashboardView.routePriorityView.summary ??
+    (dashboardView.locale === "ru"
       ? "Лиза уже начинает жить не только в пробном уроке: теперь она помогает связать твой roadmap, следующие действия и слабые сигналы прямо на dashboard."
-      : "Liza is no longer limited to the proof lesson. She now helps connect your roadmap, next actions, and weak signals directly on the dashboard.";
+      : "Liza is no longer limited to the proof lesson. She now helps connect your roadmap, next actions, and weak signals directly on the dashboard.");
   const currentFocusArea =
     dashboardView.dashboard.journeyState?.currentFocusArea ??
     dashboardView.dashboard.dailyLoopPlan?.focusArea ??
@@ -112,7 +147,17 @@ export function DashboardScreen() {
       <SectionHeading
         eyebrow={dashboardView.tr("Dashboard")}
         title={`${dashboardView.tr("Welcome back")}, ${dashboardView.dashboard.profile.name}`}
-        description={dashboardView.tr("Choose the next lesson, review weak spots, and keep the daily rhythm moving.")}
+        description={
+          isOnboardingBridge
+            ? dashboardView.locale === "ru"
+              ? "Твой onboarding завершён, а первый личный маршрут уже готов. Начни с него, чтобы dashboard сразу ощущался как продолжение пробного урока."
+              : "Your onboarding is complete and the first personal route is already ready. Start there so the dashboard feels like the continuation of the proof lesson."
+            : isResultsBridge
+              ? dashboardView.locale === "ru"
+                ? "Последняя сессия уже перестроила маршрут. Dashboard показывает не старое состояние, а следующий подготовленный шаг."
+                : "The last session has already reshaped the route. The dashboard now shows the next prepared step rather than the old state."
+            : dashboardView.tr("Choose the next lesson, review weak spots, and keep the daily rhythm moving.")
+        }
       />
 
       <LivingDepthSection id={livingDepthSectionIds.dashboardCoach}>
@@ -139,7 +184,7 @@ export function DashboardScreen() {
       </LivingDepthSection>
 
       <LizaExplainActions
-        title={dashboardView.locale === "ru" ? "Liza explain-actions" : "Liza explain-actions"}
+        title={dashboardView.locale === "ru" ? "Разобрать маршрут с Лизой" : "Break down the route with Liza"}
         actions={explainActions}
       />
 
@@ -167,6 +212,7 @@ export function DashboardScreen() {
           fallbackProviders={dashboardView.fallbackProviders}
           onStartLesson={dashboardView.handleStartLesson}
           primaryRouteLabel={dashboardView.primaryRouteLabel}
+          primaryRouteSummary={dashboardView.routePriorityView.summary}
           readyProviders={dashboardView.readyProviders}
           recommendationGoal={dashboardView.recommendationGoal ?? ""}
           recoveringSignals={dashboardView.recoveringSignals}
@@ -182,6 +228,8 @@ export function DashboardScreen() {
         title={dashboardView.tr("Route intelligence")}
         tr={dashboardView.tr}
       />
+
+      <LearningBlueprintPanel journeyState={dashboardView.dashboard.journeyState} tr={dashboardView.tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.dashboardRoadmap}>
         <DashboardRoadmapSection
@@ -221,6 +269,8 @@ export function DashboardScreen() {
           onReviewVocabulary={dashboardView.handleVocabularyReview}
           onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
           primaryRouteLabel={dashboardView.primaryRouteLabel}
+          primaryRouteSummary={dashboardView.routePriorityView.summary}
+          primaryRouteMode={dashboardView.routePriorityView.mode}
           reviewingVocabularyId={dashboardView.reviewingVocabularyId}
           studyLoop={dashboardView.dashboard.studyLoop}
           tr={dashboardView.tr}

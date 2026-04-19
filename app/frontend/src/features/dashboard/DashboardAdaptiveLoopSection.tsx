@@ -12,6 +12,8 @@ type DashboardAdaptiveLoopSectionProps = {
   onReviewVocabulary: (itemId: string) => Promise<void>;
   onStartRecoveryLesson: () => Promise<void>;
   primaryRouteLabel: string;
+  primaryRouteSummary: string;
+  primaryRouteMode: string;
   reviewingVocabularyId: string | null;
   studyLoop: AdaptiveStudyLoop | null;
   tr: (value: string) => string;
@@ -26,6 +28,8 @@ export function DashboardAdaptiveLoopSection({
   onReviewVocabulary,
   onStartRecoveryLesson,
   primaryRouteLabel,
+  primaryRouteSummary,
+  primaryRouteMode,
   reviewingVocabularyId,
   studyLoop,
   tr,
@@ -35,10 +39,9 @@ export function DashboardAdaptiveLoopSection({
     return null;
   }
 
-  const dailyLoopSteps = [
+  const baseDailyLoopSteps = [
     {
       id: "daily-loop-lesson",
-      index: 1,
       title: tr("Core lesson"),
       description: tr(dailyLoopPlan?.recommendedLessonTitle ?? studyLoop.recommendation.title),
       detail: tr("Start with the central lesson so the rest of the session has a clear anchor."),
@@ -46,7 +49,6 @@ export function DashboardAdaptiveLoopSection({
     },
     {
       id: "daily-loop-weakspot",
-      index: 2,
       title: tr("Weak spot repair"),
       description: studyLoop.weakSpots[0]?.title ?? tr("No urgent weak spot"),
       detail: studyLoop.weakSpots[0]
@@ -56,7 +58,6 @@ export function DashboardAdaptiveLoopSection({
     },
     {
       id: "daily-loop-vocab",
-      index: 3,
       title: tr("Vocabulary reinforcement"),
       description:
         studyLoop.dueVocabulary[0]?.word ??
@@ -66,7 +67,6 @@ export function DashboardAdaptiveLoopSection({
     },
     {
       id: "daily-loop-close",
-      index: 4,
       title: tr("Close the loop"),
       description:
         studyLoop.nextSteps[0]?.title ??
@@ -75,11 +75,27 @@ export function DashboardAdaptiveLoopSection({
       route: studyLoop.nextSteps[0]?.route ?? routes.activity,
     },
   ];
+  const orderedStepIds =
+    primaryRouteMode === "route_rebuild"
+      ? ["daily-loop-vocab", "daily-loop-lesson", "daily-loop-weakspot", "daily-loop-close"]
+      : primaryRouteMode === "protected_return"
+        ? ["daily-loop-lesson", "daily-loop-vocab", "daily-loop-close", "daily-loop-weakspot"]
+        : primaryRouteMode === "skill_repair_cycle" || primaryRouteMode === "targeted_stabilization"
+          ? ["daily-loop-weakspot", "daily-loop-lesson", "daily-loop-vocab", "daily-loop-close"]
+          : ["daily-loop-lesson", "daily-loop-weakspot", "daily-loop-vocab", "daily-loop-close"];
+  const dailyLoopSteps = orderedStepIds
+    .map((id) => baseDailyLoopSteps.find((step) => step.id === id))
+    .filter((step): step is (typeof baseDailyLoopSteps)[number] => Boolean(step))
+    .map((step, index) => ({ ...step, index: index + 1 }));
   const strategyAlignment = studyLoop.strategyAlignment ?? null;
   const strategyCards =
     2 +
     (strategyAlignment?.liveProgressFocus ? 1 : 0) +
-    (strategyAlignment?.skillTrajectory ? 1 : 0);
+    (strategyAlignment?.skillTrajectory ? 1 : 0) +
+    (strategyAlignment?.strategyMemory ? 1 : 0) +
+    (strategyAlignment?.routeCadenceMemory ? 1 : 0) +
+    (strategyAlignment?.routeRecoveryMemory ? 1 : 0) +
+    (strategyAlignment?.routeReentryNextLabel ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -99,8 +115,11 @@ export function DashboardAdaptiveLoopSection({
         </div>
         <div className="text-sm leading-6 text-slate-600">
           {tr(
-            "This is the first visible shape of the daily learning loop: one connected session that ties lesson work, weak spot repair, vocabulary memory, and the next reinforcement move together.",
+            "This is the visible shape of today’s route: one connected session that ties the main lesson, weak-spot support, vocabulary memory, and the next reinforcement step together.",
           )}
+        </div>
+        <div className="rounded-2xl bg-accent/8 p-4 text-sm text-slate-700">
+          <span className="font-semibold text-ink">{tr("Today’s route bias")}:</span> {primaryRouteSummary}
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {dailyLoopSteps.map((step) => (
@@ -121,7 +140,7 @@ export function DashboardAdaptiveLoopSection({
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="space-y-4">
         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">
-          {tr("Adaptive study loop")}
+          {tr("Adaptive route support")}
         </div>
         <div className="text-2xl font-semibold text-ink">{adaptiveHeadline}</div>
         <div className="text-sm leading-6 text-slate-600">{adaptiveSummary}</div>
@@ -141,7 +160,7 @@ export function DashboardAdaptiveLoopSection({
           </div>
         </div>
         <div className="rounded-2xl bg-sand/80 p-4">
-          <div className="text-sm font-semibold text-ink">{tr("Why this loop was generated")}</div>
+          <div className="text-sm font-semibold text-ink">{tr("Why Liza shaped this route support")}</div>
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             {studyLoop.generationRationale.map((item) => (
               <div key={item}>• {tr(item)}</div>
@@ -150,7 +169,7 @@ export function DashboardAdaptiveLoopSection({
         </div>
         {strategyAlignment ? (
           <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
-            <div className="text-sm font-semibold text-ink">{tr("Strategy alignment")}</div>
+            <div className="text-sm font-semibold text-ink">{tr("How the route stays aligned")}</div>
             <div className="mt-3 text-sm leading-6 text-slate-700">{strategyAlignment.whyNow}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -175,6 +194,26 @@ export function DashboardAdaptiveLoopSection({
               {strategyAlignment.skillTrajectory ? (
                 <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
                   {tr("Multi-day memory")}: {strategyAlignment.skillTrajectory.focusSkill} {strategyAlignment.skillTrajectory.direction}
+                </div>
+              ) : null}
+              {strategyAlignment.strategyMemory ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Long memory")}: {strategyAlignment.strategyMemory.focusSkill} {strategyAlignment.strategyMemory.persistenceLevel}
+                </div>
+              ) : null}
+              {strategyAlignment.routeCadenceMemory ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Route cadence")}: {strategyAlignment.routeCadenceMemory.status}
+                </div>
+              ) : null}
+              {strategyAlignment.routeRecoveryMemory ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Recovery arc")}: {strategyAlignment.routeRecoveryMemory.phase}
+                </div>
+              ) : null}
+              {strategyAlignment.routeReentryNextLabel ? (
+                <div className="rounded-full bg-white/78 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {tr("Next support step")}: {strategyAlignment.routeReentryNextLabel}
                 </div>
               ) : null}
             </div>
@@ -207,12 +246,55 @@ export function DashboardAdaptiveLoopSection({
                   <div className="mt-2 text-sm text-slate-700">{strategyAlignment.skillTrajectory.summary}</div>
                 </div>
               ) : null}
+              {strategyAlignment.strategyMemory ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Long strategy memory")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.strategyMemory.focusSkill} · {strategyAlignment.strategyMemory.persistenceLevel}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{strategyAlignment.strategyMemory.summary}</div>
+                </div>
+              ) : null}
+              {strategyAlignment.routeCadenceMemory ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Route cadence")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.routeCadenceMemory.status}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{strategyAlignment.routeCadenceMemory.summary}</div>
+                </div>
+              ) : null}
+              {strategyAlignment.routeRecoveryMemory ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Recovery arc")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.routeRecoveryMemory.phase}
+                    {strategyAlignment.routeRecoveryMemory.focusSkill ? ` · ${strategyAlignment.routeRecoveryMemory.focusSkill}` : ""}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{strategyAlignment.routeRecoveryMemory.summary}</div>
+                </div>
+              ) : null}
+              {strategyAlignment.routeReentryNextLabel ? (
+                <div className="rounded-2xl bg-white/78 p-4">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Re-entry sequence")}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">
+                    {strategyAlignment.routeReentryNextLabel}
+                    {typeof strategyAlignment.routeReentryCompletedSteps === "number" &&
+                    typeof strategyAlignment.routeReentryTotalSteps === "number"
+                      ? ` · ${strategyAlignment.routeReentryCompletedSteps}/${strategyAlignment.routeReentryTotalSteps}`
+                      : ""}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">
+                    {strategyAlignment.recommendedModuleReason ?? strategyAlignment.nextBestAction}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
         {studyLoop.moduleRotation.length > 0 ? (
           <div className="rounded-2xl bg-white/70 p-4">
-            <div className="text-sm font-semibold text-ink">{tr("Main flow rotation")}</div>
+            <div className="text-sm font-semibold text-ink">{tr("How today’s route expands")}</div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               {studyLoop.moduleRotation.slice(0, 3).map((item) => (
                 <Link key={item.moduleKey} to={item.route} className="rounded-2xl bg-sand/80 p-4">
@@ -233,7 +315,7 @@ export function DashboardAdaptiveLoopSection({
             to={routes.activity}
             className="rounded-2xl bg-sand px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-[#ddccb6]"
           >
-            {tr("Open full loop")}
+            {tr("Open the full route view")}
           </Link>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
