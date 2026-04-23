@@ -36,7 +36,9 @@ type ToggleAnswerField =
   | "activeSkillFocus"
   | "studyPreferences"
   | "supportNeeds"
-  | "interestTopics";
+  | "interestTopics"
+  | "emotionalBarriers"
+  | "ritualElements";
 
 type OnboardingStepDefinition = {
   description: string;
@@ -171,6 +173,9 @@ export function useOnboardingFlow() {
     form.lessonDuration >= 10 &&
     form.lessonDuration <= 60 &&
     form.onboardingAnswers.activeSkillFocus.length > 0;
+  const relationshipReady =
+    form.onboardingAnswers.englishRelationshipGoal.trim().length > 0 &&
+    form.onboardingAnswers.ritualElements.length > 0;
 
   const steps: OnboardingStepDefinition[] = useMemo(
     () => [
@@ -218,13 +223,25 @@ export function useOnboardingFlow() {
         helper: tr("Keep lesson duration between 10 and 60 minutes."),
       },
       {
+        title: locale === "ru" ? "Отношения с английским" : "English relationship",
+        description:
+          locale === "ru"
+            ? "Опиши, каким английский должен стать для тебя внутри: свободнее, легче, спокойнее — и какие ритуалы должны это поддержать."
+            : "Describe how English should feel from the inside: lighter, freer, calmer, and which rituals should support that change.",
+        ready: relationshipReady,
+        helper:
+          locale === "ru"
+            ? "Выбери ощущение-цель и хотя бы один полезный ритуал."
+            : "Pick the relationship goal and at least one useful ritual.",
+      },
+      {
         title: tr("Review"),
         description: tr("Check the summary before we open the dashboard and the first guided daily loop."),
-        ready: accountReady && basicsReady && goalsReady && rhythmReady,
+        ready: accountReady && basicsReady && goalsReady && rhythmReady && relationshipReady,
         helper: tr("Review the setup and create the workspace."),
       },
     ],
-    [accountReady, basicsReady, goalsReady, locale, rhythmReady, tr, welcomeHandoff],
+    [accountReady, basicsReady, goalsReady, locale, relationshipReady, rhythmReady, tr, welcomeHandoff],
   );
 
   useEffect(() => {

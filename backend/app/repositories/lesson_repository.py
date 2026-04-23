@@ -1067,6 +1067,11 @@ class LessonRepository:
             if isinstance(route_context.get("routeEntryMemory"), dict)
             else None
         )
+        ritual_signal_memory = (
+            route_context.get("ritualSignalMemory")
+            if isinstance(route_context.get("ritualSignalMemory"), dict)
+            else None
+        )
         route_entry_reset_active = bool(route_context.get("routeEntryResetActive"))
         route_entry_reset_label = (
             str(route_context.get("routeEntryResetLabel"))
@@ -1116,6 +1121,14 @@ class LessonRepository:
             "routeEntryMemory": route_entry_memory,
             "routeEntryResetActive": route_entry_reset_active,
             "routeEntryResetLabel": route_entry_reset_label,
+            "ritualSignalMemory": ritual_signal_memory,
+            "ritualSignalType": route_context.get("ritualSignalType"),
+            "ritualSignalLabel": route_context.get("ritualSignalLabel"),
+            "ritualSignalStage": route_context.get("ritualSignalStage"),
+            "ritualSignalWindowStage": route_context.get("ritualSignalWindowStage"),
+            "ritualSignalWindowDays": route_context.get("ritualSignalWindowDays"),
+            "ritualSignalWindowRemainingDays": route_context.get("ritualSignalWindowRemainingDays"),
+            "ritualSignalSummary": route_context.get("ritualSignalSummary"),
             "learningBlueprintHeadline": route_context.get("learningBlueprintHeadline"),
             "learningBlueprintNorthStar": route_context.get("learningBlueprintNorthStar"),
             "learningBlueprintPhaseLabel": route_context.get("learningBlueprintPhaseLabel"),

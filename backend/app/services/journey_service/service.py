@@ -146,6 +146,7 @@ class JourneyService:
         recommendation = self._recommendation_service.get_next_step(profile)
         follow_up_preview = self._resolve_follow_up_preview(existing_state)
         route_follow_up_memory = self._extract_route_follow_up_memory(existing_state)
+        ritual_signal_memory = self._build_ritual_signal_memory(profile.id, existing_state)
         task_driven_follow_up_focus = (
             self._map_route_to_focus_area(str(route_follow_up_memory.get("currentRoute")))
             if route_follow_up_memory
@@ -157,6 +158,10 @@ class JourneyService:
             if follow_up_preview and follow_up_preview.get("focusArea")
             else task_driven_follow_up_focus
             if task_driven_follow_up_focus
+            else str(ritual_signal_memory.get("recommendedFocus"))
+            if self._should_prioritize_ritual_signal_focus(ritual_signal_memory)
+            and ritual_signal_memory
+            and ritual_signal_memory.get("recommendedFocus")
             else self._determine_focus_area(profile, None, recommendation, existing_state)
         )
         route_entry_memory = self._extract_route_entry_memory(existing_state)
@@ -238,6 +243,7 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=self._extract_route_entry_memory(current_state),
+            ritual_signal_memory=self._extract_ritual_signal_memory(current_state),
             existing_route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
         )
         if route_reentry_progress is None and str(route_recovery_memory.get("phase") or "") == "support_reopen_arc":
@@ -266,6 +272,7 @@ class JourneyService:
                 route_recovery_memory=route_recovery_memory,
                 route_reentry_progress=route_reentry_progress,
                 route_entry_memory=self._extract_route_entry_memory(temp_state),
+                ritual_signal_memory=self._extract_ritual_signal_memory(temp_state),
                 existing_route_follow_up_memory=route_follow_up_memory,
             )
             if route_follow_up_memory:
@@ -336,6 +343,7 @@ class JourneyService:
             route_recovery_memory=self._extract_route_recovery_memory(current_state),
             route_reentry_progress=self._extract_route_reentry_progress(current_state),
             route_entry_memory=snapshot.get("routeEntryMemory") if isinstance(snapshot.get("routeEntryMemory"), dict) else None,
+            ritual_signal_memory=self._extract_ritual_signal_memory(current_state),
             existing_route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
         )
         if route_follow_up_memory:
@@ -440,6 +448,115 @@ class JourneyService:
             diagnostic_readiness=current_state.diagnostic_readiness,
             time_budget_minutes=current_state.time_budget_minutes,
             current_focus_area=current_focus_area,
+            current_strategy_summary=current_strategy_summary,
+            next_best_action=next_best_action,
+            proof_lesson_handoff=(
+                current_state.proof_lesson_handoff.model_dump(mode="json")
+                if current_state.proof_lesson_handoff
+                else {}
+            ),
+            strategy_snapshot=snapshot,
+            onboarding_completed_at=self._resolve_onboarding_completed_at(current_state),
+            last_daily_plan_id=current_state.last_daily_plan_id,
+        )
+
+    def register_ritual_signal(
+        self,
+        *,
+        profile: UserProfile,
+        signal_type: str,
+        route: str,
+        label: str,
+        summary: str | None = None,
+    ) -> LearnerJourneyState:
+        current_state = self._repository.get_journey_state(profile.id)
+        if current_state is None:
+            raise NotFoundError("Journey state was not found.")
+
+        snapshot = dict(current_state.strategy_snapshot)
+        existing_memory = (
+            snapshot.get("ritualSignalMemory")
+            if isinstance(snapshot.get("ritualSignalMemory"), dict)
+            else {}
+        )
+        previous_type = str(existing_memory.get("activeSignalType") or "")
+        previous_count = int(existing_memory.get("signalCount") or 0) if previous_type == signal_type else 0
+        signal_count = previous_count + 1
+        window_stage = (
+            "fresh_capture"
+            if signal_count == 1
+            else "stabilizing_signal"
+            if signal_count == 2
+            else "ready_to_carry"
+        )
+        recommended_focus = (
+            "vocabulary"
+            if signal_type == "word_journal"
+            else "speaking"
+            if signal_type == "spontaneous_voice"
+            else current_state.current_focus_area
+        )
+        action_hint = (
+            f"Keep one light route step around {label} so the captured phrase comes back in real use before it goes cold."
+            if signal_type == "word_journal"
+            else f"Keep one live speaking step around {label} so the spontaneous voice signal settles before the route widens."
+        )
+        summary_line = (
+            summary
+            or (
+                f"The route has a fresh word journal signal through {label}, so the next 1-2 sessions should reuse that phrase inside real output."
+                if signal_type == "word_journal"
+                else f"The route has a fresh spontaneous voice signal through {label}, so the next 1-2 sessions should keep one low-pressure speaking pass alive."
+            )
+        )
+        recent_signals = [
+            item
+            for item in existing_memory.get("recentSignals", [])
+            if isinstance(item, dict)
+        ][:4]
+        recent_signals.insert(
+            0,
+            {
+                "signalType": signal_type,
+                "route": route,
+                "label": label,
+                "summary": summary_line,
+                "recordedAt": datetime.utcnow().isoformat(),
+            },
+        )
+        snapshot["ritualSignalMemory"] = {
+            "activeSignalType": signal_type,
+            "activeRoute": route,
+            "activeLabel": label,
+            "recommendedFocus": recommended_focus,
+            "signalCount": signal_count,
+            "windowDays": 2,
+            "windowStage": window_stage,
+            "arcStep": "capture",
+            "summary": summary_line,
+            "actionHint": action_hint,
+            "recordedAt": datetime.utcnow().isoformat(),
+            "recentSignals": recent_signals[:5],
+        }
+        current_strategy_summary = summary_line
+        next_best_action = action_hint
+        snapshot["learningBlueprint"] = self._build_learning_blueprint(
+            profile=profile,
+            focus_area=recommended_focus,
+            recommendation=None,
+            current_state=current_state.model_copy(update={"strategy_snapshot": snapshot}),
+            current_strategy_summary=current_strategy_summary,
+            next_best_action=next_best_action,
+            route_snapshot=snapshot,
+        )
+        return self._repository.upsert_journey_state(
+            user_id=profile.id,
+            stage=current_state.stage,
+            source=current_state.source,
+            preferred_mode=current_state.preferred_mode,
+            diagnostic_readiness=current_state.diagnostic_readiness,
+            time_budget_minutes=current_state.time_budget_minutes,
+            current_focus_area=recommended_focus,
             current_strategy_summary=current_strategy_summary,
             next_best_action=next_best_action,
             proof_lesson_handoff=(
@@ -594,21 +711,24 @@ class JourneyService:
             current_strategy_summary=self._build_completed_strategy_summary(
                 session_summary=session_summary,
                 route_cadence_memory=self._build_route_cadence_memory(profile.id, current_state),
-                route_recovery_memory=self._build_route_recovery_memory(
-                    user_id=profile.id,
-                    current_state=current_state,
+                route_recovery_memory=self._apply_task_driven_transfer_recovery_override(
+                    self._build_route_recovery_memory(
+                        user_id=profile.id,
+                        current_state=current_state,
+                        session_summary=session_summary,
+                        skill_trajectory=self._build_skill_trajectory_memory(
+                            profile.id,
+                            current_state,
+                            active_skill_focus=profile.onboarding_answers.active_skill_focus,
+                        ),
+                        strategy_memory=self._build_strategy_memory(
+                            profile.id,
+                            current_state,
+                            active_skill_focus=profile.onboarding_answers.active_skill_focus,
+                        ),
+                        route_cadence_memory=self._build_route_cadence_memory(profile.id, current_state),
+                    ),
                     session_summary=session_summary,
-                    skill_trajectory=self._build_skill_trajectory_memory(
-                        profile.id,
-                        current_state,
-                        active_skill_focus=profile.onboarding_answers.active_skill_focus,
-                    ),
-                    strategy_memory=self._build_strategy_memory(
-                        profile.id,
-                        current_state,
-                        active_skill_focus=profile.onboarding_answers.active_skill_focus,
-                    ),
-                    route_cadence_memory=self._build_route_cadence_memory(profile.id, current_state),
                 ),
             ),
             next_best_action=tomorrow_preview["nextStepHint"],
@@ -676,6 +796,11 @@ class JourneyService:
             if session_summary and isinstance(session_summary.get("practiceMixEvaluation"), dict)
             else None
         )
+        task_driven_transfer_evaluation = (
+            session_summary.get("taskDrivenTransferEvaluation")
+            if session_summary and isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict)
+            else None
+        )
         skill_trajectory = self._build_skill_trajectory_memory(
             profile.id,
             current_state,
@@ -701,6 +826,7 @@ class JourneyService:
         )
         route_entry_memory = self._extract_route_entry_memory(current_state)
         route_follow_up_memory = self._extract_route_follow_up_memory(current_state)
+        ritual_signal_memory = self._build_ritual_signal_memory(profile.id, current_state)
         estimated_minutes = self._resolve_estimated_minutes(
             lesson_duration=profile.lesson_duration,
             session_kind=session_kind,
@@ -739,6 +865,7 @@ class JourneyService:
                 route_reentry_progress=route_reentry_progress,
                 route_entry_memory=route_entry_memory,
                 route_follow_up_memory=route_follow_up_memory,
+                ritual_signal_memory=ritual_signal_memory,
             ),
             summary=self._build_plan_summary(
                 profile,
@@ -755,6 +882,7 @@ class JourneyService:
                 route_reentry_progress=route_reentry_progress,
                 route_entry_memory=route_entry_memory,
                 route_follow_up_memory=route_follow_up_memory,
+                ritual_signal_memory=ritual_signal_memory,
             ),
             why_this_now=self._build_plan_reason(
                 profile,
@@ -771,6 +899,7 @@ class JourneyService:
                 route_reentry_progress=route_reentry_progress,
                 route_entry_memory=route_entry_memory,
                 route_follow_up_memory=route_follow_up_memory,
+                ritual_signal_memory=ritual_signal_memory,
             ),
             next_step_hint=self._build_next_best_action_text(
                 profile,
@@ -784,6 +913,8 @@ class JourneyService:
                 route_recovery_memory=route_recovery_memory,
                 route_reentry_progress=route_reentry_progress,
                 route_entry_memory=route_entry_memory,
+                route_follow_up_memory=route_follow_up_memory,
+                ritual_signal_memory=ritual_signal_memory,
             ),
             preferred_mode=preferred_mode,
             time_budget_minutes=profile.lesson_duration,
@@ -802,6 +933,7 @@ class JourneyService:
                 route_cadence_memory=route_cadence_memory,
                 route_recovery_memory=route_recovery_memory,
                 route_reentry_progress=route_reentry_progress,
+                ritual_signal_memory=ritual_signal_memory,
             ),
         )
         return self._attach_daily_ritual(plan, profile=profile, current_state=current_state)
@@ -987,6 +1119,7 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=None,
+            ritual_signal_memory=None,
         )
         if route_follow_up_memory:
             snapshot["routeFollowUpMemory"] = route_follow_up_memory
@@ -1171,9 +1304,21 @@ class JourneyService:
             if day_shape and day_shape.get("sessionShape")
             else "connected"
         )
+        ritual_elements = set(profile.onboarding_answers.ritual_elements)
+        journal_clause = (
+            " It should also keep one real-life word journal capture alive so the route remembers language from the learner's own day."
+            if "daily_word_journal" in ritual_elements
+            else ""
+        )
+        voice_clause = (
+            " A short spontaneous voice pass should stay available too, so the learner hears their own English without over-preparing."
+            if {"spontaneous_voice_notes", "highlight_lowlight_reflection"} & ritual_elements
+            else ""
+        )
         return (
             f"One {shape_hint} daily ritual around {plan.focus_area} that opens with guidance, "
             f"moves through active practice, and closes with an explicit next step inside a {profile.lesson_duration}-minute rhythm."
+            f"{journal_clause}{voice_clause}"
         )
 
     @classmethod
@@ -1204,9 +1349,9 @@ class JourneyService:
 
         response_route = (
             "/writing"
-            if input_lane == "reading" and profile.onboarding_answers.preferred_mode == "text_first"
+            if cls._infer_output_lane(profile) == "writing"
             else "/speaking"
-            if input_lane == "listening" and profile.onboarding_answers.preferred_mode == "voice_first"
+            if cls._infer_output_lane(profile) == "speaking"
             else "/lesson-runner"
         )
         response_label = (
@@ -1315,6 +1460,7 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=self._extract_route_entry_memory(current_state),
+            ritual_signal_memory=self._extract_ritual_signal_memory(current_state),
             existing_route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
         )
         if route_follow_up_memory:
@@ -1401,12 +1547,18 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=self._extract_route_entry_memory(current_state),
+            ritual_signal_memory=self._extract_ritual_signal_memory(current_state),
             existing_route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
         )
         if route_follow_up_memory:
             snapshot["routeFollowUpMemory"] = route_follow_up_memory
         else:
             snapshot.pop("routeFollowUpMemory", None)
+        ritual_signal_memory = self._build_ritual_signal_memory(profile.id, current_state)
+        if ritual_signal_memory:
+            snapshot["ritualSignalMemory"] = ritual_signal_memory
+        else:
+            snapshot.pop("ritualSignalMemory", None)
         current_strategy_summary = self._build_strategy_summary(
             profile,
             plan.focus_area,
@@ -1462,6 +1614,11 @@ class JourneyService:
             if session_summary and isinstance(session_summary.get("practiceMixEvaluation"), dict)
             else None
         )
+        task_driven_transfer_evaluation = (
+            session_summary.get("taskDrivenTransferEvaluation")
+            if session_summary and isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict)
+            else None
+        )
         skill_trajectory = self._build_skill_trajectory_memory(
             profile.id,
             current_state,
@@ -1489,6 +1646,7 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
         )
         route_entry_memory = self._extract_route_entry_memory(current_state)
+        ritual_signal_memory = self._build_ritual_signal_memory(profile.id, current_state)
         learning_blueprint = (
             snapshot.get("learningBlueprint")
             if isinstance(snapshot.get("learningBlueprint"), dict)
@@ -1543,6 +1701,8 @@ class JourneyService:
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=route_entry_memory,
             route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
+            task_driven_transfer_evaluation=task_driven_transfer_evaluation,
+            ritual_signal_memory=ritual_signal_memory,
         )
         return {
             "focusArea": plan.focus_area,
@@ -1594,6 +1754,42 @@ class JourneyService:
             "routeEntryMemory": route_entry_memory,
             "routeEntryResetActive": bool(self._build_route_entry_memory_reset_label(route_entry_memory)),
             "routeEntryResetLabel": self._build_route_entry_memory_reset_label(route_entry_memory),
+            "ritualSignalMemory": ritual_signal_memory,
+            "ritualSignalType": (
+                str(ritual_signal_memory.get("activeSignalType"))
+                if ritual_signal_memory and ritual_signal_memory.get("activeSignalType")
+                else None
+            ),
+            "ritualSignalLabel": (
+                str(ritual_signal_memory.get("activeLabel"))
+                if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+                else None
+            ),
+            "ritualSignalStage": (
+                str(ritual_signal_memory.get("windowStage"))
+                if ritual_signal_memory and ritual_signal_memory.get("windowStage")
+                else None
+            ),
+            "ritualSignalWindowStage": (
+                str(ritual_signal_memory.get("routeWindowStage"))
+                if ritual_signal_memory and ritual_signal_memory.get("routeWindowStage")
+                else None
+            ),
+            "ritualSignalWindowDays": (
+                int(ritual_signal_memory.get("windowDays"))
+                if ritual_signal_memory and ritual_signal_memory.get("windowDays") is not None
+                else None
+            ),
+            "ritualSignalWindowRemainingDays": (
+                int(ritual_signal_memory.get("windowRemainingDays"))
+                if ritual_signal_memory and ritual_signal_memory.get("windowRemainingDays") is not None
+                else None
+            ),
+            "ritualSignalSummary": (
+                str(ritual_signal_memory.get("summary"))
+                if ritual_signal_memory and ritual_signal_memory.get("summary")
+                else None
+            ),
             "learningBlueprintHeadline": (
                 str(learning_blueprint.get("headline"))
                 if learning_blueprint and learning_blueprint.get("headline")
@@ -1771,6 +1967,8 @@ class JourneyService:
         route_reentry_progress: dict | None = None,
         route_entry_memory: dict | None = None,
         route_follow_up_memory: dict | None = None,
+        task_driven_transfer_evaluation: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> list[dict]:
         weights = {
             "lesson": 18,
@@ -1866,6 +2064,134 @@ class JourneyService:
                 weights["grammar"] += 4
             if "pronunciation" in carry_over or "pronunciation" in watch_signal:
                 weights["pronunciation"] += 4
+
+        transfer_outcome = (
+            str(task_driven_transfer_evaluation.get("transferOutcome"))
+            if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("transferOutcome")
+            else ""
+        )
+        transfer_input_route = (
+            str(task_driven_transfer_evaluation.get("inputRoute"))
+            if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("inputRoute")
+            else ""
+        )
+        transfer_response_route = (
+            str(task_driven_transfer_evaluation.get("responseRoute"))
+            if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("responseRoute")
+            else ""
+        )
+        transfer_input_focus = JourneyService._map_route_to_focus_area(transfer_input_route)
+        transfer_response_focus = JourneyService._map_route_to_focus_area(transfer_response_route)
+        transfer_input_label = (
+            str(task_driven_transfer_evaluation.get("inputLabel"))
+            if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("inputLabel")
+            else JourneyService._map_task_driven_input_label(transfer_input_route)
+            if transfer_input_route
+            else None
+        )
+        transfer_response_label = (
+            str(task_driven_transfer_evaluation.get("responseLabel"))
+            if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("responseLabel")
+            else JourneyService._map_task_driven_response_label(transfer_response_route)
+            if transfer_response_route
+            else None
+        )
+        if transfer_response_focus in weights and transfer_outcome:
+            weights["lesson"] += 4
+            if transfer_outcome == "held":
+                weights[transfer_response_focus] += 5
+                if transfer_input_focus in weights:
+                    weights[transfer_input_focus] += 3
+            elif transfer_outcome == "usable":
+                weights[transfer_response_focus] += 9
+                if transfer_input_focus in weights:
+                    weights[transfer_input_focus] += 4
+            else:
+                weights[transfer_response_focus] += 12
+                if transfer_input_focus in weights:
+                    weights[transfer_input_focus] += 4
+
+        ritual_signal_type = (
+            str(ritual_signal_memory.get("activeSignalType"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeSignalType")
+            else ""
+        )
+        ritual_signal_label = (
+            str(ritual_signal_memory.get("activeLabel"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+            else ""
+        )
+        ritual_signal_window_stage = (
+            str(ritual_signal_memory.get("windowStage"))
+            if ritual_signal_memory and ritual_signal_memory.get("windowStage")
+            else ""
+        )
+        if ritual_signal_type == "word_journal":
+            if ritual_signal_window_stage == "ready_to_carry":
+                weights["lesson"] += 7
+                weights["vocabulary"] += 3
+                weights["writing"] += 2
+                reason_map["lesson"] = (
+                    f"The route can widen again while still carrying {ritual_signal_label or 'the saved phrase'} inside the broader lesson flow."
+                )
+                reason_map["vocabulary"] = (
+                    f"{ritual_signal_label or 'The saved phrase'} should stay available as a light support lane instead of forcing another narrow capture pass."
+                )
+                reason_map["writing"] = (
+                    f"Written output should reuse {ritual_signal_label or 'the saved phrase'} naturally inside the broader route."
+                )
+            elif ritual_signal_window_stage == "reuse_in_route":
+                weights["lesson"] += 3
+                weights["vocabulary"] += 7
+                weights["writing"] += 5
+                reason_map["vocabulary"] = (
+                    f"The route should reuse the word journal capture around {ritual_signal_label or 'the saved phrase'} once more before it simply rides inside the broader flow."
+                )
+                reason_map["writing"] = (
+                    f"The route should carry {ritual_signal_label or 'the fresh phrase'} through one more connected written response."
+                )
+            else:
+                weights["vocabulary"] += 10
+                weights["writing"] += 6
+                reason_map["vocabulary"] = (
+                    f"The route is protecting the live word journal capture around {ritual_signal_label or 'the saved phrase'}, so vocabulary should come back in real use."
+                )
+                reason_map["writing"] = (
+                    f"The route should carry {ritual_signal_label or 'the fresh phrase'} into written output before the ritual signal fades."
+                )
+        elif ritual_signal_type == "spontaneous_voice":
+            if ritual_signal_window_stage == "ready_to_carry":
+                weights["lesson"] += 7
+                weights["speaking"] += 3
+                weights["pronunciation"] += 2
+                reason_map["lesson"] = (
+                    f"The route can widen again while keeping the live voice signal from {ritual_signal_label or 'the reflection pass'} inside the broader lesson flow."
+                )
+                reason_map["speaking"] = (
+                    f"The live voice signal from {ritual_signal_label or 'the reflection pass'} should stay available without forcing another narrow ritual pass."
+                )
+                reason_map["pronunciation"] = (
+                    "A light pronunciation layer helps the broader route keep that voice signal clear without rebuilding the whole day around it."
+                )
+            elif ritual_signal_window_stage == "reuse_in_route":
+                weights["lesson"] += 3
+                weights["speaking"] += 7
+                weights["pronunciation"] += 3
+                reason_map["speaking"] = (
+                    f"The route should reuse the live voice signal from {ritual_signal_label or 'the reflection pass'} once more before widening fully."
+                )
+                reason_map["pronunciation"] = (
+                    "A light pronunciation layer helps that spontaneous voice signal settle across one more connected response."
+                )
+            else:
+                weights["speaking"] += 10
+                weights["pronunciation"] += 4
+                reason_map["speaking"] = (
+                    f"The route is protecting the live voice signal from {ritual_signal_label or 'the reflection pass'}, so speaking should stay active across the next response."
+                )
+                reason_map["pronunciation"] = (
+                    "A light pronunciation layer helps the spontaneous voice ritual settle without turning into pressure."
+                )
 
         trajectory_focus = (
             str(skill_trajectory.get("focusSkill"))
@@ -2006,6 +2332,46 @@ class JourneyService:
                 reason_map[recovery_focus] = (
                     f"The route is stabilizing {recovery_focus} across the next sessions, with {recovery_support} acting as the support lane."
                 )
+            recovery_decision_bias = (
+                str(route_recovery_memory.get("decisionBias"))
+                if route_recovery_memory and route_recovery_memory.get("decisionBias")
+                else ""
+            )
+            recovery_decision_stage = (
+                str(route_recovery_memory.get("decisionWindowStage"))
+                if route_recovery_memory and route_recovery_memory.get("decisionWindowStage")
+                else ""
+            )
+            if recovery_decision_bias == "task_transfer_window":
+                if recovery_decision_stage == "protect_response":
+                    weights[recovery_focus] += 6
+                    weights["lesson"] += 4
+                    reason_map[recovery_focus] = (
+                        f"The route is in a protected transfer window, so {recovery_support or recovery_focus} should carry the next session more deliberately."
+                    )
+                elif recovery_decision_stage == "stabilize_transfer":
+                    weights[recovery_focus] += 4
+                    weights["lesson"] += 5
+                    reason_map[recovery_focus] = (
+                        f"The route is in a stabilizing transfer pass, so {recovery_support or recovery_focus} stays active while the broader lesson reconnects around it."
+                    )
+        elif recovery_phase == "steady_extension" and recovery_focus in weights:
+            recovery_decision_bias = (
+                str(route_recovery_memory.get("decisionBias"))
+                if route_recovery_memory and route_recovery_memory.get("decisionBias")
+                else ""
+            )
+            recovery_decision_stage = (
+                str(route_recovery_memory.get("decisionWindowStage"))
+                if route_recovery_memory and route_recovery_memory.get("decisionWindowStage")
+                else ""
+            )
+            if recovery_decision_bias == "task_transfer_window" and recovery_decision_stage == "ready_to_widen":
+                weights["lesson"] += 8
+                weights[recovery_focus] += 2
+                reason_map["lesson"] = (
+                    f"The protected transfer window has already held, so the broader lesson can widen again while {recovery_support or recovery_focus} stays available."
+                )
 
         if practice_shift:
             lead_practice_key = str(practice_shift.get("leadPracticeKey") or "")
@@ -2120,11 +2486,45 @@ class JourneyService:
             title_map[item.module_key] = item.title
             reason_map[item.module_key] = item.reason
 
+        if transfer_response_focus in weights and transfer_outcome:
+            if transfer_outcome == "held":
+                reason_map["lesson"] = (
+                    f"The previous {transfer_input_label or 'task-driven input'} carried well into {transfer_response_label or 'the response lane'}, so the main lesson can widen while keeping that transfer alive."
+                )
+                reason_map[transfer_response_focus] = (
+                    f"The last route proved that {transfer_response_label or 'the response lane'} can hold the signal from {transfer_input_label or 'the input pass'}, so it stays active inside a broader lesson-led mix."
+                )
+            elif transfer_outcome == "usable":
+                reason_map["lesson"] = (
+                    f"The previous route got useful value from {transfer_input_label or 'the input pass'}, but the main lesson still needs to keep {transfer_response_label or 'the response lane'} connected for one more pass."
+                )
+                reason_map[transfer_response_focus] = (
+                    f"The transfer into {transfer_response_label or 'the response lane'} worked, but it still needs one more connected pass before the route widens."
+                )
+            else:
+                reason_map["lesson"] = (
+                    f"The route should stay connected around {transfer_response_label or 'the response lane'} so the signal from {transfer_input_label or 'the input pass'} does not get lost between sessions."
+                )
+                reason_map[transfer_response_focus] = (
+                    f"The move from {transfer_input_label or 'the input pass'} into {transfer_response_label or 'the response lane'} is still fragile, so the next session deliberately protects that response lane."
+                )
+
         primary_goal_text = str(profile.onboarding_answers.primary_goal or "").lower()
         if profile.profession_track and profile.profession_track != "general" and (
             "profession" in focus_tokens or "work" in primary_goal_text
         ):
             weights["profession"] += 6
+
+        if ritual_signal_window_stage == "ready_to_carry":
+            ritual_lead_module = (
+                "vocabulary"
+                if ritual_signal_type == "word_journal"
+                else "speaking"
+                if ritual_signal_type == "spontaneous_voice"
+                else ""
+            )
+            if ritual_lead_module in weights:
+                weights["lesson"] = max(weights["lesson"], weights[ritual_lead_module] + 2)
 
         ordered_weights = sorted(weights.items(), key=lambda item: item[1], reverse=True)
         total = sum(weight for _key, weight in ordered_weights) or 1
@@ -2185,6 +2585,10 @@ class JourneyService:
             outcome_band=outcome_band,
         )
         task_driven_transfer_evaluation = cls._build_task_driven_transfer_evaluation(
+            lesson_run=lesson_run,
+            outcome_band=outcome_band,
+        )
+        ritual_signal_evaluation = cls._build_ritual_signal_evaluation(
             lesson_run=lesson_run,
             outcome_band=outcome_band,
         )
@@ -2252,6 +2656,8 @@ class JourneyService:
             strategy_shift = f"{strategy_shift} {route_recovery_evaluation['summary']}"
         if task_driven_transfer_evaluation and task_driven_transfer_evaluation.get("summary"):
             strategy_shift = f"{strategy_shift} {task_driven_transfer_evaluation['summary']}"
+        if ritual_signal_evaluation and ritual_signal_evaluation.get("summary"):
+            strategy_shift = f"{strategy_shift} {ritual_signal_evaluation['summary']}"
 
         summary = {
             "outcomeBand": outcome_band,
@@ -2271,6 +2677,8 @@ class JourneyService:
             summary["routeRecoveryEvaluation"] = route_recovery_evaluation
         if task_driven_transfer_evaluation:
             summary["taskDrivenTransferEvaluation"] = task_driven_transfer_evaluation
+        if ritual_signal_evaluation:
+            summary["ritualSignalEvaluation"] = ritual_signal_evaluation
         return summary
 
     @classmethod
@@ -2445,6 +2853,31 @@ class JourneyService:
             )
             next_bias = "protect_response_lane"
 
+        current_window_stage = ""
+        current_window_bias = str(route_context.get("routeRecoveryDecisionBias") or "")
+        if current_window_bias == "task_transfer_window":
+            current_window_stage = str(route_context.get("routeRecoveryDecisionWindowStage") or "")
+        next_window_stage, next_window_days, window_action = cls._resolve_task_transfer_window_progression(
+            current_window_stage=current_window_stage,
+            transfer_outcome=transfer_outcome,
+        )
+        if next_window_stage == "close_window":
+            window_summary = (
+                f"The response pass held cleanly, so the protected transfer window can close and the broader route can lead again while {response_label.lower()} stays reusable."
+            )
+        elif next_window_stage == "protect_response":
+            window_summary = (
+                f"The route should keep {response_label.lower()} protected for another pass before widening again."
+            )
+        elif next_window_stage == "stabilize_transfer":
+            window_summary = (
+                f"The route can leave full protection, but it should keep one stabilizing pass around {response_label.lower()} before widening further."
+            )
+        else:
+            window_summary = (
+                f"The protected transfer window has held well enough to let the route start widening again while {response_label.lower()} stays available."
+            )
+
         return {
             "inputRoute": input_route,
             "inputLabel": input_label,
@@ -2455,7 +2888,203 @@ class JourneyService:
             "transferOutcome": transfer_outcome,
             "summary": summary,
             "nextBias": next_bias,
+            "currentWindowStage": current_window_stage or None,
+            "nextWindowStage": next_window_stage,
+            "nextWindowDays": next_window_days,
+            "windowAction": window_action,
+            "windowSummary": window_summary,
         }
+
+    @staticmethod
+    def _resolve_ritual_signal_window_progression(
+        *,
+        current_window_stage: str,
+        outcome_band: str,
+    ) -> tuple[str, int, str]:
+        stage = current_window_stage or "fresh_capture"
+        strong_outcome = outcome_band in {"stable", "breakthrough", "checkpoint"}
+
+        if stage == "fresh_capture":
+            return (
+                ("reuse_in_route", 1, "advance_to_reuse")
+                if strong_outcome
+                else ("fresh_capture", 2, "extend_capture")
+            )
+        if stage == "reuse_in_route":
+            return (
+                ("ready_to_carry", 1, "advance_to_carry")
+                if strong_outcome
+                else ("reuse_in_route", 1, "keep_reusing")
+            )
+        if stage == "ready_to_carry":
+            return (
+                ("close_window", 0, "close_window")
+                if strong_outcome
+                else ("reuse_in_route", 1, "step_back_to_reuse")
+            )
+        return (
+            ("ready_to_carry", 1, "advance_to_carry")
+            if strong_outcome
+            else ("reuse_in_route", 1, "keep_reusing")
+        )
+
+    @staticmethod
+    def _map_ritual_signal_route_window_stage(window_stage: str) -> str:
+        return (
+            "protect_ritual"
+            if window_stage == "fresh_capture"
+            else "reuse_in_response"
+            if window_stage == "reuse_in_route"
+            else "carry_inside_route"
+            if window_stage == "ready_to_carry"
+            else ""
+        )
+
+    @classmethod
+    def _build_ritual_signal_evaluation(
+        cls,
+        *,
+        lesson_run: LessonRunState,
+        outcome_band: str,
+    ) -> dict | None:
+        route_context = cls._extract_route_context(lesson_run)
+        ritual_signal_type = str(route_context.get("ritualSignalType") or "")
+        ritual_signal_label = str(route_context.get("ritualSignalLabel") or "")
+        if not ritual_signal_type or not ritual_signal_label:
+            return None
+
+        current_window_stage = str(route_context.get("ritualSignalStage") or "fresh_capture")
+        next_window_stage, next_window_days, window_action = cls._resolve_ritual_signal_window_progression(
+            current_window_stage=current_window_stage,
+            outcome_band=outcome_band,
+        )
+        focus_area = str(route_context.get("focusArea") or "") or None
+        current_arc_step = (
+            "reuse"
+            if current_window_stage == "reuse_in_route"
+            else "carry_forward"
+            if current_window_stage == "ready_to_carry"
+            else "capture"
+        )
+        next_arc_step = (
+            "carry_forward"
+            if next_window_stage == "ready_to_carry"
+            else "reuse"
+            if next_window_stage == "reuse_in_route"
+            else "closed"
+            if next_window_stage == "close_window"
+            else "capture"
+        )
+
+        if ritual_signal_type == "word_journal":
+            if next_window_stage == "close_window":
+                summary = (
+                    f"The route has already carried {ritual_signal_label} cleanly enough that the ritual window can close and the phrase can stay available without forced protection."
+                )
+                action_hint = (
+                    f"Let the broader route lead again while keeping {ritual_signal_label} available as a reusable phrase."
+                )
+            elif next_window_stage == "ready_to_carry":
+                summary = (
+                    f"The route reused {ritual_signal_label} cleanly, so the next session can carry it forward inside a broader response instead of treating it like a fresh capture."
+                )
+                action_hint = (
+                    f"Carry {ritual_signal_label} forward through the broader route instead of forcing another narrow reuse pass."
+                )
+            elif next_window_stage == "reuse_in_route":
+                summary = (
+                    f"The route has already moved {ritual_signal_label} out of capture, so the next session should reuse it once more before the phrase starts living inside the broader flow."
+                )
+                action_hint = (
+                    f"Give {ritual_signal_label} one more connected reuse pass before widening fully."
+                )
+            else:
+                summary = (
+                    f"{ritual_signal_label.capitalize()} still needs a clearer first reuse pass before the route can move beyond simple capture."
+                )
+                action_hint = (
+                    f"Keep the next route close to {ritual_signal_label} and bring it back into real output again."
+                )
+        else:
+            if next_window_stage == "close_window":
+                summary = (
+                    f"The live voice signal from {ritual_signal_label} has already carried cleanly enough that the ritual window can close without losing spontaneity."
+                )
+                action_hint = (
+                    f"Let the broader speaking route lead again while keeping the live voice signal from {ritual_signal_label} available."
+                )
+            elif next_window_stage == "ready_to_carry":
+                summary = (
+                    f"The live voice signal from {ritual_signal_label} held cleanly, so the next session can carry it forward inside a broader speaking route."
+                )
+                action_hint = (
+                    f"Carry the live voice signal from {ritual_signal_label} into the broader route instead of forcing another narrow ritual pass."
+                )
+            elif next_window_stage == "reuse_in_route":
+                summary = (
+                    f"The live voice signal from {ritual_signal_label} is out of pure capture, so the next session should reuse it once more before widening further."
+                )
+                action_hint = (
+                    f"Give the live voice signal from {ritual_signal_label} one more connected reuse pass."
+                )
+            else:
+                summary = (
+                    f"The live voice signal from {ritual_signal_label} still needs a clearer first reuse pass before the route can widen."
+                )
+                action_hint = (
+                    f"Keep one more low-pressure speaking pass around {ritual_signal_label} before widening."
+                )
+
+        return {
+            "signalType": ritual_signal_type,
+            "label": ritual_signal_label,
+            "focusArea": focus_area,
+            "currentWindowStage": current_window_stage,
+            "nextWindowStage": next_window_stage,
+            "currentArcStep": current_arc_step,
+            "nextArcStep": next_arc_step,
+            "nextWindowDays": next_window_days,
+            "windowAction": window_action,
+            "summary": summary,
+            "actionHint": action_hint,
+            "outcomeBand": outcome_band,
+        }
+
+    @staticmethod
+    def _resolve_task_transfer_window_progression(
+        *,
+        current_window_stage: str,
+        transfer_outcome: str,
+    ) -> tuple[str, int, str]:
+        stage = current_window_stage or ""
+        outcome = transfer_outcome or "usable"
+
+        if stage == "protect_response":
+            if outcome == "fragile":
+                return "protect_response", 2, "extend_protection"
+            if outcome == "usable":
+                return "stabilize_transfer", 1, "advance_to_stabilizing"
+            return "ready_to_widen", 1, "advance_to_widen"
+
+        if stage == "stabilize_transfer":
+            if outcome == "fragile":
+                return "protect_response", 2, "step_back_to_protection"
+            if outcome == "usable":
+                return "stabilize_transfer", 1, "keep_stabilizing"
+            return "ready_to_widen", 1, "advance_to_widen"
+
+        if stage == "ready_to_widen":
+            if outcome == "fragile":
+                return "stabilize_transfer", 1, "step_back_to_stabilizing"
+            if outcome == "usable":
+                return "ready_to_widen", 1, "hold_widening"
+            return "close_window", 0, "close_window"
+
+        if outcome == "fragile":
+            return "protect_response", 2, "extend_protection"
+        if outcome == "usable":
+            return "stabilize_transfer", 1, "advance_to_stabilizing"
+        return "ready_to_widen", 1, "advance_to_widen"
 
     @staticmethod
     def _build_tomorrow_preview(
@@ -2482,6 +3111,11 @@ class JourneyService:
         task_driven_transfer_evaluation = (
             session_summary.get("taskDrivenTransferEvaluation")
             if isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict)
+            else None
+        )
+        ritual_signal_evaluation = (
+            session_summary.get("ritualSignalEvaluation")
+            if isinstance(session_summary.get("ritualSignalEvaluation"), dict)
             else None
         )
 
@@ -2521,19 +3155,28 @@ class JourneyService:
             transfer_summary = str(
                 task_driven_transfer_evaluation.get("summary") or session_summary["strategyShift"]
             )
-            if transfer_outcome == "held":
+            next_window_stage = str(task_driven_transfer_evaluation.get("nextWindowStage") or "")
+            window_summary = str(task_driven_transfer_evaluation.get("windowSummary") or transfer_summary)
+            if next_window_stage == "close_window":
+                headline = f"Tomorrow can widen fully again while keeping {response_label.lower()} reusable."
+                reason = window_summary
+                next_step_hint = (
+                    f"Return tomorrow and let the broader route lead again while keeping {input_label.lower()} flowing into {response_label.lower()}."
+                )
+                continuity_mode = "task_driven_widen"
+            elif next_window_stage == "ready_to_widen" or transfer_outcome == "held":
                 headline = f"Tomorrow can widen from {input_label.lower()} into {response_label.lower()} without losing the route."
                 reason = (
-                    f"{transfer_summary} The route can now let the broader daily session lead while keeping that transfer alive."
+                    f"{window_summary} The route can now let the broader daily session lead while keeping that transfer alive."
                 )
                 next_step_hint = (
                     f"Return tomorrow and let the broader route lead while carrying {input_label.lower()} forward into {response_label.lower()}."
                 )
                 continuity_mode = "task_driven_carry"
-            elif transfer_outcome == "usable":
+            elif next_window_stage == "stabilize_transfer" or transfer_outcome == "usable":
                 headline = f"Tomorrow should keep building from {input_label.lower()} into {response_label.lower()}."
                 reason = (
-                    f"{transfer_summary} The route should give that response lane one more connected pass before widening further."
+                    f"{window_summary} The route should give that response lane one more connected pass before widening further."
                 )
                 next_step_hint = (
                     f"Return tomorrow for one more connected {response_label.lower()} pass so the signal from {input_label.lower()} becomes easier to reuse."
@@ -2542,12 +3185,56 @@ class JourneyService:
             else:
                 headline = f"Tomorrow should protect the move from {input_label.lower()} into {response_label.lower()}."
                 reason = (
-                    f"{transfer_summary} The input signal landed, but the route still needs to protect the response lane before it broadens."
+                    f"{window_summary} The input signal landed, but the route still needs to protect the response lane before it broadens."
                 )
                 next_step_hint = (
                     f"Return tomorrow and keep the route tighter around {response_label.lower()} so the signal from {input_label.lower()} does not get lost."
                 )
                 continuity_mode = "task_driven_protect"
+            return {
+                "focusArea": focus_area,
+                "sessionKind": session_kind,
+                "headline": headline,
+                "reason": reason,
+                "nextStepHint": next_step_hint,
+                "recommendedLessonTitle": recommended_lesson_title,
+                "continuityMode": continuity_mode,
+                "carryOverSignalLabel": carry_over_label,
+                "watchSignalLabel": watch_label,
+            }
+
+        if ritual_signal_evaluation:
+            ritual_label = str(ritual_signal_evaluation.get("label") or carry_over_label)
+            next_window_stage = str(ritual_signal_evaluation.get("nextWindowStage") or "")
+            summary = str(ritual_signal_evaluation.get("summary") or session_summary["strategyShift"])
+            if next_window_stage == "close_window":
+                headline = f"Tomorrow can widen again while keeping {ritual_label.lower()} quietly available."
+                reason = summary
+                next_step_hint = (
+                    f"Return tomorrow and let the broader route lead again while keeping {ritual_label.lower()} alive without forcing a separate ritual pass."
+                )
+                continuity_mode = "ritual_close"
+            elif next_window_stage == "ready_to_carry":
+                headline = f"Tomorrow should carry {ritual_label.lower()} inside the broader route."
+                reason = summary
+                next_step_hint = (
+                    f"Return tomorrow and carry {ritual_label.lower()} through the broader route instead of restarting from capture."
+                )
+                continuity_mode = "ritual_carry"
+            elif next_window_stage == "reuse_in_route":
+                headline = f"Tomorrow should reuse {ritual_label.lower()} one more time inside the route."
+                reason = summary
+                next_step_hint = (
+                    f"Return tomorrow for one more connected reuse pass around {ritual_label.lower()} before the route widens further."
+                )
+                continuity_mode = "ritual_reuse"
+            else:
+                headline = f"Tomorrow should keep protecting {ritual_label.lower()} as a fresh ritual signal."
+                reason = summary
+                next_step_hint = (
+                    f"Return tomorrow and keep the route close to {ritual_label.lower()} until the first real reuse pass lands."
+                )
+                continuity_mode = "ritual_capture"
             return {
                 "focusArea": focus_area,
                 "sessionKind": session_kind,
@@ -2680,6 +3367,10 @@ class JourneyService:
             strategy_memory=strategy_memory,
             route_cadence_memory=route_cadence_memory,
         )
+        route_recovery_memory = self._apply_task_driven_transfer_recovery_override(
+            route_recovery_memory,
+            session_summary=session_summary,
+        )
         if route_recovery_memory:
             snapshot["routeRecoveryMemory"] = route_recovery_memory
         route_reentry_progress = self._build_route_reentry_progress(
@@ -2694,7 +3385,39 @@ class JourneyService:
             route_recovery_memory=route_recovery_memory,
             route_reentry_progress=route_reentry_progress,
             route_entry_memory=self._extract_route_entry_memory(current_state),
+            ritual_signal_memory=self._extract_ritual_signal_memory(current_state),
             existing_route_follow_up_memory=self._extract_route_follow_up_memory(current_state),
+        )
+        if route_follow_up_memory:
+            snapshot["routeFollowUpMemory"] = route_follow_up_memory
+        else:
+            snapshot.pop("routeFollowUpMemory", None)
+        ritual_signal_evaluation = (
+            session_summary.get("ritualSignalEvaluation")
+            if isinstance(session_summary.get("ritualSignalEvaluation"), dict)
+            else None
+        )
+        existing_ritual_signal_memory = (
+            snapshot.get("ritualSignalMemory")
+            if isinstance(snapshot.get("ritualSignalMemory"), dict)
+            else self._extract_ritual_signal_memory(current_state)
+        )
+        snapshot = self._apply_ritual_signal_memory_override(
+            snapshot,
+            ritual_signal_memory=existing_ritual_signal_memory,
+            ritual_signal_evaluation=ritual_signal_evaluation,
+        )
+        updated_ritual_signal_memory = (
+            snapshot.get("ritualSignalMemory")
+            if isinstance(snapshot.get("ritualSignalMemory"), dict)
+            else None
+        )
+        route_follow_up_memory = self._build_route_follow_up_memory(
+            route_recovery_memory=route_recovery_memory,
+            route_reentry_progress=route_reentry_progress,
+            route_entry_memory=self._extract_route_entry_memory(current_state),
+            ritual_signal_memory=updated_ritual_signal_memory,
+            existing_route_follow_up_memory=route_follow_up_memory,
         )
         if route_follow_up_memory:
             snapshot["routeFollowUpMemory"] = route_follow_up_memory
@@ -2714,6 +3437,140 @@ class JourneyService:
             route_snapshot=snapshot,
         )
         return snapshot
+
+    @staticmethod
+    def _apply_ritual_signal_memory_override(
+        snapshot: dict,
+        *,
+        ritual_signal_memory: dict | None,
+        ritual_signal_evaluation: dict | None,
+    ) -> dict:
+        if not ritual_signal_memory or not ritual_signal_evaluation:
+            return snapshot
+
+        updated_snapshot = dict(snapshot)
+        next_window_stage = str(ritual_signal_evaluation.get("nextWindowStage") or "")
+        if next_window_stage == "close_window":
+            updated_snapshot.pop("ritualSignalMemory", None)
+            return updated_snapshot
+
+        updated_snapshot["ritualSignalMemory"] = {
+            **ritual_signal_memory,
+            "windowStage": next_window_stage or ritual_signal_memory.get("windowStage"),
+            "windowDays": (
+                int(ritual_signal_evaluation.get("nextWindowDays"))
+                if ritual_signal_evaluation.get("nextWindowDays") is not None
+                else ritual_signal_memory.get("windowDays")
+            ),
+            "arcStep": (
+                str(ritual_signal_evaluation.get("nextArcStep"))
+                if ritual_signal_evaluation.get("nextArcStep")
+                else ritual_signal_memory.get("arcStep")
+            ),
+            "windowRemainingDays": (
+                int(ritual_signal_evaluation.get("nextWindowDays"))
+                if ritual_signal_evaluation.get("nextWindowDays") is not None
+                else ritual_signal_memory.get("windowRemainingDays")
+            ),
+            "routeWindowBias": "ritual_signal_window",
+            "routeWindowStage": JourneyService._map_ritual_signal_route_window_stage(
+                next_window_stage or str(ritual_signal_memory.get("windowStage") or "")
+            ),
+            "summary": (
+                str(ritual_signal_evaluation.get("summary"))
+                if ritual_signal_evaluation.get("summary")
+                else ritual_signal_memory.get("summary")
+            ),
+            "actionHint": (
+                str(ritual_signal_evaluation.get("actionHint"))
+                if ritual_signal_evaluation.get("actionHint")
+                else ritual_signal_memory.get("actionHint")
+            ),
+            "lastEvaluationAction": (
+                str(ritual_signal_evaluation.get("windowAction"))
+                if ritual_signal_evaluation.get("windowAction")
+                else ritual_signal_memory.get("lastEvaluationAction")
+            ),
+        }
+        return updated_snapshot
+
+    @staticmethod
+    def _apply_task_driven_transfer_recovery_override(
+        route_recovery_memory: dict | None,
+        *,
+        session_summary: dict | None,
+    ) -> dict | None:
+        if not route_recovery_memory or not session_summary:
+            return route_recovery_memory
+        task_driven_transfer = (
+            session_summary.get("taskDrivenTransferEvaluation")
+            if isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict)
+            else None
+        )
+        if not task_driven_transfer:
+            return route_recovery_memory
+
+        next_window_stage = str(task_driven_transfer.get("nextWindowStage") or "")
+        if not next_window_stage:
+            return route_recovery_memory
+
+        response_label = str(
+            task_driven_transfer.get("responseLabel")
+            or route_recovery_memory.get("supportPracticeTitle")
+            or "the response lane"
+        )
+        next_window_days = (
+            int(task_driven_transfer.get("nextWindowDays"))
+            if task_driven_transfer.get("nextWindowDays") is not None
+            else 1
+        )
+        window_summary = str(task_driven_transfer.get("windowSummary") or route_recovery_memory.get("summary") or "")
+        updated = dict(route_recovery_memory)
+        updated["supportPracticeTitle"] = response_label
+        updated["transferOutcome"] = str(task_driven_transfer.get("transferOutcome") or updated.get("transferOutcome") or "")
+        updated["transferWindowAction"] = str(task_driven_transfer.get("windowAction") or "")
+        updated["transferNextWindowStage"] = next_window_stage
+
+        if task_driven_transfer.get("inputLabel"):
+            updated["transferInputLabel"] = str(task_driven_transfer.get("inputLabel"))
+        if task_driven_transfer.get("responseLabel"):
+            updated["transferResponseLabel"] = str(task_driven_transfer.get("responseLabel"))
+
+        if next_window_stage == "close_window":
+            updated["phase"] = "steady_extension"
+            updated["sessionShape"] = "forward_mix"
+            updated["summary"] = (
+                window_summary
+                or f"The protected transfer window has held cleanly enough that the broader route can lead again while {response_label} stays reusable."
+            )
+            updated["actionHint"] = (
+                f"Let the broader route lead again and keep {response_label} available as quiet support."
+            )
+            updated["nextPhaseHint"] = (
+                f"If the broader route keeps carrying {response_label} cleanly, the transfer window can stay closed."
+            )
+            updated.pop("decisionBias", None)
+            updated.pop("decisionWindowDays", None)
+            updated.pop("decisionWindowStage", None)
+            updated.pop("decisionWindowRemainingDays", None)
+            return updated
+
+        updated["decisionBias"] = "task_transfer_window"
+        updated["decisionWindowDays"] = next_window_days
+        updated["decisionWindowStage"] = next_window_stage
+        updated["decisionWindowRemainingDays"] = next_window_days
+
+        if next_window_stage == "protect_response":
+            updated["phase"] = "targeted_stabilization"
+            updated["sessionShape"] = "focused_support"
+        elif next_window_stage == "stabilize_transfer":
+            updated["phase"] = "targeted_stabilization"
+            updated["sessionShape"] = "guided_balance"
+        else:
+            updated["phase"] = "steady_extension"
+            updated["sessionShape"] = "forward_mix"
+        updated["summary"] = window_summary or updated.get("summary")
+        return updated
 
     @staticmethod
     def _determine_outcome_band(lesson_run: LessonRunState) -> str:
@@ -2977,6 +3834,131 @@ class JourneyService:
         return value if isinstance(value, dict) and value else None
 
     @staticmethod
+    def _extract_ritual_signal_memory(current_state: LearnerJourneyState | None) -> dict | None:
+        if not current_state:
+            return None
+
+        value = current_state.strategy_snapshot.get("ritualSignalMemory")
+        return value if isinstance(value, dict) and value else None
+
+    @staticmethod
+    def _should_prioritize_ritual_signal_focus(ritual_signal_memory: dict | None) -> bool:
+        if not ritual_signal_memory:
+            return False
+
+        window_stage = str(ritual_signal_memory.get("windowStage") or "")
+        return window_stage in {"", "fresh_capture", "reuse_in_route"}
+
+    def _build_ritual_signal_memory(
+        self,
+        user_id: str,
+        current_state: LearnerJourneyState | None,
+    ) -> dict | None:
+        existing_memory = self._extract_ritual_signal_memory(current_state)
+        if not existing_memory:
+            return None
+
+        recorded_at_raw = str(
+            existing_memory.get("recordedAt")
+            or (
+                existing_memory.get("recentSignals")[0].get("recordedAt")
+                if isinstance(existing_memory.get("recentSignals"), list)
+                and existing_memory.get("recentSignals")
+                and isinstance(existing_memory.get("recentSignals")[0], dict)
+                and existing_memory.get("recentSignals")[0].get("recordedAt")
+                else ""
+            )
+        ).strip()
+        recorded_at: datetime | None = None
+        if recorded_at_raw:
+            try:
+                recorded_at = datetime.fromisoformat(recorded_at_raw)
+            except ValueError:
+                recorded_at = None
+
+        recent_plans = self._repository.list_recent_daily_loop_plans(user_id, limit=6)
+        completed_since_capture = 0
+        if recorded_at is not None:
+            for plan in recent_plans:
+                if not plan.completed_at:
+                    continue
+                completed_at = plan.completed_at
+                if isinstance(completed_at, str):
+                    try:
+                        completed_at = datetime.fromisoformat(completed_at)
+                    except ValueError:
+                        continue
+                if completed_at.tzinfo is not None:
+                    completed_at = completed_at.replace(tzinfo=None)
+                if completed_at >= recorded_at:
+                    completed_since_capture += 1
+        else:
+            completed_since_capture = len([plan for plan in recent_plans if plan.completed_at][:2])
+
+        active_signal_type = str(existing_memory.get("activeSignalType") or "")
+        active_label = str(existing_memory.get("activeLabel") or "the ritual signal")
+        recommended_focus = str(existing_memory.get("recommendedFocus") or "")
+        recent_signals = [
+            item
+            for item in existing_memory.get("recentSignals", [])
+            if isinstance(item, dict)
+        ][:5]
+        if completed_since_capture <= 0:
+            window_stage = "fresh_capture"
+            window_days = 2
+            arc_step = "capture"
+            summary = (
+                f"The route is still in the capture phase around {active_label}, so the next session should reuse it quickly before it goes cold."
+                if active_signal_type == "word_journal"
+                else f"The route is still in the capture phase around {active_label}, so the next session should reuse that live voice signal before it fades."
+            )
+            action_hint = (
+                f"Keep one light route step around {active_label} so the captured phrase comes back in real use before it goes cold."
+                if active_signal_type == "word_journal"
+                else f"Keep one live speaking step around {active_label} so the spontaneous voice signal settles before the route widens."
+            )
+        elif completed_since_capture == 1:
+            window_stage = "reuse_in_route"
+            window_days = 1
+            arc_step = "reuse"
+            summary = (
+                f"The route has already reused {active_label} once, so the next session should carry it forward into a broader response instead of starting a new ritual from zero."
+                if active_signal_type == "word_journal"
+                else f"The route has already reused the live voice signal from {active_label} once, so the next session should carry it forward into a broader speaking pass."
+            )
+            action_hint = (
+                f"Use one more connected route around {active_label}, then start carrying it into the broader daily flow."
+            )
+        else:
+            window_stage = "ready_to_carry"
+            window_days = 1
+            arc_step = "carry_forward"
+            summary = (
+                f"The route has already reused {active_label} across connected days, so it can now carry that ritual signal inside the broader route without forcing it to dominate."
+                if active_signal_type == "word_journal"
+                else f"The route has already reused the live voice signal from {active_label} across connected days, so it can now carry it inside the broader speaking route."
+            )
+            action_hint = (
+                f"Let the broader route lead again while keeping {active_label} available as a live ritual carry-over."
+            )
+
+        return {
+            **existing_memory,
+            "recommendedFocus": recommended_focus or existing_memory.get("recommendedFocus"),
+            "windowStage": window_stage,
+            "windowDays": window_days,
+            "windowRemainingDays": window_days,
+            "arcStep": arc_step,
+            "routeWindowBias": "ritual_signal_window",
+            "routeWindowStage": self._map_ritual_signal_route_window_stage(window_stage),
+            "completedSinceCapture": completed_since_capture,
+            "summary": summary,
+            "actionHint": action_hint,
+            "recordedAt": recorded_at_raw or datetime.utcnow().isoformat(),
+            "recentSignals": recent_signals,
+        }
+
+    @staticmethod
     def _map_route_to_support_label(route: str | None) -> str | None:
         return (
             "grammar support"
@@ -3020,6 +4002,7 @@ class JourneyService:
         route_recovery_memory: dict | None,
         route_reentry_progress: dict | None,
         route_entry_memory: dict | None,
+        ritual_signal_memory: dict | None = None,
         existing_route_follow_up_memory: dict | None = None,
     ) -> dict | None:
         next_route = (
@@ -3127,6 +4110,74 @@ class JourneyService:
             and str(existing_route_follow_up_memory.get("stageLabel") or "") == "Task-driven handoff"
         ):
             return existing_route_follow_up_memory
+
+        ritual_route = (
+            str(ritual_signal_memory.get("activeRoute"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeRoute")
+            else None
+        )
+        ritual_route_label = self._map_route_to_support_label(ritual_route)
+        ritual_label = (
+            str(ritual_signal_memory.get("activeLabel"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+            else "the ritual signal"
+        )
+        ritual_window_stage = (
+            str(ritual_signal_memory.get("routeWindowStage"))
+            if ritual_signal_memory and ritual_signal_memory.get("routeWindowStage")
+            else None
+        )
+        if ritual_route and ritual_route_label and ritual_window_stage == "protect_ritual":
+            return {
+                "currentRoute": ritual_route,
+                "currentLabel": ritual_route_label,
+                "followUpRoute": "/daily-loop",
+                "followUpLabel": "daily route",
+                "carryRoute": "/activity",
+                "carryLabel": "activity trail",
+                "stageLabel": "Protect ritual",
+                "status": "active",
+                "summary": (
+                    f"The route should start through {ritual_route_label}, then reconnect through the daily route and only after that widen into the broader activity trail while keeping {ritual_label} alive."
+                ),
+                "completionCount": completion_count,
+                "lastCompletedRoute": last_completed_route,
+                "lastCompletedAt": last_completed_at,
+            }
+        if ritual_route and ritual_route_label and ritual_window_stage == "reuse_in_response":
+            return {
+                "currentRoute": "/daily-loop",
+                "currentLabel": "daily route",
+                "followUpRoute": "/activity",
+                "followUpLabel": "activity trail",
+                "carryRoute": ritual_route,
+                "carryLabel": ritual_route_label,
+                "stageLabel": "Reuse in response",
+                "status": "active",
+                "summary": (
+                    f"The route should reuse {ritual_label} inside the connected daily route now, then widen into the activity trail while keeping {ritual_route_label} quietly available."
+                ),
+                "completionCount": completion_count,
+                "lastCompletedRoute": last_completed_route,
+                "lastCompletedAt": last_completed_at,
+            }
+        if ritual_route and ritual_route_label and ritual_window_stage == "carry_inside_route":
+            return {
+                "currentRoute": "/daily-loop",
+                "currentLabel": "daily route",
+                "followUpRoute": "/activity",
+                "followUpLabel": "activity trail",
+                "carryRoute": ritual_route,
+                "carryLabel": ritual_route_label,
+                "stageLabel": "Carry inside route",
+                "status": "active",
+                "summary": (
+                    f"The broader daily route should lead again now, then extend through the activity trail while keeping {ritual_label} available as a light carry-over instead of reopening a separate ritual branch."
+                ),
+                "completionCount": completion_count,
+                "lastCompletedRoute": last_completed_route,
+                "lastCompletedAt": last_completed_at,
+            }
 
         return None
 
@@ -3452,6 +4503,15 @@ class JourneyService:
             if route_follow_up_memory.get("followUpLabel")
             else None
         )
+        carry_label = (
+            str(route_follow_up_memory.get("carryLabel"))
+            if route_follow_up_memory.get("carryLabel")
+            else None
+        )
+        if current_label and follow_up_label and carry_label:
+            return (
+                f"Move through {current_label} now, then continue through {follow_up_label} while keeping {carry_label} lightly available so the route stays connected."
+            )
         if current_label and follow_up_label:
             return f"Move through {current_label} now, then continue through {follow_up_label} so the route stays connected."
         if follow_up_label:
@@ -3621,8 +4681,131 @@ class JourneyService:
                     route_recovery_memory=recovery_memory,
                     current_state=current_state,
                 )
+            elif (
+                user_id
+                and str(recovery_memory.get("decisionBias") or "") == "task_transfer_window"
+                and not recovery_memory.get("transferWindowAction")
+            ):
+                recovery_memory = self._extend_task_transfer_window(
+                    user_id=user_id,
+                    route_recovery_memory=recovery_memory,
+                )
             return recovery_memory
         return existing_recovery_memory
+
+    def _extend_task_transfer_window(
+        self,
+        *,
+        user_id: str,
+        route_recovery_memory: dict,
+    ) -> dict:
+        focus_skill = str(route_recovery_memory.get("focusSkill") or "")
+        if not focus_skill:
+            return route_recovery_memory
+
+        today_key = datetime.utcnow().date().isoformat()
+        recent_plans = self._repository.list_recent_daily_loop_plans(user_id, limit=5)
+        completed_focus_days = [
+            plan
+            for plan in recent_plans
+            if plan.plan_date_key != today_key
+            and plan.focus_area == focus_skill
+            and plan.status == "completed"
+        ]
+        completed_passes = len(completed_focus_days)
+        transfer_outcome = str(route_recovery_memory.get("transferOutcome") or "")
+        support_label = str(route_recovery_memory.get("supportPracticeTitle") or "the response lane")
+
+        if transfer_outcome == "fragile":
+            if completed_passes >= 2:
+                stage = "ready_to_widen"
+                session_shape = "forward_mix"
+                summary = (
+                    f"The protected response work has already held across two connected passes, so the route can widen again while keeping {support_label} available."
+                )
+                action_hint = (
+                    f"Let the broader daily route lead again while keeping {support_label} available as quiet support."
+                )
+                next_phase_hint = (
+                    f"If {support_label} stays stable inside the broader mix, the route can fully release the protected transfer window."
+                )
+                remaining_days = 1
+            elif completed_passes >= 1:
+                stage = "stabilize_transfer"
+                session_shape = "guided_balance"
+                summary = (
+                    f"The first protected response pass has landed, so the route now needs one stabilizing pass before it widens again around {support_label}."
+                )
+                action_hint = (
+                    f"Keep one more connected pass around {support_label} before you let the broader route widen again."
+                )
+                next_phase_hint = (
+                    f"If this stabilizing pass holds, {support_label} can stay inside a broader route without being the whole focus."
+                )
+                remaining_days = 1
+            else:
+                stage = "protect_response"
+                session_shape = "focused_support"
+                summary = (
+                    f"The route should protect {support_label} first, because the last input-to-response transfer was still fragile."
+                )
+                action_hint = (
+                    f"Use the next route as a protected response pass around {support_label} before you widen back out."
+                )
+                next_phase_hint = (
+                    f"After the protected response pass lands, the route can move into one stabilizing pass before widening."
+                )
+                remaining_days = 2
+        elif transfer_outcome == "usable":
+            if completed_passes >= 1:
+                stage = "ready_to_widen"
+                session_shape = "forward_mix"
+                summary = (
+                    f"The response lane has already stabilized enough, so the route can widen again while keeping {support_label} alive inside the broader mix."
+                )
+                action_hint = (
+                    f"Let the broader route lead now and keep {support_label} available without forcing another narrow pass."
+                )
+                next_phase_hint = (
+                    f"If {support_label} stays reusable in the broader mix, the task-transfer window can phase out."
+                )
+                remaining_days = 1
+            else:
+                stage = "stabilize_transfer"
+                session_shape = "guided_balance"
+                summary = (
+                    f"The route should use one stabilizing pass around {support_label} so the last task-driven transfer becomes easier to reuse."
+                )
+                action_hint = (
+                    f"Keep one more connected pass around {support_label} before the route widens further."
+                )
+                next_phase_hint = (
+                    f"If this stabilizing pass holds, the route can widen back into the broader mix."
+                )
+                remaining_days = 1
+        else:
+            stage = "ready_to_widen"
+            session_shape = "forward_mix"
+            summary = (
+                f"The last task-driven transfer held cleanly, so the route can widen while keeping {support_label} available inside the broader mix."
+            )
+            action_hint = (
+                f"Let the broader route lead and keep {support_label} available as quiet support."
+            )
+            next_phase_hint = (
+                f"If the broader route still carries {support_label} cleanly, the transfer window can phase out."
+            )
+            remaining_days = 1
+
+        refreshed = dict(route_recovery_memory)
+        refreshed["sessionShape"] = session_shape
+        refreshed["summary"] = summary
+        refreshed["actionHint"] = action_hint
+        refreshed["nextPhaseHint"] = next_phase_hint
+        refreshed["decisionWindowStage"] = stage
+        refreshed["decisionWindowRemainingDays"] = remaining_days
+        refreshed["decisionWindowDays"] = max(int(route_recovery_memory.get("decisionWindowDays") or remaining_days), remaining_days)
+        return refreshed
 
     def _extend_support_reopen_arc(
         self,
@@ -3895,9 +5078,15 @@ class JourneyService:
             if session_summary and isinstance(session_summary.get("routeRecoveryEvaluation"), dict)
             else None
         )
+        task_driven_transfer_evaluation = (
+            session_summary.get("taskDrivenTransferEvaluation")
+            if session_summary and isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict)
+            else None
+        )
         has_route_recovery_override = bool(
             route_recovery_evaluation and str(route_recovery_evaluation.get("phase") or "") == "support_reopen_arc"
         )
+        has_task_driven_transfer_signal = bool(task_driven_transfer_evaluation)
         has_reopen_entry_signal = bool(
             route_entry_memory
             and route_entry_memory.get("readyToReopenActiveNextRoute")
@@ -3909,9 +5098,18 @@ class JourneyService:
             and not strategy_focus
             and not trajectory_focus
             and not has_route_recovery_override
+            and not has_task_driven_transfer_signal
             and not has_reopen_entry_signal
         ):
             return None
+
+        reopen_stage = None
+        expansion_ready = None
+        follow_up_completion_count = None
+        decision_bias = None
+        decision_window_days = None
+        decision_window_stage = None
+        decision_window_remaining_days = None
 
         if cadence_status in {"route_rescue", "building_rhythm"}:
             horizon_days = 3 if strategy_level in {"persistent", "recurring"} or trajectory_direction == "slipping" else 2
@@ -3968,6 +5166,13 @@ class JourneyService:
             next_phase_hint = "The route can keep widening gradually as long as the daily rhythm stays steady."
             phase = "steady_extension"
             session_shape = "forward_mix"
+        elif task_driven_transfer_evaluation:
+            horizon_days = 1
+            summary = "The route should keep the last input-to-response transfer connected a little longer."
+            action_hint = "Keep the response lane connected before the route widens again."
+            next_phase_hint = "If the next connected pass holds, the route can widen again naturally."
+            phase = "targeted_stabilization"
+            session_shape = "guided_balance"
         else:
             return None
 
@@ -4078,6 +5283,102 @@ class JourneyService:
                 if route_recovery_evaluation.get("completionCount") is not None
                 else None
             )
+        elif task_driven_transfer_evaluation:
+            response_route = str(task_driven_transfer_evaluation.get("responseRoute") or "")
+            response_focus = JourneyService._map_route_to_focus_area(response_route)
+            response_label = str(
+                task_driven_transfer_evaluation.get("responseLabel")
+                or (JourneyService._map_task_driven_response_label(response_route) if response_route else "the response lane")
+            )
+            transfer_outcome = str(task_driven_transfer_evaluation.get("transferOutcome") or "usable")
+            transfer_summary = str(
+                task_driven_transfer_evaluation.get("summary")
+                or f"The route should keep {response_label} connected a little longer."
+            )
+            next_window_stage = str(task_driven_transfer_evaluation.get("nextWindowStage") or "")
+            next_window_days = (
+                int(task_driven_transfer_evaluation.get("nextWindowDays"))
+                if task_driven_transfer_evaluation.get("nextWindowDays") is not None
+                else None
+            )
+            window_action = str(task_driven_transfer_evaluation.get("windowAction") or "")
+            window_summary = str(task_driven_transfer_evaluation.get("windowSummary") or "")
+            phase = "targeted_stabilization" if transfer_outcome in {"fragile", "usable"} else "steady_extension"
+            focus_skill = response_focus or focus_skill
+            support_practice_title = response_label
+            if next_window_stage == "close_window":
+                horizon_days = max(horizon_days, 1)
+                phase = "steady_extension"
+                session_shape = "forward_mix"
+                summary = (
+                    window_summary
+                    or f"The protected transfer window has held cleanly enough that the broader route can lead again while {response_label} stays reusable."
+                )
+                action_hint = (
+                    f"Let the broader daily route lead again and keep {response_label} available as quiet support instead of the main protection target."
+                )
+                next_phase_hint = (
+                    f"If the broader route keeps carrying {response_label} cleanly, the transfer window can stay closed."
+                )
+            else:
+                resolved_window_stage = next_window_stage
+                if not resolved_window_stage:
+                    resolved_window_stage, _, _ = JourneyService._resolve_task_transfer_window_progression(
+                        current_window_stage="",
+                        transfer_outcome=transfer_outcome,
+                    )
+                if resolved_window_stage == "protect_response":
+                    horizon_days = max(horizon_days, 2)
+                    session_shape = "focused_support"
+                    summary = (
+                        window_summary
+                        or f"{transfer_summary} The next routes should protect {response_label} before the route widens again."
+                    )
+                    action_hint = (
+                        f"Use the next route as a protected {response_label} pass, then give it one stabilizing pass before widening."
+                    )
+                    next_phase_hint = (
+                        f"After the protected and stabilizing passes, the route can widen again if {response_label} stays reusable."
+                    )
+                    decision_bias = "task_transfer_window"
+                    decision_window_days = next_window_days if next_window_days is not None else 2
+                    decision_window_stage = "protect_response"
+                    decision_window_remaining_days = decision_window_days
+                elif resolved_window_stage == "stabilize_transfer":
+                    horizon_days = max(horizon_days, 2)
+                    session_shape = "guided_balance"
+                    summary = (
+                        window_summary
+                        or f"{transfer_summary} The route should use one stabilizing pass around {response_label} before it widens further."
+                    )
+                    action_hint = (
+                        f"Keep one more connected pass around {response_label}, then let the broader route widen again."
+                    )
+                    next_phase_hint = (
+                        f"If the stabilizing pass holds, {response_label} can stay inside the broader mix without extra protection."
+                    )
+                    decision_bias = "task_transfer_window"
+                    decision_window_days = next_window_days if next_window_days is not None else 1
+                    decision_window_stage = "stabilize_transfer"
+                    decision_window_remaining_days = decision_window_days
+                else:
+                    horizon_days = max(horizon_days, 1)
+                    session_shape = "forward_mix"
+                    summary = (
+                        window_summary
+                        or f"{transfer_summary} The route can widen again while keeping {response_label} available inside the broader mix."
+                    )
+                    action_hint = (
+                        f"Let the broader route lead and keep {response_label} available as quiet support."
+                    )
+                    next_phase_hint = (
+                        f"If the broader route keeps carrying {response_label} cleanly, the transfer window can phase out."
+                    )
+                    decision_bias = "task_transfer_window"
+                    decision_window_days = next_window_days if next_window_days is not None else 1
+                    decision_window_stage = "ready_to_widen"
+                    decision_window_remaining_days = decision_window_days
+            follow_up_completion_count = None
         else:
             reopen_stage = None
             expansion_ready = None
@@ -4114,6 +5415,16 @@ class JourneyService:
             result["decisionWindowStage"] = decision_window_stage
         if decision_window_remaining_days is not None:
             result["decisionWindowRemainingDays"] = decision_window_remaining_days
+        if task_driven_transfer_evaluation:
+            result["transferOutcome"] = str(task_driven_transfer_evaluation.get("transferOutcome") or "")
+            if task_driven_transfer_evaluation.get("inputLabel"):
+                result["transferInputLabel"] = str(task_driven_transfer_evaluation.get("inputLabel"))
+            if task_driven_transfer_evaluation.get("responseLabel"):
+                result["transferResponseLabel"] = str(task_driven_transfer_evaluation.get("responseLabel"))
+            if task_driven_transfer_evaluation.get("windowAction"):
+                result["transferWindowAction"] = str(task_driven_transfer_evaluation.get("windowAction"))
+            if task_driven_transfer_evaluation.get("nextWindowStage"):
+                result["transferNextWindowStage"] = str(task_driven_transfer_evaluation.get("nextWindowStage"))
         return result
 
     @staticmethod
@@ -4258,6 +5569,22 @@ class JourneyService:
             return (
                 f"For the next {decision_window_days} route decision, keep {support_label} inside one more connected settling pass before widening again."
             )
+        if decision_bias == "task_transfer_window" and decision_window_days > 0:
+            if decision_window_stage == "protect_response":
+                return (
+                    f"The next route should protect {support_label} first, because the last task-driven transfer still looked fragile."
+                )
+            if decision_window_stage == "stabilize_transfer":
+                return (
+                    f"The next route should use one stabilizing pass around {support_label} before the broader mix widens again."
+                )
+            if decision_window_stage == "ready_to_widen":
+                return (
+                    f"The protected transfer window has already held, so the broader route can widen again while {support_label} stays available."
+                )
+            return (
+                f"For the next {decision_window_remaining_days} route decisions, keep {support_label} protected inside a connected transfer window."
+            )
         return None
 
     @staticmethod
@@ -4296,6 +5623,78 @@ class JourneyService:
         if decision_bias == "settling_window" and decision_window_days > 0:
             return (
                 f"Treat the next route as a settling window: reconnect through the daily route and keep {support_label} protected before widening again."
+            )
+        if decision_bias == "task_transfer_window" and decision_window_days > 0:
+            if decision_window_stage == "protect_response":
+                return (
+                    f"Treat the next route as a protected response pass: keep the route centered on {support_label} before widening again."
+                )
+            if decision_window_stage == "stabilize_transfer":
+                return (
+                    f"Treat the next route as a stabilizing transfer pass: keep {support_label} connected, then let the broader route widen."
+                )
+            if decision_window_stage == "ready_to_widen":
+                return (
+                    f"The protected transfer window has held, so the next route can widen while keeping {support_label} quietly available."
+                )
+            return (
+                f"Treat the next {decision_window_remaining_days} routes as a protected transfer window around {support_label}."
+            )
+        return None
+
+    @staticmethod
+    def _build_ritual_signal_window_line(ritual_signal_memory: dict | None) -> str | None:
+        if not ritual_signal_memory:
+            return None
+        decision_bias = str(ritual_signal_memory.get("routeWindowBias") or "")
+        if decision_bias != "ritual_signal_window":
+            return None
+        window_stage = str(ritual_signal_memory.get("routeWindowStage") or "")
+        active_label = str(ritual_signal_memory.get("activeLabel") or "the ritual signal")
+        remaining_days = (
+            int(ritual_signal_memory.get("windowRemainingDays"))
+            if ritual_signal_memory.get("windowRemainingDays") is not None
+            else int(ritual_signal_memory.get("windowDays") or 0)
+        )
+        if window_stage == "protect_ritual":
+            return (
+                f"For the next {max(remaining_days, 1)} route decisions, keep {active_label} inside a protected ritual pass before the route widens."
+            )
+        if window_stage == "reuse_in_response":
+            return (
+                f"The next route should reuse {active_label} directly inside the response lane once more before the ritual signal broadens."
+            )
+        if window_stage == "carry_inside_route":
+            return (
+                f"The next route can widen again while carrying {active_label} quietly inside the broader lesson flow."
+            )
+        return None
+
+    @staticmethod
+    def _build_ritual_signal_window_hint(ritual_signal_memory: dict | None) -> str | None:
+        if not ritual_signal_memory:
+            return None
+        decision_bias = str(ritual_signal_memory.get("routeWindowBias") or "")
+        if decision_bias != "ritual_signal_window":
+            return None
+        window_stage = str(ritual_signal_memory.get("routeWindowStage") or "")
+        active_label = str(ritual_signal_memory.get("activeLabel") or "the ritual signal")
+        remaining_days = (
+            int(ritual_signal_memory.get("windowRemainingDays"))
+            if ritual_signal_memory.get("windowRemainingDays") is not None
+            else int(ritual_signal_memory.get("windowDays") or 0)
+        )
+        if window_stage == "protect_ritual":
+            return (
+                f"Treat the next {max(remaining_days, 1)} route step as a protected ritual pass around {active_label} before widening."
+            )
+        if window_stage == "reuse_in_response":
+            return (
+                f"Treat the next route as a connected reuse pass: bring {active_label} straight into the response lane once more."
+            )
+        if window_stage == "carry_inside_route":
+            return (
+                f"Let the broader route lead again while keeping {active_label} available as a quiet carry-over."
             )
         return None
 
@@ -4346,6 +5745,7 @@ class JourneyService:
         route_reentry_progress: dict | None = None,
         route_entry_memory: dict | None = None,
         route_follow_up_memory: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> str:
         learner_name = profile.name.strip() or "Learner"
         carry_over_label = (
@@ -4384,6 +5784,30 @@ class JourneyService:
             if route_follow_up_memory and route_follow_up_memory.get("followUpLabel")
             else None
         )
+        ritual_label = (
+            str(ritual_signal_memory.get("activeLabel"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+            else None
+        )
+        ritual_type = (
+            str(ritual_signal_memory.get("activeSignalType"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeSignalType")
+            else ""
+        )
+        ritual_stage = (
+            str(ritual_signal_memory.get("windowStage"))
+            if ritual_signal_memory and ritual_signal_memory.get("windowStage")
+            else ""
+        )
+        if ritual_label and not follow_up_preview and not reentry_label and not route_entry_reset:
+            if ritual_type == "word_journal":
+                if ritual_stage == "ready_to_carry":
+                    return f"{learner_name}, today's route carries {ritual_label} through a broader vocabulary-to-response arc."
+                return f"{learner_name}, today's route keeps {ritual_label} alive inside a connected vocabulary-to-response arc."
+            if ritual_type == "spontaneous_voice":
+                if ritual_stage == "ready_to_carry":
+                    return f"{learner_name}, today's route carries your live voice signal from {ritual_label} into a broader speaking-led arc."
+                return f"{learner_name}, today's route keeps the live voice signal from {ritual_label} inside a connected speaking arc."
         if carry_over_label:
             if lead_practice_title:
                 if route_entry_reset:
@@ -4451,6 +5875,7 @@ class JourneyService:
         route_reentry_progress: dict | None = None,
         route_entry_memory: dict | None = None,
         route_follow_up_memory: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> str:
         trajectory_line = JourneyService._build_trajectory_summary_line(skill_trajectory)
         strategy_line = JourneyService._build_strategy_memory_summary_line(strategy_memory)
@@ -4460,6 +5885,29 @@ class JourneyService:
         route_entry_line = JourneyService._build_route_entry_memory_summary_line(route_entry_memory)
         route_follow_up_line = JourneyService._build_route_follow_up_summary_line(route_follow_up_memory)
         recovery_window_line = JourneyService._build_route_recovery_decision_window_line(route_recovery_memory)
+        ritual_line = (
+            str(ritual_signal_memory.get("summary"))
+            if ritual_signal_memory and ritual_signal_memory.get("summary")
+            else None
+        )
+        ritual_window_line = JourneyService._build_ritual_signal_window_line(ritual_signal_memory)
+        task_driven_transfer_line = None
+        if session_summary and isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict):
+            task_driven_transfer = session_summary["taskDrivenTransferEvaluation"]
+            transfer_outcome = str(task_driven_transfer.get("transferOutcome") or "")
+            response_label = str(task_driven_transfer.get("responseLabel") or focus_area)
+            if transfer_outcome == "fragile":
+                task_driven_transfer_line = (
+                    f"The next route should stay protected around {response_label} before the broader mix widens again."
+                )
+            elif transfer_outcome == "usable":
+                task_driven_transfer_line = (
+                    f"The next route should use one stabilizing pass around {response_label} before widening further."
+                )
+            elif transfer_outcome == "held":
+                task_driven_transfer_line = (
+                    f"The broader route can widen again while keeping {response_label} available inside the mix."
+                )
         if follow_up_preview:
             carry_over_label = follow_up_preview.get("carryOverSignalLabel") or focus_area
             watch_label = follow_up_preview.get("watchSignalLabel") or focus_area
@@ -4468,7 +5916,16 @@ class JourneyService:
                 if practice_shift and practice_shift.get("summaryLine")
                 else session_summary.get("strategyShift")
                 if session_summary
-                else follow_up_preview.get("reason")
+                else None
+            )
+            shift_line = (
+                shift_line
+                or (str(follow_up_preview.get("reason")) if follow_up_preview.get("reason") else None)
+                or task_driven_transfer_line
+                or recovery_window_line
+                or recovery_line
+                or route_follow_up_line
+                or "The route keeps the next step connected instead of widening too early."
             )
             return (
                 f"Today's route picks up from yesterday by carrying forward {carry_over_label} and keeping {watch_label} in view. "
@@ -4481,6 +5938,8 @@ class JourneyService:
                 + (f" {route_entry_line}" if route_entry_line else "")
                 + (f" {route_follow_up_line}" if route_follow_up_line else "")
                 + (f" {recovery_window_line}" if recovery_window_line else "")
+                + (f" {ritual_line}" if ritual_line else "")
+                + (f" {ritual_window_line}" if ritual_window_line else "")
             )
 
         proof_reference = ""
@@ -4500,6 +5959,8 @@ class JourneyService:
             + (f" {route_entry_line}" if route_entry_line else "")
             + (f" {route_follow_up_line}" if route_follow_up_line else "")
             + (f" {recovery_window_line}" if recovery_window_line else "")
+            + (f" {ritual_line}" if ritual_line else "")
+            + (f" {ritual_window_line}" if ritual_window_line else "")
         )
 
     @staticmethod
@@ -4519,6 +5980,7 @@ class JourneyService:
         route_reentry_progress: dict | None = None,
         route_entry_memory: dict | None = None,
         route_follow_up_memory: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> str:
         trajectory_line = JourneyService._build_trajectory_summary_line(skill_trajectory)
         strategy_line = JourneyService._build_strategy_memory_summary_line(strategy_memory)
@@ -4528,6 +5990,29 @@ class JourneyService:
         route_entry_line = JourneyService._build_route_entry_memory_summary_line(route_entry_memory)
         route_follow_up_line = JourneyService._build_route_follow_up_summary_line(route_follow_up_memory)
         recovery_window_line = JourneyService._build_route_recovery_decision_window_line(route_recovery_memory)
+        ritual_line = (
+            str(ritual_signal_memory.get("summary"))
+            if ritual_signal_memory and ritual_signal_memory.get("summary")
+            else None
+        )
+        ritual_window_line = JourneyService._build_ritual_signal_window_line(ritual_signal_memory)
+        task_driven_transfer_line = None
+        if session_summary and isinstance(session_summary.get("taskDrivenTransferEvaluation"), dict):
+            task_driven_transfer = session_summary["taskDrivenTransferEvaluation"]
+            transfer_outcome = str(task_driven_transfer.get("transferOutcome") or "")
+            response_label = str(task_driven_transfer.get("responseLabel") or focus_area)
+            if transfer_outcome == "fragile":
+                task_driven_transfer_line = (
+                    f"The route is deliberately protecting {response_label} before it widens again."
+                )
+            elif transfer_outcome == "usable":
+                task_driven_transfer_line = (
+                    f"The route is using one stabilizing pass around {response_label} before it widens again."
+                )
+            elif transfer_outcome == "held":
+                task_driven_transfer_line = (
+                    f"The route can widen again while keeping {response_label} connected inside the broader mix."
+                )
         if follow_up_preview:
             carry_over_label = follow_up_preview.get("carryOverSignalLabel") or focus_area
             watch_label = follow_up_preview.get("watchSignalLabel") or focus_area
@@ -4540,6 +6025,7 @@ class JourneyService:
             return (
                 f"{summary_headline} The route now carries {carry_over_label} forward while staying careful around {watch_label}."
                 + (f" {practice_line}" if practice_line else "")
+                + (f" {task_driven_transfer_line}" if task_driven_transfer_line else "")
                 + (f" {trajectory_line}" if trajectory_line else "")
                 + (f" {strategy_line}" if strategy_line else "")
                 + (f" {cadence_line}" if cadence_line else "")
@@ -4548,6 +6034,8 @@ class JourneyService:
                 + (f" {route_entry_line}" if route_entry_line else "")
                 + (f" {route_follow_up_line}" if route_follow_up_line else "")
                 + (f" {recovery_window_line}" if recovery_window_line else "")
+                + (f" {ritual_line}" if ritual_line else "")
+                + (f" {ritual_window_line}" if ritual_window_line else "")
             )
 
         proof_signal = ""
@@ -4569,6 +6057,8 @@ class JourneyService:
             + (f" {route_entry_line}" if route_entry_line else "")
             + (f" {route_follow_up_line}" if route_follow_up_line else "")
             + (f" {recovery_window_line}" if recovery_window_line else "")
+            + (f" {ritual_line}" if ritual_line else "")
+            + (f" {ritual_window_line}" if ritual_window_line else "")
         )
 
     @staticmethod
@@ -4586,6 +6076,7 @@ class JourneyService:
         route_reentry_progress: dict | None = None,
         route_entry_memory: dict | None = None,
         route_follow_up_memory: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> str:
         trajectory_hint = JourneyService._build_trajectory_action_hint(skill_trajectory)
         strategy_hint = JourneyService._build_strategy_memory_action_hint(strategy_memory)
@@ -4595,6 +6086,12 @@ class JourneyService:
         route_entry_hint = JourneyService._build_route_entry_memory_action_hint(route_entry_memory)
         route_follow_up_hint = JourneyService._build_route_follow_up_action_hint(route_follow_up_memory)
         recovery_window_hint = JourneyService._build_route_recovery_decision_window_hint(route_recovery_memory)
+        ritual_hint = (
+            str(ritual_signal_memory.get("actionHint"))
+            if ritual_signal_memory and ritual_signal_memory.get("actionHint")
+            else None
+        )
+        ritual_window_hint = JourneyService._build_ritual_signal_window_hint(ritual_signal_memory)
         if follow_up_preview and follow_up_preview.get("nextStepHint"):
             practice_line = (
                 str(practice_shift.get("summaryLine"))
@@ -4612,6 +6109,19 @@ class JourneyService:
                 + (f" {route_entry_hint}" if route_entry_hint else "")
                 + (f" {route_follow_up_hint}" if route_follow_up_hint else "")
                 + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_hint}" if ritual_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
+            )
+        if ritual_hint and session_kind != "diagnostic":
+            return (
+                ritual_hint
+                + (f" {route_follow_up_hint}" if route_follow_up_hint else "")
+                + (f" {trajectory_hint}" if trajectory_hint else "")
+                + (f" {strategy_hint}" if strategy_hint else "")
+                + (f" {cadence_hint}" if cadence_hint else "")
+                + (f" {recovery_hint}" if recovery_hint else "")
+                + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
             )
         if route_follow_up_hint and session_kind != "diagnostic":
             return (
@@ -4621,6 +6131,7 @@ class JourneyService:
                 + (f" {cadence_hint}" if cadence_hint else "")
                 + (f" {recovery_hint}" if recovery_hint else "")
                 + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
             )
         if route_entry_hint and session_kind != "diagnostic":
             return (
@@ -4630,6 +6141,7 @@ class JourneyService:
                 + (f" {cadence_hint}" if cadence_hint else "")
                 + (f" {recovery_hint}" if recovery_hint else "")
                 + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
             )
         if reentry_hint and session_kind != "diagnostic":
             return (
@@ -4639,6 +6151,7 @@ class JourneyService:
                 + (f" {cadence_hint}" if cadence_hint else "")
                 + (f" {recovery_hint}" if recovery_hint else "")
                 + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
             )
         if session_kind == "diagnostic":
             return "Finish the checkpoint now, then tomorrow's route will become more personalized." + (
@@ -4663,6 +6176,7 @@ class JourneyService:
                 + (f" {cadence_hint}" if cadence_hint else "")
                 + (f" {recovery_hint}" if recovery_hint else "")
                 + (f" {recovery_window_hint}" if recovery_window_hint else "")
+                + (f" {ritual_window_hint}" if ritual_window_hint else "")
             )
         return (
             f"Open the loop, complete one guided session, and the next plan will sharpen around {focus_area}."
@@ -4671,6 +6185,7 @@ class JourneyService:
             + (f" {cadence_hint}" if cadence_hint else "")
             + (f" {recovery_hint}" if recovery_hint else "")
             + (f" {recovery_window_hint}" if recovery_window_hint else "")
+            + (f" {ritual_window_hint}" if ritual_window_hint else "")
         )
 
     def _build_daily_steps(
@@ -4687,6 +6202,7 @@ class JourneyService:
         route_cadence_memory: dict | None = None,
         route_recovery_memory: dict | None = None,
         route_reentry_progress: dict | None = None,
+        ritual_signal_memory: dict | None = None,
     ) -> list[dict]:
         input_lane = self._infer_input_lane(profile)
         output_lane = self._infer_output_lane(profile)
@@ -4759,6 +6275,21 @@ class JourneyService:
         )
         reentry_focus = self._map_route_to_focus_area(reentry_next_route)
         reentry_label = self._label_route_reentry_route(reentry_next_route) if reentry_next_route else None
+        ritual_type = (
+            str(ritual_signal_memory.get("activeSignalType"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeSignalType")
+            else None
+        )
+        ritual_label = (
+            str(ritual_signal_memory.get("activeLabel"))
+            if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+            else None
+        )
+        ritual_window_stage = (
+            str(ritual_signal_memory.get("routeWindowStage"))
+            if ritual_signal_memory and ritual_signal_memory.get("routeWindowStage")
+            else None
+        )
         step_specs = [
             ("warm-start", "coach", "Warm start", "Liza sets the goal of this session and explains why it matters now.", 2),
             ("vocabulary-recall", "vocabulary", "Vocabulary recall", "Bring back a few words that the next session needs immediately.", 3),
@@ -4797,6 +6328,94 @@ class JourneyService:
                 2,
             ),
         ]
+
+        if ritual_type == "word_journal" and ritual_label:
+            step_specs = [
+                (
+                    step_id,
+                    "vocabulary" if step_id == "vocabulary-recall" else "writing" if step_id == "response" and output_lane == "writing" else skill,
+                    "Word journal recall" if step_id == "vocabulary-recall" else title,
+                    (
+                        f"Bring back {ritual_label} from the word journal and reuse it in a live phrase before it goes cold."
+                        if step_id == "vocabulary-recall"
+                        else f"Write the response so {ritual_label} comes back in real output, not only as a saved note."
+                        if step_id == "response" and output_lane == "writing"
+                        else description
+                    ),
+                    weight + 1 if step_id in {"vocabulary-recall", "response"} else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+        elif ritual_type == "spontaneous_voice" and ritual_label:
+            step_specs = [
+                (
+                    step_id,
+                    "speaking" if step_id == "response" else skill,
+                    "Voice ritual response" if step_id == "response" else title,
+                    (
+                        f"Answer out loud again while the live voice signal from {ritual_label} is still fresh."
+                        if step_id == "response"
+                        else description
+                    ),
+                    weight + 1 if step_id == "response" else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+
+        if ritual_window_stage == "protect_ritual":
+            step_specs = [
+                (
+                    step_id,
+                    skill,
+                    "Protected ritual recall" if step_id == "vocabulary-recall" and ritual_type == "word_journal" else title,
+                    (
+                        f"Keep {ritual_label} inside a protected ritual pass before the route widens."
+                        if step_id == "vocabulary-recall" and ritual_type == "word_journal"
+                        else f"Use one low-pressure response so {ritual_label} lands once before the broader route takes over."
+                        if step_id == "response"
+                        else description
+                    ),
+                    weight + 1 if step_id in {"vocabulary-recall", "response"} else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+        elif ritual_window_stage == "reuse_in_response":
+            step_specs = [
+                (
+                    step_id,
+                    skill,
+                    "Connected ritual reuse" if step_id == "response" else title,
+                    (
+                        f"Bring {ritual_label} directly into this response again so the ritual signal starts living inside the route."
+                        if step_id == "response"
+                        else description
+                    ),
+                    weight + 1 if step_id == "response" else weight,
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
+            step_specs = self._move_step_before_ids(
+                step_specs,
+                step_id="response",
+                before_ids={"pronunciation", "reinforcement", "summary"},
+            )
+        elif ritual_window_stage == "carry_inside_route":
+            step_specs = [
+                (
+                    step_id,
+                    skill,
+                    "Carry forward" if step_id == "reinforcement" else title,
+                    (
+                        f"Keep {ritual_label} lightly available while the broader route leads again."
+                        if step_id == "reinforcement"
+                        else f"See how the broader route carried {ritual_label} without rebuilding the whole session around it."
+                        if step_id == "summary"
+                        else description
+                    ),
+                    weight if step_id != "vocabulary-recall" else max(weight - 1, 1),
+                )
+                for step_id, skill, title, description, weight in step_specs
+            ]
 
         if cadence_status in {"route_rescue", "gentle_reentry"}:
             step_specs = [
@@ -5208,6 +6827,10 @@ class JourneyService:
         preferred_mode = profile.onboarding_answers.preferred_mode
         if preferred_mode == "text_first":
             return "reading"
+        if preferred_mode == "mixed":
+            ritual_elements = set(profile.onboarding_answers.ritual_elements)
+            if "reading_for_pleasure" in ritual_elements and "spontaneous_voice_notes" not in ritual_elements:
+                return "reading"
         return "listening"
 
     @staticmethod
@@ -5215,6 +6838,10 @@ class JourneyService:
         preferred_mode = profile.onboarding_answers.preferred_mode
         if preferred_mode == "text_first":
             return "writing"
+        if preferred_mode == "mixed":
+            ritual_elements = set(profile.onboarding_answers.ritual_elements)
+            if "reading_for_pleasure" in ritual_elements and "spontaneous_voice_notes" not in ritual_elements:
+                return "writing"
         return "speaking"
 
     @staticmethod

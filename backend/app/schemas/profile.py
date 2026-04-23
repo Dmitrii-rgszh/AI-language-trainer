@@ -8,6 +8,7 @@ class OnboardingAnswers(ApiModel):
     age_group: str = "adult"
     learning_context: str = "general_english"
     primary_goal: str = "everyday_communication"
+    english_relationship_goal: str = "freedom_and_lightness"
     preferred_mode: str = "mixed"
     diagnostic_readiness: str = "soft_start"
     secondary_goals: list[str] = Field(
@@ -21,6 +22,16 @@ class OnboardingAnswers(ApiModel):
     )
     interest_topics: list[str] = Field(default_factory=lambda: ["daily_life", "travel", "culture"])
     support_needs: list[str] = Field(default_factory=lambda: ["clear_examples"])
+    emotional_barriers: list[str] = Field(
+        default_factory=lambda: ["fear_of_mistakes", "fear_of_judgment"]
+    )
+    ritual_elements: list[str] = Field(
+        default_factory=lambda: [
+            "daily_word_journal",
+            "reading_for_pleasure",
+            "gentle_daily_consistency",
+        ]
+    )
     notes: str = ""
 
 

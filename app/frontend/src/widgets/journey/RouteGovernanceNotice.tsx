@@ -61,6 +61,16 @@ export function RouteGovernanceNotice({ governance, tr }: RouteGovernanceNoticeP
         </div>
       ) : null}
 
+      {governance.ritualWindowTitle ? (
+        <div className="rounded-[20px] bg-white/82 p-4">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Ritual arc")}</div>
+          <div className="mt-2 text-sm font-semibold text-ink">{governance.ritualWindowTitle}</div>
+          {governance.ritualWindowSummary ? (
+            <div className="mt-2 text-sm text-slate-600">{governance.ritualWindowSummary}</div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
         <Link to={governance.primaryRoute} className="proof-lesson-primary-button">
           {governance.primaryLabel}

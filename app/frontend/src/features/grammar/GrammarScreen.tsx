@@ -3,6 +3,7 @@ import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
@@ -10,6 +11,7 @@ import { Card } from "../../shared/ui/Card";
 import { ProgressBar } from "../../shared/ui/ProgressBar";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
@@ -23,6 +25,7 @@ export function GrammarScreen() {
   const weakestTopic = [...grammarTopics].sort((left, right) => left.mastery - right.mastery)[0] ?? null;
   const strongestTopic = [...grammarTopics].sort((left, right) => right.mastery - left.mastery)[0] ?? null;
   const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.grammar, tr);
+  const relationshipLens = describeEnglishRelationshipLens(routes.grammar, tr);
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
   const coachTitle = locale === "ru" ? "Liza Grammar Layer" : "Liza Grammar Layer";
   const coachMessage =
@@ -64,6 +67,7 @@ export function GrammarScreen() {
           routeEntryReason: transition.reason,
           routeEntrySource: "support_step_follow_up",
           routeEntryFollowUpLabel: transition.nextLabel ?? null,
+          routeEntryCarryLabel: transition.carryLabel ?? null,
           routeEntryStageLabel: transition.stageLabel ?? null,
         },
       });
@@ -79,6 +83,7 @@ export function GrammarScreen() {
       />
 
       <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.grammarCoach}>
         <LizaCoachPanel

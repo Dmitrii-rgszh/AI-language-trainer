@@ -65,6 +65,22 @@ class VocabularyRepository:
             models = load_recent_vocabulary_items(session, user_id, limit)
             return [to_review_item(model) for model in models]
 
+    def list_word_journal_items(self, user_id: str, limit: int = 6) -> list[VocabularyReviewItem]:
+        with self._session_factory() as session:
+            models = [
+                model
+                for model in load_user_vocabulary_items(session, user_id)
+                if model.source_module == "word_journal"
+            ]
+            models.sort(
+                key=lambda model: (
+                    model.last_reviewed_at or datetime.min,
+                    model.word.lower(),
+                ),
+                reverse=True,
+            )
+            return [to_review_item(model) for model in models[:limit]]
+
     def list_mistake_backlinks(self, user_id: str, limit: int = 6) -> list[MistakeVocabularyBacklink]:
         with self._session_factory() as session:
             models = load_user_vocabulary_items(session, user_id)
@@ -115,3 +131,59 @@ class VocabularyRepository:
             for model in saved:
                 session.refresh(model)
             return [to_review_item(model) for model in saved]
+
+    def capture_word_journal(
+        self,
+        user_id: str,
+        *,
+        phrase: str,
+        translation: str,
+        context: str | None = None,
+    ) -> VocabularyReviewItem:
+        normalized_phrase = " ".join(phrase.split()).strip()
+        normalized_translation = " ".join(translation.split()).strip()
+        normalized_context = " ".join((context or "").split()).strip()
+        review_reason = (
+            f"Captured from the daily word journal: {normalized_context}"
+            if normalized_context
+            else "Captured from the daily word journal to bring a real-life phrase back into the route."
+        )
+        stored_context = (
+            normalized_context
+            if normalized_context
+            else f"Real-life phrase kept in the daily word journal: {normalized_phrase}"
+        )
+
+        with self._session_factory() as session:
+            existing = load_vocabulary_item_by_word(session, user_id, normalized_phrase)
+            if existing:
+                existing.translation = normalized_translation
+                existing.context = stored_context
+                existing.category = "word_journal"
+                existing.source_module = "word_journal"
+                existing.review_reason = review_reason
+                existing.learned_status = VocabularyStatus.ACTIVE
+                existing.repetition_stage = max(0, existing.repetition_stage - 1)
+                existing.last_reviewed_at = datetime.utcnow()
+                model = existing
+            else:
+                model = VocabularyItemModel(
+                    id=f"vocab-journal-{uuid4().hex[:12]}",
+                    user_id=user_id,
+                    word=normalized_phrase,
+                    translation=normalized_translation,
+                    context=stored_context,
+                    category="word_journal",
+                    source_module="word_journal",
+                    review_reason=review_reason,
+                    linked_mistake_subtype=None,
+                    linked_mistake_title=None,
+                    learned_status=VocabularyStatus.NEW,
+                    repetition_stage=0,
+                    last_reviewed_at=datetime.utcnow(),
+                )
+                session.add(model)
+
+            session.commit()
+            session.refresh(model)
+            return to_review_item(model)

@@ -227,9 +227,30 @@ export interface RouteFollowUpMemory {
   currentLabel?: string | null;
   followUpRoute?: string | null;
   followUpLabel?: string | null;
+  carryRoute?: string | null;
+  carryLabel?: string | null;
   stageLabel?: string | null;
   status?: string | null;
   summary?: string | null;
+}
+
+export interface RitualSignalMemory {
+  activeSignalType?: string | null;
+  activeRoute?: string | null;
+  activeLabel?: string | null;
+  recommendedFocus?: string | null;
+  signalCount?: number | null;
+  windowDays?: number | null;
+  windowRemainingDays?: number | null;
+  windowStage?: string | null;
+  arcStep?: string | null;
+  routeWindowBias?: string | null;
+  routeWindowStage?: string | null;
+  completedSinceCapture?: number | null;
+  summary?: string | null;
+  actionHint?: string | null;
+  recordedAt?: string | null;
+  lastEvaluationAction?: string | null;
 }
 
 export interface JourneySessionSummary {
@@ -307,6 +328,7 @@ export interface JourneyStrategySnapshot {
   routeReentryProgress?: RouteReentryProgressMemory | null;
   routeEntryMemory?: RouteEntryMemory | null;
   routeFollowUpMemory?: RouteFollowUpMemory | null;
+  ritualSignalMemory?: RitualSignalMemory | null;
   activePlanSeed?: JourneyActivePlanSeed | null;
   learningBlueprint?: LearningBlueprint | null;
 }
@@ -430,6 +452,7 @@ export interface VocabularyHub {
   dueItems: VocabularyReviewItem[];
   recentItems: VocabularyReviewItem[];
   mistakeBacklinks: MistakeVocabularyBacklink[];
+  journalItems: VocabularyReviewItem[];
 }
 
 export interface ListeningAttempt {

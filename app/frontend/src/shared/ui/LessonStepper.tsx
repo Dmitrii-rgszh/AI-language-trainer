@@ -23,7 +23,7 @@ export function LessonStepper({ blocks, activeIndex }: LessonStepperProps) {
           <div className="text-xs uppercase tracking-[0.16em] opacity-80">
             {tr("Step")} {index + 1}
           </div>
-          <div className="mt-1 font-medium">{block.title}</div>
+          <div className="mt-1 font-medium">{tr(block.title)}</div>
         </div>
       ))}
     </div>

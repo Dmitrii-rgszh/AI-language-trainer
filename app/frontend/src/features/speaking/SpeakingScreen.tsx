@@ -4,6 +4,7 @@ import { routes } from "../../shared/constants/routes";
 import { apiClient } from "../../shared/api/client";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { AITextFeedback, SpeakingAttempt } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
@@ -11,6 +12,7 @@ import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
 import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
@@ -28,6 +30,9 @@ export function SpeakingScreen() {
     "I have worked with sales teams across several product launches, and recently I have focused more on feedback design for managers.",
   );
   const [feedback, setFeedback] = useState<AITextFeedback | null>(null);
+  const [ritualHighlight, setRitualHighlight] = useState("");
+  const [ritualLowlight, setRitualLowlight] = useState("");
+  const [ritualCarry, setRitualCarry] = useState("");
   const [attempts, setAttempts] = useState<SpeakingAttempt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,6 +46,8 @@ export function SpeakingScreen() {
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const activeScenario = scenarios.find((scenario) => scenario.id === activeScenarioId) ?? scenarios[0];
+  const spontaneousVoiceScenario = scenarios.find((scenario) => scenario.id === "speaking-highlight-lowlight-reflection") ?? null;
+  const isSpontaneousVoiceScenario = activeScenario?.id === spontaneousVoiceScenario?.id;
   const recentAttempts = attempts.slice(0, 5);
   const voiceAttempts = attempts.filter((attempt) => attempt.inputMode === "voice");
   const aiAttempts = attempts.filter((attempt) => attempt.feedbackSource === "ai");
@@ -55,6 +62,7 @@ export function SpeakingScreen() {
       : 0;
   const currentFocusArea = dashboard?.journeyState?.currentFocusArea ?? dashboard?.dailyLoopPlan?.focusArea ?? "speaking";
   const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.speaking, tr);
+  const relationshipLens = describeEnglishRelationshipLens(routes.speaking, tr);
   const coachMessage =
     locale === "ru"
       ? `Сейчас speaking нужен не сам по себе. Я использую этот экран, чтобы проверить, как у тебя держится живой ответ вокруг фокуса ${currentFocusArea}, а потом перенесу сигнал в следующий шаг.`
@@ -106,6 +114,15 @@ export function SpeakingScreen() {
     },
   ];
 
+  function buildRitualTranscript() {
+    const sections = [
+      ritualHighlight.trim() ? `Highlight: ${ritualHighlight.trim()}` : "",
+      ritualLowlight.trim() ? `Lowlight: ${ritualLowlight.trim()}` : "",
+      ritualCarry.trim() ? `Carry forward: ${ritualCarry.trim()}` : "",
+    ].filter(Boolean);
+    return sections.join("\n");
+  }
+
   useEffect(() => {
     void loadAttempts();
   }, []);
@@ -128,12 +145,28 @@ export function SpeakingScreen() {
     setError(null);
 
     try {
+      const effectiveTranscript = isSpontaneousVoiceScenario ? buildRitualTranscript() : transcript;
       const nextFeedback = await apiClient.getSpeakingFeedback({
         scenarioId: activeScenario.id,
-        transcript,
+        transcript: effectiveTranscript,
         feedbackLanguage: "ru",
       });
       setFeedback(nextFeedback);
+      if (isSpontaneousVoiceScenario) {
+        setTranscript(effectiveTranscript);
+        await apiClient.registerRitualSignal({
+          signalType: "spontaneous_voice",
+          route: routes.speaking,
+          label: locale === "ru" ? "Highlight / lowlight reflection" : "Highlight / lowlight reflection",
+          summary:
+            ritualCarry.trim() ||
+            ritualLowlight.trim() ||
+            ritualHighlight.trim() ||
+            (locale === "ru"
+              ? "Свежий spontaneous voice pass должен удержать один честный speaking-step в ближайшем маршруте."
+              : "A fresh spontaneous voice pass should keep one honest speaking step alive in the next route."),
+        });
+      }
       const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.speaking });
       await Promise.all([loadAttempts(), bootstrap()]);
       const transition = resolveRouteFollowUpTransition(updatedState, routes.speaking, tr);
@@ -143,6 +176,7 @@ export function SpeakingScreen() {
             routeEntryReason: transition.reason,
             routeEntrySource: "support_step_follow_up",
             routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryCarryLabel: transition.carryLabel ?? null,
             routeEntryStageLabel: transition.stageLabel ?? null,
           },
         });
@@ -208,6 +242,18 @@ export function SpeakingScreen() {
       });
       setTranscript(response.transcript);
       setFeedback(response.feedback);
+      if (isSpontaneousVoiceScenario) {
+        await apiClient.registerRitualSignal({
+          signalType: "spontaneous_voice",
+          route: routes.speaking,
+          label: locale === "ru" ? "Highlight / lowlight reflection" : "Highlight / lowlight reflection",
+          summary:
+            response.transcript ||
+            (locale === "ru"
+              ? "Свежий spontaneous voice pass должен удержать один честный speaking-step в ближайшем маршруте."
+              : "A fresh spontaneous voice pass should keep one honest speaking step alive in the next route."),
+        });
+      }
       const updatedState = await apiClient.completeRouteReentrySupportStep({ route: routes.speaking });
       await Promise.all([loadAttempts(), bootstrap()]);
       const transition = resolveRouteFollowUpTransition(updatedState, routes.speaking, tr);
@@ -217,6 +263,7 @@ export function SpeakingScreen() {
             routeEntryReason: transition.reason,
             routeEntrySource: "support_step_follow_up",
             routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryCarryLabel: transition.carryLabel ?? null,
             routeEntryStageLabel: transition.stageLabel ?? null,
           },
         });
@@ -288,6 +335,7 @@ export function SpeakingScreen() {
       />
 
       <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.speakingCoach}>
         <LizaCoachPanel
@@ -334,6 +382,86 @@ export function SpeakingScreen() {
         nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
         nextText={nextSpeakingStep}
       />
+
+      {spontaneousVoiceScenario ? (
+        <Card className="space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-coral">
+                {locale === "ru" ? "Spontaneous voice ritual" : "Spontaneous voice ritual"}
+              </div>
+              <div className="mt-2 text-lg font-semibold text-ink">
+                {locale === "ru" ? "Highlight / lowlight на живом английском" : "Highlight / lowlight in live English"}
+              </div>
+              <div className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                {locale === "ru"
+                  ? "Это book-inspired ритуал: один хороший момент, один трудный момент и один маленький carry-forward. Можно сначала набросать мысль текстом или сразу пойти в voice."
+                  : "This is the book-inspired ritual: one good moment, one difficult moment, and one small carry-forward. You can sketch it in text first or go straight into voice."}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveScenarioId(spontaneousVoiceScenario.id)}
+              className={`rounded-2xl px-3 py-2 text-xs ${
+                isSpontaneousVoiceScenario ? "bg-ink text-white" : "bg-white/70 text-slate-700"
+              }`}
+            >
+              {isSpontaneousVoiceScenario ? tr("Active") : locale === "ru" ? "Открыть ритуал" : "Open ritual"}
+            </button>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink">{locale === "ru" ? "Highlight" : "Highlight"}</span>
+              <textarea
+                value={ritualHighlight}
+                onChange={(event) => setRitualHighlight(event.target.value)}
+                rows={3}
+                placeholder={
+                  locale === "ru"
+                    ? "что сегодня получилось или порадовало"
+                    : "what worked or felt good today"
+                }
+                className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink">{locale === "ru" ? "Lowlight" : "Lowlight"}</span>
+              <textarea
+                value={ritualLowlight}
+                onChange={(event) => setRitualLowlight(event.target.value)}
+                rows={3}
+                placeholder={
+                  locale === "ru"
+                    ? "что было неловко, трудно или неясно"
+                    : "what felt awkward, hard, or unclear"
+                }
+                className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink">{locale === "ru" ? "Carry forward" : "Carry forward"}</span>
+              <textarea
+                value={ritualCarry}
+                onChange={(event) => setRitualCarry(event.target.value)}
+                rows={3}
+                placeholder={
+                  locale === "ru"
+                    ? "что хочешь перенести в завтра"
+                    : "what you want to carry into tomorrow"
+                }
+                className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+              />
+            </label>
+          </div>
+
+          <div className="rounded-2xl bg-mint/30 p-4 text-sm leading-6 text-slate-700">
+            {locale === "ru"
+              ? "Смысл здесь не в идеальной грамматике. Это способ услышать свой английский в живом контексте и дать маршруту ещё один честный сигнал."
+              : "The point here is not perfect grammar. It is a way to hear your own English in a live context and give the route one more honest signal."}
+          </div>
+        </Card>
+      ) : null}
 
       <LizaExplainActions
         title={locale === "ru" ? "Разобрать speaking с Лизой" : "Break down speaking with Liza"}
@@ -400,6 +528,8 @@ export function SpeakingScreen() {
               <RouteMicroflowGuard
                 tr={tr}
                 label={routeGovernance.badgeLabel}
+                ritualWindowTitle={routeGovernance.ritualWindowTitle}
+                ritualWindowSummary={routeGovernance.ritualWindowSummary}
                 dayShapeTitle={routeGovernance.dayShapeTitle}
                 dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
                 dayShapeSummary={routeGovernance.dayShapeSummary}
@@ -417,6 +547,13 @@ export function SpeakingScreen() {
             <div className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
               {tr("Goal")}: {activeScenario?.goal ? tr(activeScenario.goal) : tr("Выбери speaking scenario")}
             </div>
+            {isSpontaneousVoiceScenario ? (
+              <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+                {locale === "ru"
+                  ? "Для этого ритуала можно либо набросать highlight / lowlight выше и попросить feedback, либо сразу записать голос. Я сохраню это как живой voice-pass, а не как обычный drill."
+                  : "For this ritual you can either sketch the highlight / lowlight above and ask for feedback, or record your voice right away. It will be kept as a live voice pass, not as a standard drill."}
+              </div>
+            ) : null}
             <label className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -430,10 +567,21 @@ export function SpeakingScreen() {
               <button
                 type="button"
                 onClick={() => void requestFeedback()}
-                disabled={routeGovernance.isMicroflowLocked || isLoading || !activeScenario}
+                disabled={
+                  routeGovernance.isMicroflowLocked ||
+                  isLoading ||
+                  !activeScenario ||
+                  (isSpontaneousVoiceScenario && !buildRitualTranscript().trim())
+                }
                 className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                {isLoading ? tr("Analyzing...") : tr("Get AI feedback")}
+                {isLoading
+                  ? tr("Analyzing...")
+                  : isSpontaneousVoiceScenario
+                    ? locale === "ru"
+                      ? "Разобрать ритуал"
+                      : "Review ritual"
+                    : tr("Get AI feedback")}
               </button>
               <button
                 type="button"
@@ -449,7 +597,13 @@ export function SpeakingScreen() {
                 disabled={routeGovernance.isMicroflowLocked || isLoading || !activeScenario}
                 className="rounded-full bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
-                {isRecording ? tr("Stop & analyze voice") : tr("Record voice")}
+                {isRecording
+                  ? tr("Stop & analyze voice")
+                  : isSpontaneousVoiceScenario
+                    ? locale === "ru"
+                      ? "Записать voice ritual"
+                      : "Record voice ritual"
+                    : tr("Record voice")}
               </button>
             </div>
             <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">

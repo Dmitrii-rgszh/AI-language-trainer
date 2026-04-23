@@ -224,6 +224,14 @@ def append_route_recovery_context(
         if decision_bias == "widening_window" and decision_window_stage == "ready_for_extension"
         else f" For the next {decision_window_remaining_days or decision_window_days} route decisions, keep the broader daily route leading while {resolved_focus} stays available inside the mix."
         if decision_bias == "widening_window" and decision_window_days
+        else f" Use the next route as a protected response pass around {resolved_focus}, because the last task-driven transfer still looked fragile."
+        if decision_bias == "task_transfer_window" and decision_window_stage == "protect_response"
+        else f" Use the next route as one stabilizing pass around {resolved_focus}, then let the broader route widen again."
+        if decision_bias == "task_transfer_window" and decision_window_stage == "stabilize_transfer"
+        else f" The protected transfer window has already held, so the next route can widen while {resolved_focus} stays quietly available."
+        if decision_bias == "task_transfer_window" and decision_window_stage == "ready_to_widen"
+        else f" For the next {decision_window_remaining_days or decision_window_days} route decisions, keep {resolved_focus} protected inside a connected transfer window."
+        if decision_bias == "task_transfer_window" and decision_window_days
         else f" For the next {decision_window_days} route decision, keep {resolved_focus} inside one more connected settling pass before the route widens again."
         if decision_bias == "settling_window" and decision_window_days
         else ""
@@ -278,6 +286,70 @@ def append_route_follow_up_context(
         suffix = f"{stage_prefix}The next connected step should continue through {follow_up_label}."
     else:
         suffix = stage_prefix.strip()
+    extra = f" {summary}" if summary else ""
+    return f"{base_goal} {suffix}{extra}".strip()
+
+
+def append_task_driven_transfer_context(
+    base_goal: str,
+    *,
+    input_label: str,
+    response_label: str,
+    transfer_outcome: str,
+    summary: str | None,
+    current_window_stage: str | None = None,
+    next_window_stage: str | None = None,
+    window_action: str | None = None,
+) -> str:
+    suffix = (
+        f"The protected transfer window has already done its job, so the next lesson can let the broader route lead again while {response_label.lower()} stays reusable."
+        if window_action == "close_window" or next_window_stage == "close_window"
+        else f"The previous protected response pass held well enough that the route can start widening again while keeping {response_label.lower()} available."
+        if window_action == "advance_to_widen" or next_window_stage == "ready_to_widen"
+        else f"The route should keep one stabilizing pass around {response_label.lower()} before it widens further."
+        if window_action in {"advance_to_stabilizing", "keep_stabilizing"} or next_window_stage == "stabilize_transfer"
+        else f"The route should step back and protect {response_label.lower()} again before it widens."
+        if window_action in {"extend_protection", "step_back_to_protection", "step_back_to_stabilizing"} or next_window_stage == "protect_response"
+        else f"The previous route carried {input_label.lower()} cleanly into {response_label.lower()}, so the next lesson can widen while keeping that transfer alive."
+        if transfer_outcome == "held"
+        else f"The previous route got {input_label.lower()} into {response_label.lower()}, but the response lane still needs one more connected pass before the route widens."
+        if transfer_outcome == "usable"
+        else f"The previous route captured {input_label.lower()}, but the move into {response_label.lower()} is still fragile, so the next lesson should protect that response lane deliberately."
+    )
+    stage_note = (
+        f" Current transfer window: {current_window_stage.replace('_', ' ')}."
+        if current_window_stage
+        else ""
+    )
+    extra = f" {summary}" if summary else ""
+    return f"{base_goal} {suffix}{stage_note}{extra}".strip()
+
+
+def append_ritual_signal_context(
+    base_goal: str,
+    *,
+    signal_type: str,
+    label: str,
+    summary: str | None,
+    window_stage: str | None,
+) -> str:
+    suffix = (
+        f"A fresh word journal signal is active through {label}, so the next route should bring that phrase back into real output instead of leaving it as a note."
+        if signal_type == "word_journal" and window_stage == "fresh_capture"
+        else f"The word journal signal around {label} already landed once, so the next route should reuse it one more time before the phrase simply rides inside the broader flow."
+        if signal_type == "word_journal" and window_stage == "reuse_in_route"
+        else f"The word journal signal around {label} is ready to carry forward inside the broader route, so the next lesson does not need to restart from capture."
+        if signal_type == "word_journal" and window_stage == "ready_to_carry"
+        else f"The word journal signal around {label} is stabilizing, so the next route should still reuse it once more before widening fully."
+        if signal_type == "word_journal"
+        else f"A fresh spontaneous voice signal is active through {label}, so the next route should protect one honest speaking pass before it widens."
+        if window_stage == "fresh_capture"
+        else f"The spontaneous voice signal around {label} already landed once, so the next route should reuse that live speaking signal one more time before widening."
+        if window_stage == "reuse_in_route"
+        else f"The spontaneous voice signal around {label} is ready to carry forward inside the broader speaking route."
+        if window_stage == "ready_to_carry"
+        else f"The spontaneous voice signal around {label} is stabilizing, so the next route should keep one low-pressure speaking pass alive before widening."
+    )
     extra = f" {summary}" if summary else ""
     return f"{base_goal} {suffix}{extra}".strip()
 

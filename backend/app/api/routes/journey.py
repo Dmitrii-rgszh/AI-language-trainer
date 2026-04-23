@@ -7,6 +7,7 @@ from app.schemas.journey import (
     CompleteRouteReentrySupportStepRequest,
     LearnerJourneyState,
     OnboardingSession,
+    RegisterRitualSignalRequest,
     RegisterRouteEntryRequest,
     SaveOnboardingSessionDraftRequest,
     StartOnboardingSessionRequest,
@@ -66,4 +67,18 @@ def register_route_entry(
         profile=profile,
         route=payload.route,
         source=payload.source,
+    )
+
+
+@router.post("/ritual-signal", response_model=LearnerJourneyState)
+def register_ritual_signal(
+    payload: RegisterRitualSignalRequest,
+    profile: UserProfile = Depends(require_profile),
+) -> LearnerJourneyState:
+    return journey_service.register_ritual_signal(
+        profile=profile,
+        signal_type=payload.signal_type,
+        route=payload.route,
+        label=payload.label,
+        summary=payload.summary,
     )

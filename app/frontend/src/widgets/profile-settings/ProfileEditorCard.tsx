@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { OnboardingAnswers, UserProfile } from "../../entities/user/model";
 import { useLocale } from "../../shared/i18n/useLocale";
-import { ageGroupOptions, buildProfileDraft, cloneAnswers, fallbackProfessionTracks, goalOptions, interestTopicOptions, learnerPersonaOptions, learningContextOptions, skillFocusOptions, studyPreferenceOptions, supportNeedOptions, toggleValue, type OnboardingOption } from "../../shared/profile/profile-form-config";
+import { ageGroupOptions, buildProfileDraft, cloneAnswers, emotionalBarrierOptions, englishRelationshipGoalOptions, fallbackProfessionTracks, goalOptions, interestTopicOptions, learnerPersonaOptions, learningContextOptions, ritualElementOptions, skillFocusOptions, studyPreferenceOptions, supportNeedOptions, toggleValue, type OnboardingOption } from "../../shared/profile/profile-form-config";
 import type { ProfessionTrackCard } from "../../shared/types/app-data";
 import { Button } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
@@ -76,7 +76,7 @@ export function ProfileEditorCard({
   const updateField = <K extends keyof UserProfile>(field: K, value: UserProfile[K]) => setForm((current) => ({ ...current, [field]: value }));
   const updateAnswer = <K extends keyof OnboardingAnswers>(field: K, value: OnboardingAnswers[K]) =>
     setForm((current) => ({ ...current, onboardingAnswers: { ...current.onboardingAnswers, [field]: value } }));
-  const toggleAnswer = (field: "secondaryGoals" | "activeSkillFocus" | "studyPreferences" | "supportNeeds" | "interestTopics", value: string) =>
+  const toggleAnswer = (field: "secondaryGoals" | "activeSkillFocus" | "studyPreferences" | "supportNeeds" | "interestTopics" | "emotionalBarriers" | "ritualElements", value: string) =>
     setForm((current) => ({
       ...current,
       onboardingAnswers: { ...current.onboardingAnswers, [field]: toggleValue(current.onboardingAnswers[field], value) },
@@ -88,6 +88,7 @@ export function ProfileEditorCard({
     { title: tr("Goals"), ready: true },
     { title: tr("Skills"), ready: form.onboardingAnswers.activeSkillFocus.length > 0 },
     { title: tr("Style"), ready: true },
+    { title: tr("Relationship"), ready: form.onboardingAnswers.ritualElements.length > 0 },
     { title: tr("Review"), ready: true },
   ];
 
@@ -192,6 +193,11 @@ export function ProfileEditorCard({
         <textarea rows={4} value={form.onboardingAnswers.notes} onChange={(event) => updateAnswer("notes", event.target.value)} placeholder={tr("Add anything important: special goals, child-safe preferences, exam target, or personal context.")} className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 outline-none" />
       </label>
     </div>,
+    <div key="relationship" className="space-y-5">
+      <div><div className="mb-2 text-sm font-semibold text-ink">{tr("How should English feel in the long run?")}</div>{renderOptions(englishRelationshipGoalOptions, form.onboardingAnswers.englishRelationshipGoal, (value) => updateAnswer("englishRelationshipGoal", value))}</div>
+      <div><div className="mb-2 text-sm font-semibold text-ink">{tr("What makes English feel heavy right now?")}</div>{renderOptions(emotionalBarrierOptions, "", (value) => toggleAnswer("emotionalBarriers", value), true, form.onboardingAnswers.emotionalBarriers)}</div>
+      <div><div className="mb-2 text-sm font-semibold text-ink">{tr("Which rituals should become part of the route?")}</div>{renderOptions(ritualElementOptions, "", (value) => toggleAnswer("ritualElements", value), true, form.onboardingAnswers.ritualElements)}</div>
+    </div>,
     <div key="review" className="space-y-4">
       <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{`${form.name.trim() || tr("This learner")} ${tr("starts from")} ${form.currentLevel} ${tr("and moves to")} ${form.targetLevel}. ${tr("The first content lane is")} ${tr(activeTrack?.title ?? form.professionTrack)}.`}</div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -203,6 +209,9 @@ export function ProfileEditorCard({
       <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("Saved skill focus")}: {resolveLabels(form.onboardingAnswers.activeSkillFocus, skillFocusOptions)}</div>
       <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("Study preferences")}: {resolveLabels(form.onboardingAnswers.studyPreferences, studyPreferenceOptions)}</div>
       <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("Support needs")}: {resolveLabels(form.onboardingAnswers.supportNeeds, supportNeedOptions)}</div>
+      <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("English relationship")}: {resolveLabel(form.onboardingAnswers.englishRelationshipGoal, englishRelationshipGoalOptions)}</div>
+      <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("Emotional barriers")}: {resolveLabels(form.onboardingAnswers.emotionalBarriers, emotionalBarrierOptions)}</div>
+      <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{tr("Helpful rituals")}: {resolveLabels(form.onboardingAnswers.ritualElements, ritualElementOptions)}</div>
       {form.onboardingAnswers.notes.trim() ? <div className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">{form.onboardingAnswers.notes}</div> : null}
     </div>,
   ];

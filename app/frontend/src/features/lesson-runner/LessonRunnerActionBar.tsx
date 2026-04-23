@@ -24,21 +24,30 @@ export function LessonRunnerActionBar({
   tr,
 }: LessonRunnerActionBarProps) {
   return (
-    <div className="flex flex-wrap gap-3">
-      <Button variant="ghost" onClick={() => void onPrevious()} disabled={!canGoBack}>
-        {tr("Previous")}
-      </Button>
-      <Button variant="secondary" onClick={() => void onSave()}>
-        {tr("Save block")}
-      </Button>
-      <Button variant="secondary" onClick={() => void onRestart()}>
-        {tr("Restart lesson")}
-      </Button>
-      <Button variant="ghost" onClick={() => void onDiscard()}>
-        {tr("Discard draft")}
-      </Button>
-      {!isLastBlock ? <Button onClick={() => void onNext()}>{tr("Next block")}</Button> : null}
-      {isLastBlock ? <Button onClick={() => void onComplete()}>{tr("Complete lesson")}</Button> : null}
+    <div className="space-y-3">
+      <div>
+        {!isLastBlock ? <Button onClick={() => void onNext()}>{tr("Next")}</Button> : null}
+        {isLastBlock ? <Button onClick={() => void onComplete()}>{tr("Finish lesson")}</Button> : null}
+      </div>
+      <details className="group">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-500 transition-colors hover:text-ink">
+          {tr("Other actions")}
+        </summary>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Button variant="ghost" onClick={() => void onPrevious()} disabled={!canGoBack}>
+            {tr("Previous")}
+          </Button>
+          <Button variant="ghost" onClick={() => void onSave()}>
+            {tr("Save for later")}
+          </Button>
+          <Button variant="ghost" onClick={() => void onRestart()}>
+            {tr("Start over")}
+          </Button>
+          <Button variant="ghost" onClick={() => void onDiscard()}>
+            {tr("Close lesson")}
+          </Button>
+        </div>
+      </details>
     </div>
   );
 }

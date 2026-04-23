@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { Card } from "../../shared/ui/Card";
 import { Button } from "../../shared/ui/Button";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
@@ -16,6 +17,7 @@ import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LizaGuidanceGrid } from "../../widgets/liza/LizaGuidanceGrid";
 import { RouteIntelligencePanel } from "../../widgets/journey/RouteIntelligencePanel";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 
 export function ProgressScreen() {
   const progressView = useProgressScreen();
@@ -43,6 +45,7 @@ export function ProgressScreen() {
           progressView.tr,
         )
       : null;
+  const relationshipLens = describeEnglishRelationshipLens(routes.progress, progressView.tr);
   const coachMessage =
     progressView.locale === "ru"
       ? progressView.hasAvailableDailyRoute
@@ -118,6 +121,8 @@ export function ProgressScreen() {
         title={progressView.tr("Skill Progress")}
         description={progressView.tr("Follow your scores, recent practice, and roadmap shifts in one view.")}
       />
+
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={progressView.tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.progressCoach}>
         <LizaCoachPanel

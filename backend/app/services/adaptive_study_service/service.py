@@ -99,12 +99,28 @@ class AdaptiveStudyService:
     def review_vocabulary(self, user_id: str, item_id: str, successful: bool) -> VocabularyReviewItem | None:
         return self._vocabulary_repository.review_item(user_id, item_id, successful)
 
+    def capture_word_journal(
+        self,
+        user_id: str,
+        *,
+        phrase: str,
+        translation: str,
+        context: str | None = None,
+    ) -> VocabularyReviewItem:
+        return self._vocabulary_repository.capture_word_journal(
+            user_id,
+            phrase=phrase,
+            translation=translation,
+            context=context,
+        )
+
     def get_vocabulary_hub(self, user_id: str) -> VocabularyHub:
         return build_vocabulary_hub(
             summary=self._vocabulary_repository.get_summary(user_id),
             due_items=self._vocabulary_repository.list_due_items(user_id, limit=12),
             recent_items=self._vocabulary_repository.list_recent_items(user_id, limit=10),
             mistake_backlinks=self._vocabulary_repository.list_mistake_backlinks(user_id, limit=6),
+            journal_items=self._vocabulary_repository.list_word_journal_items(user_id, limit=6),
         )
 
     @staticmethod

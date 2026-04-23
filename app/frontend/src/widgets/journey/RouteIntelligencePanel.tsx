@@ -1,5 +1,6 @@
 import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
 import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
+import { describeRitualWindow } from "../../shared/journey/ritual-window";
 import type { DailyLoopPlan, LearnerJourneyState } from "../../shared/types/app-data";
 import { Card } from "../../shared/ui/Card";
 
@@ -30,9 +31,12 @@ export function RouteIntelligencePanel({
   const routeRecoveryMemory = snapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = snapshot.routeReentryProgress ?? null;
   const routeEntryMemory = snapshot.routeEntryMemory ?? null;
+  const ritualSignalMemory = snapshot.ritualSignalMemory ?? null;
   const dayShape = dailyLoopPlan
     ? describeRouteDayShape(dailyLoopPlan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr)
     : null;
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
+  const routeFollowUpMemory = snapshot.routeFollowUpMemory ?? null;
   const practiceShift = sessionSummary?.practiceMixEvaluation ?? null;
   const routeReentryLabel = routeReentryProgress?.nextRoute
     ? {
@@ -108,6 +112,9 @@ export function RouteIntelligencePanel({
     routeRecoveryMemory?.phase
       ? `${tr("Recovery arc")}: ${routeRecoveryMemory.phase}`
       : null,
+    ritualWindow?.title
+      ? `${tr("Ritual arc")}: ${ritualWindow.title}`
+      : null,
     routeEntryResetLabel
       ? `${tr("Reset target")}: ${routeEntryResetLabel}`
       : null,
@@ -119,6 +126,9 @@ export function RouteIntelligencePanel({
       : null,
     followUpHint
       ? `${tr("What comes next")}: ${followUpHint}`
+      : null,
+    routeFollowUpMemory?.carryLabel
+      ? `${tr("Carry forward")}: ${routeFollowUpMemory.carryLabel}`
       : null,
   ].filter((item): item is string => Boolean(item));
 
@@ -134,6 +144,7 @@ export function RouteIntelligencePanel({
     (skillTrajectory ? 1 : 0) +
     (strategyMemory ? 1 : 0) +
     (dayShape ? 1 : 0) +
+    (ritualWindow ? 1 : 0) +
     (routeCadenceMemory ? 1 : 0) +
     (routeRecoveryMemory ? 1 : 0) +
     (routeEntryResetLabel ? 1 : 0) +
@@ -253,6 +264,22 @@ export function RouteIntelligencePanel({
           </div>
         ) : null}
 
+        {ritualWindow ? (
+          <div className="rounded-[20px] bg-white/82 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Ritual arc")}</div>
+            <div className="mt-2 text-sm font-semibold text-ink">{ritualWindow.title}</div>
+            {ritualWindow.windowLabel ? (
+              <div className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-coral">
+                {ritualWindow.windowLabel}
+              </div>
+            ) : null}
+            <div className="mt-2 text-sm text-slate-600">{ritualWindow.summary}</div>
+            {ritualWindow.hint ? (
+              <div className="mt-2 text-sm text-slate-500">{ritualWindow.hint}</div>
+            ) : null}
+          </div>
+        ) : null}
+
         {routeCadenceMemory ? (
           <div className="rounded-[20px] bg-white/82 p-4">
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Route cadence")}</div>
@@ -279,6 +306,34 @@ export function RouteIntelligencePanel({
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("What comes next")}</div>
             <div className="mt-2 text-sm font-semibold text-ink">{tr("Next guided step")}</div>
             <div className="mt-2 text-sm text-slate-600">{followUpHint}</div>
+          </div>
+        ) : null}
+
+        {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || routeFollowUpMemory?.carryLabel ? (
+          <div className="rounded-[20px] bg-white/82 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Route flow")}</div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
+              {routeFollowUpMemory?.currentLabel ? (
+                <div className="rounded-full bg-accent/10 px-3 py-1">
+                  {tr("Now")}: {routeFollowUpMemory.currentLabel}
+                </div>
+              ) : null}
+              {routeFollowUpMemory?.followUpLabel ? (
+                <div className="rounded-full bg-sand/70 px-3 py-1">
+                  {tr("Then")}: {routeFollowUpMemory.followUpLabel}
+                </div>
+              ) : null}
+              {routeFollowUpMemory?.carryLabel &&
+              routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+              routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel ? (
+                <div className="rounded-full bg-white px-3 py-1">
+                  {tr("Carry")}: {routeFollowUpMemory.carryLabel}
+                </div>
+              ) : null}
+            </div>
+            {routeFollowUpMemory?.summary ? (
+              <div className="mt-3 text-sm text-slate-600">{routeFollowUpMemory.summary}</div>
+            ) : null}
           </div>
         ) : null}
 

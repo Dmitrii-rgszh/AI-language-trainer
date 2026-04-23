@@ -319,6 +319,214 @@ def test_build_strategy_memory_prefers_persistent_longer_term_signal() -> None:
     assert strategy_memory.signals[0].skill == "grammar"
 
 
+def test_build_next_recommendation_uses_task_driven_transfer_signal() -> None:
+    profile = _build_profile().model_copy(
+        update={
+            "onboarding_answers": _build_profile().onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+    latest = _build_progress()
+    journey_state = LearnerJourneyState(
+        id="journey-1",
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode="text_first",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="writing",
+        current_strategy_summary="The route should protect the writing response lane.",
+        next_best_action="Return for one more connected writing pass.",
+        proof_lesson_handoff=None,
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "fragile",
+                    "summary": "The move into writing response is still fragile.",
+                }
+            }
+        },
+        onboarding_completed_at=datetime.utcnow().isoformat(),
+        last_daily_plan_id=None,
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+
+    recommendation = build_next_recommendation(
+        profile,
+        _StubLessonRepository(),
+        _StubMistakeRepository(),
+        _StubVocabularyRepository(),
+        _StubProgressRepository(latest, [latest]),
+        _StubJourneyRepository(journey_state),
+    )
+
+    assert recommendation is not None
+    assert recommendation.focus_area == "writing"
+    assert "writing response" in recommendation.goal.lower()
+
+
+def test_build_next_recommendation_can_widen_after_strong_task_transfer_pass() -> None:
+    profile = _build_profile().model_copy(
+        update={
+            "onboarding_answers": _build_profile().onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+    latest = _build_progress()
+    journey_state = LearnerJourneyState(
+        id="journey-1",
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode="text_first",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="writing",
+        current_strategy_summary="The response lane is ready to widen again.",
+        next_best_action="Let the broader route lead again.",
+        proof_lesson_handoff=None,
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "held",
+                    "summary": "The transfer held cleanly in the protected response pass.",
+                    "currentWindowStage": "protect_response",
+                    "nextWindowStage": "ready_to_widen",
+                    "windowAction": "advance_to_widen",
+                }
+            }
+        },
+        onboarding_completed_at=datetime.utcnow().isoformat(),
+        last_daily_plan_id=None,
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+
+    recommendation = build_next_recommendation(
+        profile,
+        _StubLessonRepository(),
+        _StubMistakeRepository(),
+        _StubVocabularyRepository(),
+        _StubProgressRepository(latest, [latest]),
+        _StubJourneyRepository(journey_state),
+    )
+
+    assert recommendation is not None
+    assert "start widening again" in recommendation.goal.lower() or "broader route lead again" in recommendation.goal.lower()
+
+
+def test_build_next_recommendation_can_stop_forcing_response_focus_after_transfer_window_closes() -> None:
+    profile = _build_profile().model_copy(
+        update={
+            "onboarding_answers": _build_profile().onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+    latest = _build_progress()
+    journey_state = LearnerJourneyState(
+        id="journey-1",
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode="text_first",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="writing",
+        current_strategy_summary="The protected transfer window can close now.",
+        next_best_action="Return to the broader route.",
+        proof_lesson_handoff=None,
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "held",
+                    "summary": "The widening pass kept the transfer alive cleanly.",
+                    "currentWindowStage": "ready_to_widen",
+                    "nextWindowStage": "close_window",
+                    "windowAction": "close_window",
+                }
+            }
+        },
+        onboarding_completed_at=datetime.utcnow().isoformat(),
+        last_daily_plan_id=None,
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+
+    recommendation = build_next_recommendation(
+        profile,
+        _StubLessonRepository(),
+        _StubMistakeRepository(),
+        _StubVocabularyRepository(),
+        _StubProgressRepository(latest, [latest]),
+        _StubJourneyRepository(journey_state),
+    )
+
+    assert recommendation is not None
+    assert "broader route lead again" in recommendation.goal.lower() or "transfer window has already done its job" in recommendation.goal.lower()
+    assert recommendation.focus_area != "writing"
+
+
+def test_build_next_recommendation_does_not_force_ritual_focus_after_ready_to_carry() -> None:
+    profile = _build_profile()
+    latest = _build_progress()
+    journey_state = LearnerJourneyState(
+        id="journey-1",
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode="mixed",
+        diagnostic_readiness="soft_start",
+        time_budget_minutes=20,
+        current_focus_area="vocabulary",
+        current_strategy_summary="The captured phrase is ready to ride inside the broader route.",
+        next_best_action="Let the broader route lead again.",
+        proof_lesson_handoff=None,
+        strategy_snapshot={
+            "ritualSignalMemory": {
+                "activeSignalType": "word_journal",
+                "activeLabel": "keep it light",
+                "recommendedFocus": "vocabulary",
+                "summary": "The word journal signal is ready to carry forward inside the broader route.",
+                "windowStage": "ready_to_carry",
+            }
+        },
+        onboarding_completed_at=datetime.utcnow().isoformat(),
+        last_daily_plan_id=None,
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+
+    recommendation = build_next_recommendation(
+        profile,
+        _StubLessonRepository(),
+        _StubMistakeRepository(),
+        _StubVocabularyRepository(),
+        _StubProgressRepository(latest, [latest]),
+        _StubJourneyRepository(journey_state),
+    )
+
+    assert recommendation is not None
+    assert "does not need to restart from capture" in recommendation.goal.lower() or "carry forward inside the broader route" in recommendation.goal.lower()
+    assert recommendation.focus_area != "vocabulary"
+
+
 def test_build_next_recommendation_uses_skill_trajectory_when_live_focus_is_balanced() -> None:
     profile = _build_profile().model_copy(
         update={

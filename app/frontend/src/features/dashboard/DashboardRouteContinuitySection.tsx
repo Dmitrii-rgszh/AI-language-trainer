@@ -11,6 +11,7 @@ type DashboardRouteContinuitySectionProps = {
   dailyLoopPlan: DailyLoopPlan | null;
   journeyState: LearnerJourneyState | null;
   onStartDailyLoop: () => Promise<void>;
+  showActions?: boolean;
   tr: (value: string) => string;
 };
 
@@ -18,6 +19,7 @@ export function DashboardRouteContinuitySection({
   dailyLoopPlan,
   journeyState,
   onStartDailyLoop,
+  showActions = true,
   tr,
 }: DashboardRouteContinuitySectionProps) {
   if (!dailyLoopPlan) {
@@ -26,24 +28,26 @@ export function DashboardRouteContinuitySection({
 
   const tomorrowPreview = journeyState?.strategySnapshot.tomorrowPreview ?? null;
   const sessionSummary = journeyState?.strategySnapshot.sessionSummary ?? null;
-  const skillTrajectory = journeyState?.strategySnapshot.skillTrajectory ?? null;
-  const strategyMemory = journeyState?.strategySnapshot.strategyMemory ?? null;
-  const routeCadenceMemory = journeyState?.strategySnapshot.routeCadenceMemory ?? null;
   const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const routeFollowUpMemory = journeyState?.strategySnapshot.routeFollowUpMemory ?? null;
   const dayShape = describeRouteDayShape(dailyLoopPlan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr);
   const followUpHint = buildRouteFollowUpHintFromState(dailyLoopPlan, journeyState, tr);
+  const hasDistinctCarry =
+    routeFollowUpMemory?.carryLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel;
   const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const hasCompletedToday = dailyLoopPlan.completedAt !== null;
   const hasStartedToday = dailyLoopPlan.lessonRunId !== null;
-  const waitingCardCount =
-    3 +
-    (skillTrajectory ? 1 : 0) +
-    (strategyMemory ? 1 : 0) +
-    (dayShape ? 1 : 0) +
-    (routeCadenceMemory ? 1 : 0) +
-    (routeRecoveryMemory ? 1 : 0);
+  const waitingDescription = dayShape
+    ? `${tr("Finish today's loop to unlock the next focused step around")} ${tr(dailyLoopPlan.focusArea)}.`
+    : tr("Finish today's loop to unlock the next focused step.");
+  const nextAfterThis =
+    followUpHint ??
+    dailyLoopPlan.nextStepHint ??
+    tr("After this, I will show the next focused step.");
 
   if (hasCompletedToday && tomorrowPreview) {
     return (
@@ -53,21 +57,6 @@ export function DashboardRouteContinuitySection({
         <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
           {journeyState?.currentStrategySummary ?? tr("The system has already updated the route from today's session.")}
         </div>
-        {skillTrajectory ? (
-          <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
-            <span className="font-semibold text-ink">{tr("Multi-day memory")}:</span> {skillTrajectory.summary}
-          </div>
-        ) : null}
-        {strategyMemory ? (
-          <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
-            <span className="font-semibold text-ink">{tr("Long strategy memory")}:</span> {strategyMemory.summary}
-          </div>
-        ) : null}
-        {routeCadenceMemory ? (
-          <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
-            <span className="font-semibold text-ink">{tr("Route cadence")}:</span> {routeCadenceMemory.summary}
-          </div>
-        ) : null}
         {routeRecoveryMemory ? (
           <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
             <span className="font-semibold text-ink">{tr("Recovery arc")}:</span> {routeRecoveryMemory.summary}
@@ -108,93 +97,50 @@ export function DashboardRouteContinuitySection({
   if (!hasStartedToday) {
     return (
       <Card className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-coral">{tr("Route continuity")}</div>
-        <div className="text-2xl font-semibold text-ink">{tr("Today's route is waiting for you")}</div>
-        <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">
-          {journeyState?.nextBestAction ?? dailyLoopPlan.nextStepHint}
-        </div>
-        {followUpHint ? (
-          <div className="rounded-[22px] bg-accent/8 p-4 text-sm leading-6 text-slate-700">
-            <span className="font-semibold text-ink">{tr("What comes next")}:</span> {followUpHint}
-          </div>
-        ) : null}
-        <div
-          className={`grid gap-3 ${
-            waitingCardCount >= 5
-              ? "xl:grid-cols-5 md:grid-cols-3"
-              : waitingCardCount === 4
-                ? "md:grid-cols-4"
-                : "md:grid-cols-3"
-          }`}
-        >
+        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-coral">{tr("Next step")}</div>
+        <div className="text-2xl font-semibold text-ink">{tr("Today we focus on")} {tr(dailyLoopPlan.focusArea)}.</div>
+        <div className="rounded-[22px] bg-white/78 p-4 text-sm leading-6 text-slate-700">{waitingDescription}</div>
+        <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Focus")}</div>
-            <div className="mt-2 text-sm font-semibold text-ink">{dailyLoopPlan.focusArea}</div>
-          </div>
-          <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Session")}</div>
-            <div className="mt-2 text-sm font-semibold text-ink">{dailyLoopPlan.recommendedLessonTitle}</div>
+            <div className="mt-2 text-sm font-semibold text-ink">{tr(dailyLoopPlan.focusArea)}</div>
           </div>
           <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Budget")}</div>
             <div className="mt-2 text-sm font-semibold text-ink">{dailyLoopPlan.estimatedMinutes} {tr("min")}</div>
           </div>
-          {dayShape ? (
-            <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Day shape")}</div>
-              <div className="mt-2 text-sm font-semibold text-ink">{dayShape.title}</div>
-              <div className="mt-2 text-xs text-slate-500">{dayShape.compactnessLabel}</div>
-              {dayShape.substageLabel ? (
-                <div className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-coral">
-                  {dayShape.substageLabel}
-                </div>
-              ) : null}
-              {dayShape.expansionStageLabel ? (
-                <div className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-                  {dayShape.expansionStageLabel}
-                </div>
-              ) : null}
-              {dayShape.expansionWindowLabel ? (
-                <div className="mt-2 text-xs text-slate-500">{dayShape.expansionWindowLabel}</div>
-              ) : null}
-            </div>
-          ) : null}
-          {skillTrajectory ? (
-            <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Trajectory memory")}</div>
-              <div className="mt-2 text-sm font-semibold text-ink">{skillTrajectory.focusSkill} · {skillTrajectory.direction}</div>
-            </div>
-          ) : null}
-          {strategyMemory ? (
-            <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Strategy memory")}</div>
-              <div className="mt-2 text-sm font-semibold text-ink">{strategyMemory.focusSkill} · {strategyMemory.persistenceLevel}</div>
-            </div>
-          ) : null}
-          {routeCadenceMemory ? (
-            <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Cadence")}</div>
-              <div className="mt-2 text-sm font-semibold text-ink">{routeCadenceMemory.status}</div>
-            </div>
-          ) : null}
-          {routeRecoveryMemory ? (
-            <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("Recovery arc")}</div>
-              <div className="mt-2 text-sm font-semibold text-ink">
-                {routeRecoveryMemory.phase}
-                {routeRecoveryMemory.focusSkill ? ` · ${routeRecoveryMemory.focusSkill}` : ""}
+          <div className="rounded-[20px] border border-white/70 bg-white/76 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{tr("After this")}</div>
+            <div className="mt-2 text-sm font-semibold text-ink">{nextAfterThis}</div>
+          </div>
+        </div>
+        {dayShape ? (
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+            <div className="rounded-full bg-accent/10 px-3 py-1 text-accent">{dayShape.title}</div>
+            <div className="rounded-full bg-white px-3 py-1">{dayShape.compactnessLabel}</div>
+            {routeRecoveryMemory ? (
+              <div className="rounded-full bg-white px-3 py-1">
+                {tr(routeRecoveryMemory.phase)}
+                {routeRecoveryMemory.focusSkill ? ` · ${tr(routeRecoveryMemory.focusSkill)}` : ""}
               </div>
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => void onStartDailyLoop()}>
-            {tr("Start today's route")}
-          </Button>
-          <Link to={routes.dailyLoop} className="proof-lesson-secondary-action">
-            {tr("Open route preview")}
-          </Link>
-        </div>
+            ) : null}
+            {hasDistinctCarry ? (
+              <div className="rounded-full bg-sand/70 px-3 py-1">
+                {tr("Then")}: {routeFollowUpMemory?.carryLabel}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {showActions ? (
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => void onStartDailyLoop()}>
+              {tr("Start today's route")}
+            </Button>
+            <Link to={routes.dailyLoop} className="proof-lesson-secondary-action">
+              {tr("Open route preview")}
+            </Link>
+          </div>
+        ) : null}
       </Card>
     );
   }

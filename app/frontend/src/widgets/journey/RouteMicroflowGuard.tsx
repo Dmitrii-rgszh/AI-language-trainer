@@ -1,6 +1,8 @@
 type RouteMicroflowGuardProps = {
   label?: string;
   message: string;
+  ritualWindowTitle?: string | null;
+  ritualWindowSummary?: string | null;
   dayShapeTitle?: string | null;
   dayShapeCompactnessLabel?: string | null;
   dayShapeSummary?: string | null;
@@ -12,6 +14,8 @@ type RouteMicroflowGuardProps = {
 export function RouteMicroflowGuard({
   label,
   message,
+  ritualWindowTitle,
+  ritualWindowSummary,
   dayShapeTitle,
   dayShapeCompactnessLabel,
   dayShapeSummary,
@@ -43,6 +47,16 @@ export function RouteMicroflowGuard({
           ) : null}
           {dayShapeSummary ? (
             <div className="mt-2 text-sm text-slate-600">{dayShapeSummary}</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {ritualWindowTitle ? (
+        <div className="rounded-2xl bg-white/82 p-3">
+          <div className="text-[0.68rem] uppercase tracking-[0.18em] text-slate-400">{tr("Ritual arc")}</div>
+          <div className="mt-2 text-sm font-semibold text-ink">{ritualWindowTitle}</div>
+          {ritualWindowSummary ? (
+            <div className="mt-2 text-sm text-slate-600">{ritualWindowSummary}</div>
           ) : null}
         </div>
       ) : null}

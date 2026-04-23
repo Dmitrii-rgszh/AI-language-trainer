@@ -1,4 +1,5 @@
 import { routes } from "../constants/routes";
+import { describeRitualWindow } from "./ritual-window";
 import { resolveTaskDrivenInputSurface } from "./task-driven-input";
 import type { DailyLoopPlan, DashboardData, LearnerJourneyState } from "../types/app-data";
 
@@ -71,6 +72,8 @@ export function resolveRouteEntryDecision(
   const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const ritualSignalMemory = journeyState?.strategySnapshot.ritualSignalMemory ?? null;
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
   const reopenStageLabel = mapReopenStageLabel(routeRecoveryMemory?.reopenStage, tr);
   const expansionStageLabel = mapExpansionStageLabel(routeRecoveryMemory?.decisionWindowStage, tr);
   const reopenSupportRoute =
@@ -93,6 +96,23 @@ export function resolveRouteEntryDecision(
   }
 
   const taskDrivenInput = resolveTaskDrivenInputSurface(plan, journeyState ?? null, tr);
+
+  if (
+    ritualWindow?.stageKey === "protect_ritual" &&
+    ritualSignalMemory?.activeRoute &&
+    routeRecoveryMemory?.phase !== "route_rebuild" &&
+    routeRecoveryMemory?.phase !== "protected_return" &&
+    !reopenSupportRoute
+  ) {
+    return {
+      route: ritualSignalMemory.activeRoute,
+      reason: tr(`This re-entry should start through ${mapSupportRouteLabel(ritualSignalMemory.activeRoute, tr) ?? tr("the ritual surface")} so the ritual signal lands once before the broader route takes over.`),
+      followUpRoute: routes.dailyLoop,
+      followUpLabel: tr("daily route"),
+      stageLabel: ritualWindow.title,
+      expansionStageLabel,
+    };
+  }
 
   if (routeRecoveryMemory?.phase === "support_reopen_arc" && reopenSupportRoute && reopenSupportLabel) {
     if (routeRecoveryMemory.reopenStage === "first_reopen") {
@@ -181,6 +201,19 @@ export function resolveRouteEntryDecision(
       followUpRoute: reopenSupportRoute,
       followUpLabel: reopenSupportLabel,
       stageLabel: reopenStageLabel,
+      expansionStageLabel,
+    };
+  }
+
+  if (ritualWindow?.stageKey === "carry_inside_route") {
+    return {
+      route: routes.dailyLoop,
+      reason: tr(`The ritual signal is already stable enough to ride inside the broader route, so re-entry should land in today's daily route instead of restarting the ritual surface.`),
+      followUpRoute: ritualSignalMemory?.activeRoute ?? null,
+      followUpLabel: ritualSignalMemory?.activeRoute
+        ? mapSupportRouteLabel(ritualSignalMemory.activeRoute, tr)
+        : null,
+      stageLabel: ritualWindow.title,
       expansionStageLabel,
     };
   }

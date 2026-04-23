@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { apiClient } from "../shared/api/client";
+import { clearStoredActiveUserId } from "../shared/auth/active-user";
 import { routes } from "../shared/constants/routes";
 import { readStoredActiveUserId } from "../shared/auth/active-user";
 import { useLocale } from "../shared/i18n/useLocale";
@@ -82,6 +83,7 @@ export function AppShell() {
     routeEntryReason?: string;
     routeEntrySource?: string;
     routeEntryFollowUpLabel?: string;
+    routeEntryCarryLabel?: string;
     routeEntryStageLabel?: string;
     routeEntryExpansionStageLabel?: string;
     skipRouteEntryOrchestrationOnce?: boolean;
@@ -89,9 +91,11 @@ export function AppShell() {
   const routeEntryReason = locationState?.routeEntryReason ?? null;
   const routeEntrySource = locationState?.routeEntrySource ?? null;
   const routeEntryFollowUpLabel = locationState?.routeEntryFollowUpLabel ?? null;
+  const routeEntryCarryLabel = locationState?.routeEntryCarryLabel ?? null;
   const routeEntryStageLabel = locationState?.routeEntryStageLabel ?? null;
   const routeEntryExpansionStageLabel = locationState?.routeEntryExpansionStageLabel ?? null;
   const routeEntryCurrentLabel = mapCurrentSurfaceLabel(location.pathname, tr);
+  const shouldShowRouteEntryNotice = Boolean(routeEntryReason && location.pathname !== routes.lessonRunner);
 
   useEffect(() => {
     void bootstrap();
@@ -120,13 +124,14 @@ export function AppShell() {
     hasAppliedEntryOrchestrationRef.current = true;
     navigate(entryDecision.route, {
       replace: true,
-      state: {
-        routeEntryReason: entryDecision.reason,
-        routeEntrySource: "shell_reentry_orchestration",
-        routeEntryFollowUpLabel: entryDecision.followUpLabel ?? null,
-        routeEntryStageLabel: entryDecision.stageLabel ?? null,
-        routeEntryExpansionStageLabel: entryDecision.expansionStageLabel ?? null,
-      },
+        state: {
+          routeEntryReason: entryDecision.reason,
+          routeEntrySource: "shell_reentry_orchestration",
+          routeEntryFollowUpLabel: entryDecision.followUpLabel ?? null,
+          routeEntryCarryLabel: null,
+          routeEntryStageLabel: entryDecision.stageLabel ?? null,
+          routeEntryExpansionStageLabel: entryDecision.expansionStageLabel ?? null,
+        },
     });
   }, [dashboard, isBootstrapping, location.pathname, locationState?.skipRouteEntryOrchestrationOnce, navigate, tr]);
 
@@ -196,6 +201,15 @@ export function AppShell() {
     navigate(routes.dashboard);
   }
 
+  function handleOpenSettings() {
+    navigate(routes.settings);
+  }
+
+  function handleSignOut() {
+    clearStoredActiveUserId();
+    navigate(routes.welcome, { replace: true });
+  }
+
   function handleDismissRouteEntryNotice() {
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
@@ -262,7 +276,6 @@ export function AppShell() {
           locale={locale}
           localeOptions={localeOptions}
           recommendationGoal={recommendationGoal}
-          routeProtectionDeferredLabel={routeProtectionView.deferredLabel}
           routeProtectionReason={routeProtectionView.deferredReason}
           routeSoftLockActive={routeProtectionView.isSoftLockActive}
           routeDayShapeCompactnessLabel={routeDayShape?.compactnessLabel ?? null}
@@ -270,11 +283,17 @@ export function AppShell() {
           routeDayShapeSummary={routeDayShape?.summary ?? null}
           routeDayShapeTitle={routeDayShape?.title ?? null}
           routePriorityPrimaryRoute={routePriorityView.primaryRoute}
-          routePriorityStageLabel={routePriorityView.expansionStageLabel ?? routePriorityView.reopenStageLabel ?? null}
+          routePriorityStageLabel={
+            routePriorityView.expansionStageLabel ??
+            routePriorityView.reopenStageLabel ??
+            routePriorityView.ritualStageLabel ??
+            null
+          }
           routePriorityMode={routePriorityView.mode}
-          routePrioritySummary={routePriorityView.summary}
           setLocale={setLocale}
           tr={tr}
+          onOpenSettings={handleOpenSettings}
+          onSignOut={handleSignOut}
         />
         <JourneyReentryPrompt
           dashboard={dashboard}
@@ -284,11 +303,12 @@ export function AppShell() {
           onStartTodayRoute={handleStartTodayRoute}
           tr={tr}
         />
-        {routeEntryReason ? (
+        {shouldShowRouteEntryNotice ? (
           <RouteEntryNotice
-            reason={routeEntryReason}
+            reason={routeEntryReason ?? ""}
             currentLabel={routeEntryCurrentLabel}
             followUpLabel={routeEntryFollowUpLabel}
+            carryLabel={routeEntryCarryLabel}
             stageLabel={routeEntryExpansionStageLabel ?? routeEntryStageLabel}
             sourceLabel={
               routeEntrySource === "shell_reentry_orchestration"

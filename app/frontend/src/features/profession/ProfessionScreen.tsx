@@ -23,14 +23,15 @@ export function ProfessionScreen() {
     await bootstrap();
     const transition = resolveRouteFollowUpTransition(updatedState, routes.profession, tr);
     if (transition) {
-      navigate(transition.route, {
-        state: {
-          routeEntryReason: transition.reason,
-          routeEntrySource: "support_step_follow_up",
-          routeEntryFollowUpLabel: transition.nextLabel ?? null,
-          routeEntryStageLabel: transition.stageLabel ?? null,
-        },
-      });
+        navigate(transition.route, {
+          state: {
+            routeEntryReason: transition.reason,
+            routeEntrySource: "support_step_follow_up",
+            routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryCarryLabel: transition.carryLabel ?? null,
+            routeEntryStageLabel: transition.stageLabel ?? null,
+          },
+        });
     }
   }
 

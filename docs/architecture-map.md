@@ -9,7 +9,9 @@
    - lesson runner
    - onboarding flow
    - journey / daily loop flow
-   - explicit `daily ritual` layer on top of `daily_loop_plan`, with stages, completion rule, closure rule, and promise
+  - explicit `daily ritual` layer on top of `daily_loop_plan`, with stages, completion rule, closure rule, and promise
+  - `daily word journal` is now a real persisted vocabulary source (`word_journal`) instead of a future idea: the vocabulary hub can capture real-life phrases, and the ritual promise can explicitly keep that capture alive inside the route
+  - `You & English` rituals now also have a lightweight decision-memory layer: `word_journal` and `spontaneous_voice` can register as persisted ritual signals in `journey_state.strategy_snapshot`, and recommendation can use that short window to bias the next 1-2 route decisions
    - ritual-aware route context so guided lessons know the canonical daily session arc, not only focus/recommendation data
    - ritual-aware runner/results bridges so the lesson is opened and closed as one connected daily scenario instead of isolated screens
    - explicit `reading_block` support in the lesson engine, so text-first routes can open through reading input instead of reusing listening-only scaffolding
@@ -21,6 +23,9 @@
    - persisted task-driven completion flow, so finishing a `reading/listening` input mission updates `routeFollowUpMemory`, `next_best_action`, and the backend route sequence before the learner even lands on the response surface
    - short-window task-driven persistence, so `Task-driven handoff` survives the immediate route-entry into the response surface and biases the next daily-plan focus plus guided `practice mix` toward the connected `input -> response` arc
    - post-lesson task-driven transfer evaluation, so `sessionSummary` and `tomorrowPreview` can distinguish between a clean `input -> response` carry and a fragile transfer that still needs one more protected response pass
+   - recommendation and guided `practiceMix` now also consume that transfer evaluation, so fragile `reading/listening -> writing/speaking` carry changes both the next route focus and the actual module weighting of the following guided session
+   - multi-day `task_transfer_window` recovery arc, so fragile/usable transfer outcomes now drive a short backend `protect -> stabilize -> widen` window across the next 1-2 route decisions instead of only changing one immediate follow-up
+   - completion-driven transfer-window override, so the next `writing/speaking` response pass can directly advance, extend, or close that `task_transfer_window` instead of leaving it to decay only by passive route memory
    - next-day continuity seeding from previous session outcome
    - guided-route template overlay for recommended runs
    - route-aware block composition for support modules and preferred-mode response shape
@@ -73,7 +78,8 @@
 - onboarding presentation now also exposes proof-lesson handoff continuity directly, so stored welcome-proof signals are not only persisted and applied to drafts, but are also rendered as an explicit `save start -> clarify goal -> open first route` narrative inside the onboarding surface itself
 - proof-lesson completion now also carries explicit route-entry state into onboarding, so the very first transition after the live lesson can reuse the same route-bridge language as shell, dashboard, and results instead of feeling like a cold route swap
 - onboarding completion now also feeds shell-level entry state, so the first dashboard render after submit can bypass one normal re-entry redirect and present itself as the beginning of the first personal route rather than a cold generic landing
-- persisted `learningBlueprint` now lives inside `journey_state.strategy_snapshot`, so onboarding/profile, learner memory, recovery arc and follow-up sequence are also materialized as one explainable strategy object instead of only influencing route copy indirectly
+   - persisted `learningBlueprint` now lives inside `journey_state.strategy_snapshot`, so onboarding/profile, learner memory, recovery arc and follow-up sequence are also materialized as one explainable strategy object instead of only influencing route copy indirectly
+   - `learningBlueprint` now also reads an explicit `english relationship` slice from onboarding (`relationship goal / emotional barriers / helpful rituals`), so the route can carry not only academic goals, but also the learner's desired inner experience of English
 - dashboard now exposes that `learningBlueprint` as a dedicated strategy panel, and guided lesson route-context now also carries blueprint headline / north-star / pillars so the long-plan logic is visible inside the session itself
 - dashboard route-launch handlers now also feed explainable entry state into the lesson runner, so the first `daily route -> lesson runner` jump preserves a shared route narrative instead of switching into an isolated lesson surface without context
 - lesson completion and results surfaces now also pass explicit route-entry handoff state into `lesson results`, `lesson runner` follow-up, and `updated dashboard`, so the post-session loop preserves one shared route narrative instead of treating each surface as a separate reset

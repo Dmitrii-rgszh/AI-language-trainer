@@ -57,6 +57,10 @@ export function DashboardHeroSection({
     : null;
   const routeFlowSummary =
     buildRouteFollowUpHintFromState(dashboard.dailyLoopPlan, dashboard.journeyState, tr) ?? primaryRouteSummary;
+  const hasDistinctCarry =
+    routeFollowUpMemory?.carryLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel;
 
   return (
     <>
@@ -68,7 +72,7 @@ export function DashboardHeroSection({
           <div className="text-2xl font-[700] tracking-[-0.03em] text-ink">{tr(routeTitle)}</div>
           <div className="text-sm leading-6 text-slate-600">{recommendationGoal}</div>
           <div className="rounded-2xl bg-accent/8 p-4 text-sm text-slate-700">{primaryRouteSummary}</div>
-          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || dayShape ? (
+          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || routeFollowUpMemory?.carryLabel || dayShape ? (
             <div className="rounded-2xl border border-accent/15 bg-white/78 p-4 text-sm text-slate-700">
               <div className="text-[0.68rem] uppercase tracking-[0.18em] text-coral">{tr("Route flow")}</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -80,6 +84,11 @@ export function DashboardHeroSection({
                 {routeFollowUpMemory?.followUpLabel ? (
                   <span className="rounded-full bg-coral/10 px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-coral">
                     {tr("Then")}: {routeFollowUpMemory.followUpLabel}
+                  </span>
+                ) : null}
+                {hasDistinctCarry ? (
+                  <span className="rounded-full bg-sand px-3 py-1 text-[0.72rem] font-[700] uppercase tracking-[0.14em] text-ink">
+                    {tr("Carry")}: {routeFollowUpMemory?.carryLabel}
                   </span>
                 ) : null}
                 {dayShape?.substageLabel ? (

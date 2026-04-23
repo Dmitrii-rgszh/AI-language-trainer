@@ -16,6 +16,8 @@ from app.services.recommendation_service.goal_copy import (
     append_route_follow_up_context,
     append_route_reentry_context,
     append_route_recovery_context,
+    append_ritual_signal_context,
+    append_task_driven_transfer_context,
     append_skill_trajectory_context,
     append_strategy_memory_context,
     append_weak_spot_context,
@@ -30,6 +32,8 @@ def _map_route_to_focus_area(route: str | None) -> str | None:
     return {
         "/grammar": "grammar",
         "/vocabulary": "vocabulary",
+        "/reading": "reading",
+        "/listening": "listening",
         "/speaking": "speaking",
         "/pronunciation": "pronunciation",
         "/writing": "writing",
@@ -261,11 +265,175 @@ def build_next_recommendation(
         if route_follow_up_memory and route_follow_up_memory.get("summary")
         else None
     )
+    session_summary_value = (
+        journey_state.strategy_snapshot.get("sessionSummary")
+        if journey_state
+        else None
+    )
+    session_summary = (
+        session_summary_value
+        if isinstance(session_summary_value, dict) and session_summary_value
+        else None
+    )
+    task_driven_transfer_value = (
+        session_summary.get("taskDrivenTransferEvaluation")
+        if session_summary
+        else None
+    )
+    task_driven_transfer = (
+        task_driven_transfer_value
+        if isinstance(task_driven_transfer_value, dict) and task_driven_transfer_value
+        else None
+    )
     task_driven_focus = (
         _map_route_to_focus_area(str(route_follow_up_memory.get("currentRoute")))
         if route_follow_up_memory and str(route_follow_up_memory.get("stageLabel") or "") == "Task-driven handoff"
         else None
     )
+    task_driven_transfer_focus = (
+        _map_route_to_focus_area(str(task_driven_transfer.get("responseRoute")))
+        if task_driven_transfer and task_driven_transfer.get("responseRoute")
+        else None
+    )
+    task_driven_transfer_outcome = (
+        str(task_driven_transfer.get("transferOutcome"))
+        if task_driven_transfer and task_driven_transfer.get("transferOutcome")
+        else None
+    )
+    task_driven_transfer_input_label = (
+        str(task_driven_transfer.get("inputLabel"))
+        if task_driven_transfer and task_driven_transfer.get("inputLabel")
+        else None
+    )
+    task_driven_transfer_response_label = (
+        str(task_driven_transfer.get("responseLabel"))
+        if task_driven_transfer and task_driven_transfer.get("responseLabel")
+        else None
+    )
+    task_driven_transfer_summary = (
+        str(task_driven_transfer.get("summary"))
+        if task_driven_transfer and task_driven_transfer.get("summary")
+        else None
+    )
+    task_driven_transfer_current_window_stage = (
+        str(task_driven_transfer.get("currentWindowStage"))
+        if task_driven_transfer and task_driven_transfer.get("currentWindowStage")
+        else None
+    )
+    task_driven_transfer_next_window_stage = (
+        str(task_driven_transfer.get("nextWindowStage"))
+        if task_driven_transfer and task_driven_transfer.get("nextWindowStage")
+        else None
+    )
+    task_driven_transfer_window_action = (
+        str(task_driven_transfer.get("windowAction"))
+        if task_driven_transfer and task_driven_transfer.get("windowAction")
+        else None
+    )
+    ritual_signal_memory_value = (
+        journey_state.strategy_snapshot.get("ritualSignalMemory")
+        if journey_state
+        else None
+    )
+    ritual_signal_memory = (
+        ritual_signal_memory_value
+        if isinstance(ritual_signal_memory_value, dict) and ritual_signal_memory_value
+        else None
+    )
+    ritual_signal_type = (
+        str(ritual_signal_memory.get("activeSignalType"))
+        if ritual_signal_memory and ritual_signal_memory.get("activeSignalType")
+        else None
+    )
+    ritual_signal_label = (
+        str(ritual_signal_memory.get("activeLabel"))
+        if ritual_signal_memory and ritual_signal_memory.get("activeLabel")
+        else None
+    )
+    ritual_signal_focus = (
+        str(ritual_signal_memory.get("recommendedFocus"))
+        if ritual_signal_memory and ritual_signal_memory.get("recommendedFocus")
+        else None
+    )
+    ritual_signal_summary = (
+        str(ritual_signal_memory.get("summary"))
+        if ritual_signal_memory and ritual_signal_memory.get("summary")
+        else None
+    )
+    ritual_signal_window_stage = (
+        str(ritual_signal_memory.get("windowStage"))
+        if ritual_signal_memory and ritual_signal_memory.get("windowStage")
+        else None
+    )
+    should_apply_task_transfer = bool(
+        task_driven_transfer
+        and not task_driven_focus
+        and not route_recovery_phase
+        and task_driven_transfer_focus
+        and task_driven_transfer_input_label
+        and task_driven_transfer_response_label
+        and task_driven_transfer_outcome
+    )
+    should_apply_ritual_signal = bool(
+        ritual_signal_type
+        and ritual_signal_label
+        and ritual_signal_focus
+        and not route_recovery_phase
+        and not task_driven_focus
+    )
+
+    def apply_task_transfer_context(recommendation: LessonRecommendation) -> LessonRecommendation:
+        if not should_apply_task_transfer:
+            return recommendation
+        recommendation.goal = append_task_driven_transfer_context(
+            recommendation.goal,
+            input_label=task_driven_transfer_input_label or "task input",
+            response_label=task_driven_transfer_response_label or "response step",
+            transfer_outcome=task_driven_transfer_outcome or "usable",
+            summary=task_driven_transfer_summary,
+            current_window_stage=task_driven_transfer_current_window_stage,
+            next_window_stage=task_driven_transfer_next_window_stage,
+            window_action=task_driven_transfer_window_action,
+        )
+        should_force_response_focus = (
+            task_driven_transfer_focus
+            and (
+                task_driven_transfer_window_action in {
+                    "extend_protection",
+                    "step_back_to_protection",
+                    "step_back_to_stabilizing",
+                    "advance_to_stabilizing",
+                    "keep_stabilizing",
+                }
+                or task_driven_transfer_next_window_stage in {"protect_response", "stabilize_transfer"}
+                or (
+                    task_driven_transfer_window_action is None
+                    and task_driven_transfer_next_window_stage is None
+                    and task_driven_transfer_outcome in {"fragile", "usable"}
+                )
+            )
+        )
+        if should_force_response_focus:
+            recommendation.focus_area = task_driven_transfer_focus
+        return recommendation
+
+    def apply_ritual_signal_context(recommendation: LessonRecommendation) -> LessonRecommendation:
+        if not should_apply_ritual_signal:
+            return recommendation
+        recommendation.goal = append_ritual_signal_context(
+            recommendation.goal,
+            signal_type=ritual_signal_type or "word_journal",
+            label=ritual_signal_label or "the ritual signal",
+            summary=ritual_signal_summary,
+            window_stage=ritual_signal_window_stage,
+        )
+        should_force_ritual_focus = bool(
+            ritual_signal_focus
+            and ritual_signal_window_stage in {"", "fresh_capture", "reuse_in_route"}
+        )
+        if should_force_ritual_focus:
+            recommendation.focus_area = ritual_signal_focus or recommendation.focus_area
+        return recommendation
     if route_entry_ready_to_reopen and route_reentry_label and route_recovery_phase in {
         "protected_return",
         "skill_repair_cycle",
@@ -331,6 +499,8 @@ def build_next_recommendation(
                     completed_steps=route_reentry_completed_steps,
                     total_steps=route_reentry_total_steps,
                 )
+        recommendation = apply_task_transfer_context(recommendation)
+        recommendation = apply_ritual_signal_context(recommendation)
         return recommendation
 
     top_resolution_states = [resolution_map.get(spot.title, "active") for spot in weak_spots]
@@ -416,6 +586,8 @@ def build_next_recommendation(
                 persistence_level=strategy_memory.persistence_level,
                 summary=strategy_memory.summary,
             )
+        recommendation = apply_task_transfer_context(recommendation)
+        recommendation = apply_ritual_signal_context(recommendation)
         return recommendation
 
     if weak_spots or due_vocabulary:
@@ -472,6 +644,8 @@ def build_next_recommendation(
                     resolution_map=resolution_map,
                     due_vocabulary_count=len(due_vocabulary),
                 )
+            recommendation = apply_task_transfer_context(recommendation)
+            recommendation = apply_ritual_signal_context(recommendation)
             return recommendation
 
         priority_text = ", ".join(
@@ -535,6 +709,8 @@ def build_next_recommendation(
                     active_next_route_label=route_reentry_label,
                     active_next_route_visits=route_entry_active_next_route_visits,
                 )
+        recommendation = apply_task_transfer_context(recommendation)
+        recommendation = apply_ritual_signal_context(recommendation)
         return recommendation
 
     recommendation = lesson_repository.get_recommendation(profile.profession_track)
@@ -615,4 +791,6 @@ def build_next_recommendation(
             summary=strategy_memory.summary,
         )
 
+    recommendation = apply_task_transfer_context(recommendation)
+    recommendation = apply_ritual_signal_context(recommendation)
     return recommendation

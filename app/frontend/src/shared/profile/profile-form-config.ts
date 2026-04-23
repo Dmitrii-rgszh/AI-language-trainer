@@ -48,6 +48,13 @@ export const goalOptions: OnboardingOption[] = [
   { value: "travel_confidence", label: "Travel confidence" },
 ];
 
+export const englishRelationshipGoalOptions: OnboardingOption[] = [
+  { value: "freedom_and_lightness", label: "Freedom and lightness" },
+  { value: "spontaneous_speaking", label: "Spontaneous speaking" },
+  { value: "self_expression", label: "Self-expression" },
+  { value: "calm_confidence", label: "Calm confidence" },
+];
+
 export const preferredModeOptions: OnboardingOption[] = [
   { value: "mixed", label: "Mixed mode" },
   { value: "voice_first", label: "Voice first" },
@@ -86,6 +93,24 @@ export const supportNeedOptions: OnboardingOption[] = [
   { value: "more_repetition", label: "More repetition" },
   { value: "confidence_support", label: "Confidence support" },
   { value: "visual_structure", label: "Visual structure" },
+];
+
+export const emotionalBarrierOptions: OnboardingOption[] = [
+  { value: "fear_of_mistakes", label: "Fear of mistakes" },
+  { value: "fear_of_judgment", label: "Fear of judgment" },
+  { value: "perfectionism", label: "Perfectionism" },
+  { value: "voice_shyness", label: "Voice shyness" },
+  { value: "english_feels_heavy", label: "English feels heavy" },
+  { value: "uncertainty_stress", label: "Stress from uncertainty" },
+];
+
+export const ritualElementOptions: OnboardingOption[] = [
+  { value: "daily_word_journal", label: "Daily word journal" },
+  { value: "reading_for_pleasure", label: "Reading for pleasure" },
+  { value: "spontaneous_voice_notes", label: "Spontaneous voice notes" },
+  { value: "highlight_lowlight_reflection", label: "Highlight and lowlight reflection" },
+  { value: "playful_contact", label: "Playful real-life contact" },
+  { value: "gentle_daily_consistency", label: "Gentle daily consistency" },
 ];
 
 export const interestTopicOptions: OnboardingOption[] = [
@@ -162,6 +187,8 @@ export function cloneAnswers(answers?: Partial<OnboardingAnswers>): OnboardingAn
     ageGroup: answers?.ageGroup ?? defaultOnboardingAnswers.ageGroup,
     learningContext: answers?.learningContext ?? defaultOnboardingAnswers.learningContext,
     primaryGoal: answers?.primaryGoal ?? defaultOnboardingAnswers.primaryGoal,
+    englishRelationshipGoal:
+      answers?.englishRelationshipGoal ?? defaultOnboardingAnswers.englishRelationshipGoal,
     preferredMode: answers?.preferredMode ?? defaultOnboardingAnswers.preferredMode,
     diagnosticReadiness:
       answers?.diagnosticReadiness ?? defaultOnboardingAnswers.diagnosticReadiness,
@@ -170,6 +197,8 @@ export function cloneAnswers(answers?: Partial<OnboardingAnswers>): OnboardingAn
     studyPreferences: [...(answers?.studyPreferences ?? defaultOnboardingAnswers.studyPreferences)],
     interestTopics: [...(answers?.interestTopics ?? defaultOnboardingAnswers.interestTopics)],
     supportNeeds: [...(answers?.supportNeeds ?? defaultOnboardingAnswers.supportNeeds)],
+    emotionalBarriers: [...(answers?.emotionalBarriers ?? defaultOnboardingAnswers.emotionalBarriers)],
+    ritualElements: [...(answers?.ritualElements ?? defaultOnboardingAnswers.ritualElements)],
     notes: answers?.notes ?? defaultOnboardingAnswers.notes,
   };
 }

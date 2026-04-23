@@ -3,6 +3,7 @@ import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { buildRouteFollowUpHintFromState } from "../../shared/journey/route-entry-orchestration";
 import { describeRouteDayShape } from "../../shared/journey/route-day-shape";
+import { describeRitualWindow } from "../../shared/journey/ritual-window";
 import { resolveTaskDrivenInputSurface } from "../../shared/journey/task-driven-input";
 import { useAppStore } from "../../shared/store/app-store";
 import { Button } from "../../shared/ui/Button";
@@ -46,7 +47,9 @@ export function DailyLoopScreen() {
   const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const ritualSignalMemory = journeyState?.strategySnapshot.ritualSignalMemory ?? null;
   const dayShape = describeRouteDayShape(plan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr);
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
   const taskDrivenInput = resolveTaskDrivenInputSurface(plan, journeyState ?? null, tr);
   const followUpHint = buildRouteFollowUpHintFromState(plan, journeyState ?? null, tr);
   const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
@@ -124,8 +127,8 @@ export function DailyLoopScreen() {
         whyLabel={locale === "ru" ? "Почему это важно тебе" : "Why it matters for you"}
         whyText={
           locale === "ru"
-            ? `${dayShape.summary} Этот loop строится вокруг ${plan.focusArea} и держит один объяснимый маршрут вместо разрозненных упражнений.`
-            : `${dayShape.summary} This loop is built around ${plan.focusArea} and keeps one explainable route instead of disconnected exercises.`
+            ? `${dayShape.summary}${ritualWindow ? ` ${ritualWindow.summary}` : ""} Этот loop строится вокруг ${plan.focusArea} и держит один объяснимый маршрут вместо разрозненных упражнений.`
+            : `${dayShape.summary}${ritualWindow ? ` ${ritualWindow.summary}` : ""} This loop is built around ${plan.focusArea} and keeps one explainable route instead of disconnected exercises.`
         }
         nextLabel={locale === "ru" ? "Что делать дальше" : "What to do next"}
         nextText={nextLoopStep}
@@ -179,6 +182,26 @@ export function DailyLoopScreen() {
               <div className="mt-3 text-xs text-slate-500">{dayShape.expansionWindowLabel}</div>
             ) : null}
           </div>
+
+          {ritualWindow ? (
+            <div className="rounded-[24px] border border-coral/15 bg-coral/6 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-coral">{tr("Ritual arc")}</div>
+                  <div className="mt-2 text-lg font-semibold text-ink">{ritualWindow.title}</div>
+                </div>
+                {ritualWindow.windowLabel ? (
+                  <div className="rounded-full bg-white/76 px-3 py-1 text-xs font-semibold text-coral">
+                    {ritualWindow.windowLabel}
+                  </div>
+                ) : null}
+              </div>
+              <div className="mt-3 text-sm leading-6 text-slate-700">{ritualWindow.summary}</div>
+              {ritualWindow.hint ? (
+                <div className="mt-3 rounded-[18px] bg-white/76 p-3 text-sm text-slate-700">{ritualWindow.hint}</div>
+              ) : null}
+            </div>
+          ) : null}
 
           {skillTrajectory ? (
             <div className="rounded-[24px] bg-white/76 p-4 text-sm leading-6 text-slate-700">

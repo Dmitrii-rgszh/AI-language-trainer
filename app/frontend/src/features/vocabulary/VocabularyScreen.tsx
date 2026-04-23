@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { VocabularyHub } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
@@ -11,6 +12,7 @@ import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
 import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
@@ -23,6 +25,13 @@ export function VocabularyScreen() {
   const [hub, setHub] = useState<VocabularyHub | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [journalDraft, setJournalDraft] = useState({
+    phrase: "",
+    translation: "",
+    context: "",
+  });
+  const [journalSaving, setJournalSaving] = useState(false);
+  const [journalMessage, setJournalMessage] = useState<string | null>(null);
 
   async function loadHub() {
     try {
@@ -51,6 +60,7 @@ export function VocabularyScreen() {
             routeEntryReason: transition.reason,
             routeEntrySource: "support_step_follow_up",
             routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryCarryLabel: transition.carryLabel ?? null,
             routeEntryStageLabel: transition.stageLabel ?? null,
           },
         });
@@ -60,12 +70,49 @@ export function VocabularyScreen() {
     }
   };
 
+  const handleJournalCapture = async () => {
+    if (!journalDraft.phrase.trim() || !journalDraft.translation.trim()) {
+      return;
+    }
+
+    setJournalSaving(true);
+    try {
+      await apiClient.captureWordJournalItem({
+        phrase: journalDraft.phrase.trim(),
+        translation: journalDraft.translation.trim(),
+        context: journalDraft.context.trim() || null,
+      });
+      await apiClient.registerRitualSignal({
+        signalType: "word_journal",
+        route: routes.vocabulary,
+        label: journalDraft.phrase.trim(),
+        summary:
+          journalDraft.context.trim() ||
+          (locale === "ru"
+            ? `Живой словарный capture вокруг фразы ${journalDraft.phrase.trim()} теперь должен вернуться в ближайшие route steps.`
+            : `A live word journal capture around ${journalDraft.phrase.trim()} should now come back inside the next route steps.`),
+      });
+      await Promise.all([loadHub(), bootstrap()]);
+      setJournalDraft({ phrase: "", translation: "", context: "" });
+      setJournalMessage(
+        locale === "ru"
+          ? "Фраза добавлена в живой словарный дневник и уже может вернуться в маршрут."
+          : "The phrase is now in the living word journal and can already return inside the route.",
+      );
+    } catch (error) {
+      setJournalMessage(error instanceof Error ? error.message : tr("Failed to save the word journal item."));
+    } finally {
+      setJournalSaving(false);
+    }
+  };
+
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
   const coachTitle = locale === "ru" ? "Liza Vocabulary Layer" : "Liza Vocabulary Layer";
   const dueCount = hub?.summary.dueCount ?? 0;
   const weakestCategory = hub?.summary.weakestCategory ? tt(hub.summary.weakestCategory) : null;
   const firstDueWord = hub?.dueItems[0]?.word ?? null;
   const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.vocabulary, tr);
+  const relationshipLens = describeEnglishRelationshipLens(routes.vocabulary, tr);
   const coachMessage =
     locale === "ru"
       ? dueCount > 0
@@ -94,6 +141,13 @@ export function VocabularyScreen() {
       : weakestCategory
         ? `${weakestCategory} is the most loaded category right now. That is a good signal for a smarter vocabulary strategy: do not expand everything at once, stabilize the weakest zone first.`
         : "Liza should connect vocabulary with mistakes, writing, speaking, and review so the user feels a smart language memory rather than a queue.";
+  const journalCount = hub?.journalItems.length ?? 0;
+  const journalSupportingText =
+    routeGovernance.isDeferred
+      ? tr("You can still capture one real-life phrase here. The protected route will reuse it later instead of losing it.")
+      : locale === "ru"
+        ? "Это и есть словарный дневник из книги: не коллекция слов ради слов, а 1-3 живые фразы из дня, которые потом реально возвращаются в маршрут."
+        : "This is the book's word journal in product form: not a random word list, but 1-3 live phrases from the day that the route can bring back later.";
 
   return (
     <div className="space-y-4">
@@ -106,6 +160,7 @@ export function VocabularyScreen() {
       />
 
       <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.vocabularyCoach}>
         <LizaCoachPanel
@@ -137,6 +192,125 @@ export function VocabularyScreen() {
           supportingText={coachSupportingText}
         />
       </LivingDepthSection>
+
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-coral">{tr("Daily word journal")}</div>
+            <div className="mt-2 text-lg font-semibold text-ink">
+              {locale === "ru" ? "Поймать фразу из жизни" : "Capture a phrase from real life"}
+            </div>
+            <div className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{journalSupportingText}</div>
+          </div>
+          <div className="rounded-2xl bg-sand px-3 py-2 text-xs uppercase tracking-[0.12em] text-slate-700">
+            {journalCount > 0
+              ? `${journalCount} ${tr("captured")}`
+              : locale === "ru"
+                ? "пока пусто"
+                : "empty for now"}
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-ink">{locale === "ru" ? "Фраза" : "Phrase"}</span>
+            <input
+              value={journalDraft.phrase}
+              onChange={(event) => {
+                setJournalDraft((current) => ({ ...current, phrase: event.target.value }));
+                if (journalMessage) {
+                  setJournalMessage(null);
+                }
+              }}
+              placeholder={locale === "ru" ? "например, keep it light" : "for example, keep it light"}
+              className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold text-ink">{locale === "ru" ? "Перевод или свой смысл" : "Translation or your own meaning"}</span>
+            <input
+              value={journalDraft.translation}
+              onChange={(event) => {
+                setJournalDraft((current) => ({ ...current, translation: event.target.value }));
+                if (journalMessage) {
+                  setJournalMessage(null);
+                }
+              }}
+              placeholder={locale === "ru" ? "держать это легко" : "keep things light"}
+              className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+            />
+          </label>
+        </div>
+
+        <label className="space-y-2">
+          <span className="text-sm font-semibold text-ink">
+            {locale === "ru" ? "Откуда эта фраза и зачем она тебе" : "Where this phrase came from and why it matters"}
+          </span>
+          <textarea
+            value={journalDraft.context}
+            onChange={(event) => {
+              setJournalDraft((current) => ({ ...current, context: event.target.value }));
+              if (journalMessage) {
+                setJournalMessage(null);
+              }
+            }}
+            rows={3}
+            placeholder={
+              locale === "ru"
+                ? "услышала в книге / хочу говорить мягче / пригодится в speaking"
+                : "heard it in the book / want to sound lighter / useful for speaking"
+            }
+            className="w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-coral/40 focus:bg-white"
+          />
+        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void handleJournalCapture()}
+            disabled={journalSaving || !journalDraft.phrase.trim() || !journalDraft.translation.trim()}
+            className="rounded-full bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-ink/85 disabled:opacity-60"
+          >
+            {journalSaving
+              ? tr("Saving...")
+              : locale === "ru"
+                ? "Сохранить в словарный дневник"
+                : "Save to word journal"}
+          </button>
+          <div className="text-sm text-slate-600">
+            {locale === "ru"
+              ? "Достаточно одной полезной фразы. Маршрут сам вернёт её позже в review, writing или speaking."
+              : "One useful phrase is enough. The route can bring it back later in review, writing, or speaking."}
+          </div>
+        </div>
+
+        {journalMessage ? (
+          <div className="rounded-2xl bg-mint/30 p-3 text-sm text-slate-700">{journalMessage}</div>
+        ) : null}
+
+        {hub?.journalItems.length ? (
+          <div className="space-y-3">
+            <div className="text-sm font-semibold text-ink">{locale === "ru" ? "Недавние записи дневника" : "Recent journal captures"}</div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {hub.journalItems.map((item) => (
+                <div key={item.id} className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-ink">{item.word}</div>
+                      <div className="mt-1 text-xs uppercase tracking-[0.14em] text-coral">{item.translation}</div>
+                    </div>
+                    <div className="rounded-full bg-sand px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-700">
+                      {tr("source")}: {tt(item.sourceModule)}
+                    </div>
+                  </div>
+                  <div className="mt-3">{item.context}</div>
+                  <div className="mt-3 rounded-2xl bg-mint/30 p-3">{item.reviewReason}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </Card>
 
       {loadingError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{loadingError}</div>
@@ -201,6 +375,8 @@ export function VocabularyScreen() {
                 <RouteMicroflowGuard
                   tr={tr}
                   label={routeGovernance.badgeLabel}
+                  ritualWindowTitle={routeGovernance.ritualWindowTitle}
+                  ritualWindowSummary={routeGovernance.ritualWindowSummary}
                   dayShapeTitle={routeGovernance.dayShapeTitle}
                   dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
                   dayShapeSummary={routeGovernance.dayShapeSummary}

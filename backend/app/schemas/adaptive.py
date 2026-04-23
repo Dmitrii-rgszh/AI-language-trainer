@@ -165,12 +165,19 @@ class AdaptiveStudyLoop(ApiModel):
     strategy_alignment: AdaptiveStrategyAlignment | None = None
 
 
+class VocabularyReviewUpdateRequest(ApiModel):
+    successful: bool = True
+
+
+class VocabularyJournalCaptureRequest(ApiModel):
+    phrase: str
+    translation: str
+    context: str | None = None
+
+
 class VocabularyHub(ApiModel):
     summary: VocabularyLoopSummary
     due_items: list[VocabularyReviewItem]
     recent_items: list[VocabularyReviewItem]
     mistake_backlinks: list[MistakeVocabularyBacklink]
-
-
-class VocabularyReviewUpdateRequest(ApiModel):
-    successful: bool = True
+    journal_items: list[VocabularyReviewItem] = []

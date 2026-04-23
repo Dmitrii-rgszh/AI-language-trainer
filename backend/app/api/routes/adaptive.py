@@ -2,7 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.dependencies import require_profile
 from app.core.dependencies import adaptive_study_service
-from app.schemas.adaptive import AdaptiveStudyLoop, VocabularyHub, VocabularyReviewItem, VocabularyReviewUpdateRequest
+from app.schemas.adaptive import (
+    AdaptiveStudyLoop,
+    VocabularyHub,
+    VocabularyJournalCaptureRequest,
+    VocabularyReviewItem,
+    VocabularyReviewUpdateRequest,
+)
 from app.schemas.lesson import LessonRunState
 from app.schemas.profile import UserProfile
 
@@ -34,6 +40,19 @@ def review_vocabulary_item(
         raise HTTPException(status_code=404, detail="Vocabulary item not found.")
 
     return reviewed
+
+
+@router.post("/vocabulary/journal-capture", response_model=VocabularyReviewItem)
+def capture_vocabulary_journal_item(
+    payload: VocabularyJournalCaptureRequest,
+    profile: UserProfile = Depends(require_profile),
+) -> VocabularyReviewItem:
+    return adaptive_study_service.capture_word_journal(
+        profile.id,
+        phrase=payload.phrase,
+        translation=payload.translation,
+        context=payload.context,
+    )
 
 
 @router.post("/recovery-run", response_model=LessonRunState)

@@ -167,6 +167,16 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ successful }),
     }),
+  captureWordJournalItem: (payload: { phrase: string; translation: string; context?: string | null }) =>
+    request<VocabularyReviewItem>("/api/adaptive/vocabulary/journal-capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phrase: payload.phrase,
+        translation: payload.translation,
+        context: payload.context ?? null,
+      }),
+    }),
   getCurrentUser: () => request<UserAccount>("/api/users/me"),
   checkLoginAvailability: (payload: { login: string; email?: string }) =>
     request<LoginAvailability>(
@@ -256,6 +266,22 @@ export const apiClient = {
       body: JSON.stringify({
         route: payload.route,
         source: payload.source ?? "surface_visit",
+      }),
+    }),
+  registerRitualSignal: (payload: {
+    signalType: "word_journal" | "spontaneous_voice";
+    route: string;
+    label: string;
+    summary?: string | null;
+  }) =>
+    request<LearnerJourneyState>("/api/journey/ritual-signal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        signal_type: payload.signalType,
+        route: payload.route,
+        label: payload.label,
+        summary: payload.summary ?? null,
       }),
     }),
   completeOnboarding: (payload: CompleteOnboardingRequest) =>

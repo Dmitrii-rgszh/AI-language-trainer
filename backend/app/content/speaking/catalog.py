@@ -23,4 +23,12 @@ SPEAKING_SCENARIO_CATALOG = [
         "prompt": "Share one recent update, ask one polite question, and keep the tone warm and clear.",
         "feedback_hint": "Держи фокус на простых фразах, вежливом тоне и уверенном ритме.",
     },
+    {
+        "id": "speaking-highlight-lowlight-reflection",
+        "title": "Highlight / Lowlight Reflection",
+        "mode": "free",
+        "goal": "Говорить спонтанно о живом опыте дня и привязывать английский к реальной жизни без перегруза.",
+        "prompt": "Name one highlight from today, one lowlight or difficult moment, and one small next step you want to carry into tomorrow.",
+        "feedback_hint": "Держи фокус на живом голосе, мягкой ясности и одном usable improvement instead of perfect grammar.",
+    },
 ]

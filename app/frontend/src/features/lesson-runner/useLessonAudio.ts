@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../shared/api/client";
 
 type VoiceStyle = "neutral" | "coach";
+type PlayTextOptions = {
+  language?: "ru" | "en";
+  speaker?: string | null;
+  style?: VoiceStyle;
+};
 
 export function useLessonAudio(onError: (message: string | null) => void) {
   const [isPlayingListening, setIsPlayingListening] = useState(false);
@@ -17,7 +22,7 @@ export function useLessonAudio(onError: (message: string | null) => void) {
     };
   }, []);
 
-  async function playText(text: string, style: VoiceStyle = "neutral") {
+  async function playText(text: string, options?: PlayTextOptions) {
     if (!text) {
       return;
     }
@@ -27,8 +32,9 @@ export function useLessonAudio(onError: (message: string | null) => void) {
     try {
       const audioBlob = await apiClient.synthesizeSpeech({
         text,
-        language: "en",
-        style,
+        language: options?.language ?? "en",
+        speaker: options?.speaker ?? null,
+        style: options?.style ?? "neutral",
       });
       if (currentAudioUrlRef.current) {
         URL.revokeObjectURL(currentAudioUrlRef.current);
@@ -52,7 +58,7 @@ export function useLessonAudio(onError: (message: string | null) => void) {
       return;
     }
 
-    await playText(transcript, "neutral");
+    await playText(transcript, { language: "en", style: "neutral" });
   }
 
   return {

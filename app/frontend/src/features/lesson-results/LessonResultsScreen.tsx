@@ -64,6 +64,8 @@ export function LessonResultsScreen() {
         routeEntryFollowUpLabel:
           dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
           nextResultStep,
+        routeEntryCarryLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel:
           locale === "ru" ? "Следующий виток маршрута" : "Next route pass",
       },
@@ -80,6 +82,8 @@ export function LessonResultsScreen() {
         routeEntryFollowUpLabel:
           dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
           nextResultStep,
+        routeEntryCarryLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel: locale === "ru" ? "Маршрут обновлён" : "Route updated",
       },
     });
@@ -131,6 +135,10 @@ export function LessonResultsScreen() {
   const routeFlowSummary =
     buildRouteFollowUpHintFromState(dashboard?.dailyLoopPlan ?? null, dashboard?.journeyState ?? null, tr) ??
     nextResultStep;
+  const hasDistinctResultsCarry =
+    routeFollowUpMemory?.carryLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+    routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel;
   const practiceShiftLine = sessionSummary?.practiceMixEvaluation?.summaryLine ?? null;
   const ritual = dashboard?.dailyLoopPlan?.ritual ?? null;
   const strongestShift = [
@@ -389,7 +397,7 @@ export function LessonResultsScreen() {
               ) : null}
             </div>
           ) : null}
-          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || dayShape ? (
+          {routeFollowUpMemory?.summary || routeFollowUpMemory?.currentLabel || routeFollowUpMemory?.followUpLabel || routeFollowUpMemory?.carryLabel || dayShape ? (
             <div className="rounded-2xl border border-coral/15 bg-coral/8 p-4">
               <div className="text-xs uppercase tracking-[0.16em] text-coral">{tr("Route continuity")}</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -401,6 +409,11 @@ export function LessonResultsScreen() {
                 {routeFollowUpMemory?.followUpLabel ? (
                   <span className="rounded-full bg-white/82 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-coral">
                     {tr("Then")}: {routeFollowUpMemory.followUpLabel}
+                  </span>
+                ) : null}
+                {hasDistinctResultsCarry ? (
+                  <span className="rounded-full bg-sand px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink">
+                    {tr("Carry")}: {routeFollowUpMemory?.carryLabel}
                   </span>
                 ) : null}
                 {dayShape?.substageLabel ? (

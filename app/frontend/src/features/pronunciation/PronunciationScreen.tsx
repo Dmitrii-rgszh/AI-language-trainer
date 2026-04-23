@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import type { PronunciationAssessment, PronunciationAttempt, PronunciationTrend } from "../../shared/types/app-data";
 import { useAppStore } from "../../shared/store/app-store";
@@ -12,6 +13,7 @@ import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
 import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
@@ -45,6 +47,7 @@ export function PronunciationScreen() {
   const dominantWeakSound = trends?.weakestSounds[0]?.label ?? null;
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
   const routeGovernance = buildScreenRouteGovernanceView(dashboard ?? null, routes.pronunciation, tr);
+  const relationshipLens = describeEnglishRelationshipLens(routes.pronunciation, tr);
 
   async function loadPronunciationHistory() {
     try {
@@ -202,6 +205,7 @@ export function PronunciationScreen() {
             routeEntryReason: transition.reason,
             routeEntrySource: "support_step_follow_up",
             routeEntryFollowUpLabel: transition.nextLabel ?? null,
+            routeEntryCarryLabel: transition.carryLabel ?? null,
             routeEntryStageLabel: transition.stageLabel ?? null,
           },
         });
@@ -222,6 +226,7 @@ export function PronunciationScreen() {
       />
 
       <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.pronunciationCoach}>
         <LizaCoachPanel
@@ -439,6 +444,8 @@ export function PronunciationScreen() {
               <RouteMicroflowGuard
                 tr={tr}
                 label={routeGovernance.badgeLabel}
+                ritualWindowTitle={routeGovernance.ritualWindowTitle}
+                ritualWindowSummary={routeGovernance.ritualWindowSummary}
                 dayShapeTitle={routeGovernance.dayShapeTitle}
                 dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
                 dayShapeSummary={routeGovernance.dayShapeSummary}

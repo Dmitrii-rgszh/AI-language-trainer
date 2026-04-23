@@ -11,6 +11,32 @@ from app.schemas.lesson import LessonRecommendation
 from app.schemas.profile import UserProfile
 
 
+RELATIONSHIP_GOAL_LABELS = {
+    "freedom_and_lightness": "freedom and lightness",
+    "spontaneous_speaking": "spontaneous speaking",
+    "self_expression": "self-expression",
+    "calm_confidence": "calm confidence",
+}
+
+EMOTIONAL_BARRIER_LABELS = {
+    "fear_of_mistakes": "fear of mistakes",
+    "fear_of_judgment": "fear of judgment",
+    "perfectionism": "perfectionism",
+    "voice_shyness": "voice shyness",
+    "english_feels_heavy": "a heavy relationship with English",
+    "uncertainty_stress": "stress from uncertainty",
+}
+
+RITUAL_ELEMENT_RULES = {
+    "daily_word_journal": "Keep a living word journal from real life and only capture 1-3 phrases that feel personally useful.",
+    "reading_for_pleasure": "Protect 5-10 minutes of reading for pleasure, not for finishing hard material or proving discipline.",
+    "spontaneous_voice_notes": "Use short spontaneous voice notes so the learner hears and accepts their own voice without over-preparing.",
+    "highlight_lowlight_reflection": "Use a short highlight/lowlight reflection so English keeps touching real life instead of abstract drills.",
+    "playful_contact": "Keep one playful real-life contact point where English can stay curious, social, and alive.",
+    "gentle_daily_consistency": "Prefer a little English every day over heavy catch-up sessions that drain energy.",
+}
+
+
 class LearningBlueprintService:
     @classmethod
     def build(
@@ -58,7 +84,7 @@ class LearningBlueprintService:
         )
         rhythm_contract = cls._build_rhythm_contract(profile, daily_loop_plan, route_recovery_memory)
         guardrails = cls._build_guardrails(profile, focus_area, route_recovery_memory)
-        liza_role = cls._build_liza_role(route_recovery_memory, route_follow_up_memory, focus_area)
+        liza_role = cls._build_liza_role(profile, route_recovery_memory, route_follow_up_memory, focus_area)
 
         return LearningBlueprint(
             generated_at=datetime.utcnow().isoformat(),
@@ -127,9 +153,13 @@ class LearningBlueprintService:
     @staticmethod
     def _build_north_star(profile: UserProfile, focus_area: str) -> str:
         goal = profile.onboarding_answers.primary_goal.replace("_", " ")
+        relationship_goal = RELATIONSHIP_GOAL_LABELS.get(
+            profile.onboarding_answers.english_relationship_goal,
+            profile.onboarding_answers.english_relationship_goal.replace("_", " "),
+        )
         return (
             f"Move from {profile.current_level} toward {profile.target_level} by making {goal} "
-            f"feel usable through a connected route led by {focus_area}."
+            f"feel usable through a connected route led by {focus_area}, while English becomes a source of {relationship_goal}."
         )
 
     @staticmethod
@@ -177,6 +207,12 @@ class LearningBlueprintService:
                     f"instead of splitting into disconnected drills."
                 ),
                 source="onboarding_goal",
+            ),
+            LearningBlueprintPillar(
+                id="relationship",
+                title="English relationship first",
+                reason=cls._build_relationship_reason(profile),
+                source="english_relationship",
             ),
             LearningBlueprintPillar(
                 id="focus",
@@ -296,12 +332,19 @@ class LearningBlueprintService:
             else profile.lesson_duration
         )
         contract = [
-            f"Keep sessions around {estimated_minutes} minutes so the route stays repeatable.",
-            f"Use {profile.onboarding_answers.preferred_mode.replace('_', ' ')} as the default lane unless the recovery arc needs a calmer shape.",
+            RITUAL_ELEMENT_RULES[item]
+            for item in profile.onboarding_answers.ritual_elements
+            if item in RITUAL_ELEMENT_RULES
         ]
+        contract.extend(
+            [
+                f"Keep sessions around {estimated_minutes} minutes so the route stays repeatable.",
+                f"Use {profile.onboarding_answers.preferred_mode.replace('_', ' ')} as the default lane unless the recovery arc needs a calmer shape.",
+            ]
+        )
         if route_recovery_memory and route_recovery_memory.get("actionHint"):
             contract.append(str(route_recovery_memory["actionHint"]))
-        return contract[:3]
+        return contract[:4]
 
     @staticmethod
     def _build_guardrails(
@@ -310,9 +353,16 @@ class LearningBlueprintService:
         route_recovery_memory: dict | None,
     ) -> list[str]:
         guardrails = [
-            "Do not fragment the day into unrelated drills.",
-            f"Keep {focus_area} visible as the lead signal before widening.",
+            item
+            for barrier in profile.onboarding_answers.emotional_barriers
+            if (item := LearningBlueprintService._map_barrier_to_guardrail(barrier)) is not None
         ]
+        guardrails.extend(
+            [
+                "Do not fragment the day into unrelated drills.",
+                f"Keep {focus_area} visible as the lead signal before widening.",
+            ]
+        )
         if "gentle_feedback" in profile.onboarding_answers.study_preferences:
             guardrails.append("Feedback should stay calm and corrective, not overwhelming.")
         if "clear_examples" in profile.onboarding_answers.support_needs:
@@ -323,10 +373,16 @@ class LearningBlueprintService:
 
     @staticmethod
     def _build_liza_role(
+        profile: UserProfile,
         route_recovery_memory: dict | None,
         route_follow_up_memory: dict | None,
         focus_area: str,
     ) -> str:
+        emotional_barriers = set(profile.onboarding_answers.emotional_barriers)
+        if emotional_barriers & {"fear_of_mistakes", "fear_of_judgment", "voice_shyness", "perfectionism"}:
+            return (
+                f"Liza should lower shame, normalize mistakes, and help {focus_area} feel safe enough for spontaneity before asking for more polish."
+            )
         if route_recovery_memory and route_recovery_memory.get("phase") == "support_reopen_arc":
             return (
                 f"Liza should protect the reopen arc, explain why {focus_area} still leads, and keep the learner from treating support work as a separate product."
@@ -336,3 +392,34 @@ class LearningBlueprintService:
                 f"Liza should clarify the current step and make the transition into {route_follow_up_memory.get('followUpLabel')} feel inevitable and calm."
             )
         return f"Liza should keep {focus_area} connected to the learner's main goal and always make the next step obvious."
+
+    @staticmethod
+    def _map_barrier_to_guardrail(barrier: str) -> str | None:
+        mapping = {
+            "fear_of_mistakes": "Treat mistakes as progress signals, not as proof that the learner is failing.",
+            "fear_of_judgment": "Keep more low-stakes speaking and self-expression before public-performance pressure.",
+            "perfectionism": "Do not wait for perfect grammar before speaking or writing.",
+            "voice_shyness": "Let the learner hear and accept their own voice before pushing polish.",
+            "english_feels_heavy": "If the route stops feeling alive, lighten it before adding more cognitive load.",
+            "uncertainty_stress": "Use clearer next steps and smaller experiments when uncertainty starts creating freeze.",
+        }
+        return mapping.get(barrier)
+
+    @classmethod
+    def _build_relationship_reason(cls, profile: UserProfile) -> str:
+        answers = profile.onboarding_answers
+        goal_label = RELATIONSHIP_GOAL_LABELS.get(
+            answers.english_relationship_goal,
+            answers.english_relationship_goal.replace("_", " "),
+        )
+        barriers = [
+            EMOTIONAL_BARRIER_LABELS.get(item, item.replace("_", " "))
+            for item in answers.emotional_barriers[:2]
+        ]
+        if barriers:
+            return (
+                f"The route should move English toward {goal_label}, while softening {', '.join(barriers)} enough for real self-expression."
+            )
+        return (
+            f"The route should make English feel like {goal_label}, not only like a subject to manage."
+        )

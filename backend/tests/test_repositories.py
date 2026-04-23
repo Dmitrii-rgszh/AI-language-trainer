@@ -29,7 +29,7 @@ from app.services.writing_service.service import WritingService
 from app.schemas.lesson import BlockResultSubmission
 from app.schemas.lesson import CompleteLessonRunRequest, StartLessonRunRequest
 from app.schemas.feedback import AITextFeedback
-from app.schemas.journey import SaveOnboardingSessionDraftRequest, StartOnboardingSessionRequest
+from app.schemas.journey import DailyLoopPlan, SaveOnboardingSessionDraftRequest, StartOnboardingSessionRequest
 from app.schemas.onboarding import CompleteOnboardingRequest
 from app.schemas.provider import ProviderPreferenceUpdateRequest, ProviderType
 from app.schemas.profile import OnboardingAnswers, ProfileUpdateRequest
@@ -1288,6 +1288,294 @@ def test_completed_task_driven_route_adds_transfer_evaluation_to_summary_and_tom
     tomorrow_preview = completed_state.strategy_snapshot["tomorrowPreview"]
     assert tomorrow_preview.get("continuityMode") == "task_driven_protect"
     assert "writing response" in str(tomorrow_preview.get("nextStepHint", "")).lower()
+
+
+def test_task_transfer_window_advances_after_strong_protected_response_pass(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="writing",
+        current_strategy_summary="Protect the writing response lane after the fragile transfer.",
+        next_best_action="Return for one protected writing response pass.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "fragile",
+                    "summary": "The route captured reading input, but the transfer into writing response is still fragile and needs another controlled pass.",
+                }
+            },
+            "tomorrowPreview": {
+                "focusArea": "writing",
+                "nextStepHint": "Return tomorrow and keep the route tighter around writing response.",
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=text_first_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="writing",
+        headline="Today's route protects the written response after reading input.",
+        summary="Use reading input first, then keep the written response protected before the route widens.",
+        why_this_now="The previous transfer into writing response was still fragile.",
+        next_step_hint="Read first, then protect the written response.",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Protected text-first response route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            },
+            {
+                "id": "input",
+                "skill": "reading",
+                "title": "Reading input",
+                "description": "Pull one useful text signal before the written response.",
+                "durationMinutes": 6,
+            },
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(text_first_profile)
+    reading_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "reading_block"), None)
+    writing_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "writing_block"), None)
+
+    assert reading_block is not None
+    assert writing_block is not None
+
+    completed_run = lesson_runtime_repository.complete_lesson_run(
+        text_first_profile.id,
+        lesson_run.run_id,
+        86,
+        [
+            BlockResultSubmission(
+                block_id=reading_block.id,
+                user_response_type="text",
+                user_response="I understood the passage and its tone clearly.",
+                feedback_summary="The reading signal stayed stable.",
+                score=88,
+            ),
+            BlockResultSubmission(
+                block_id=writing_block.id,
+                user_response_type="text",
+                user_response="I turned the reading into a clear written response with steady structure.",
+                feedback_summary="The written transfer landed cleanly.",
+                score=84,
+            ),
+        ],
+    )
+    assert completed_run is not None
+
+    journey_service.register_completed_lesson(text_first_profile, completed_run)
+    completed_state = journey_repository.get_journey_state(text_first_profile.id)
+
+    assert completed_state is not None
+    session_summary = completed_state.strategy_snapshot["sessionSummary"]
+    task_driven_transfer = session_summary.get("taskDrivenTransferEvaluation")
+    assert isinstance(task_driven_transfer, dict)
+    assert task_driven_transfer.get("currentWindowStage") == "protect_response"
+    assert task_driven_transfer.get("nextWindowStage") == "ready_to_widen"
+    assert task_driven_transfer.get("windowAction") == "advance_to_widen"
+
+    tomorrow_preview = completed_state.strategy_snapshot["tomorrowPreview"]
+    assert tomorrow_preview.get("continuityMode") == "task_driven_carry"
+
+    route_recovery_memory = completed_state.strategy_snapshot.get("routeRecoveryMemory")
+    assert isinstance(route_recovery_memory, dict)
+    assert route_recovery_memory.get("decisionBias") == "task_transfer_window"
+    assert route_recovery_memory.get("decisionWindowStage") == "ready_to_widen"
+
+
+def test_task_transfer_window_can_close_after_strong_widening_pass(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="writing",
+        current_strategy_summary="The route can widen again while keeping the writing response reusable.",
+        next_best_action="Return for a broader writing-led route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "held",
+                    "summary": "The reading signal carried cleanly into writing response, so the route can trust that transfer.",
+                }
+            },
+            "tomorrowPreview": {
+                "focusArea": "writing",
+                "nextStepHint": "Return tomorrow and let the broader route lead while writing stays available.",
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=text_first_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="writing",
+        headline="Today's route widens gently after the earlier protected response work.",
+        summary="Use reading input first, then let the written response stay available inside the broader route.",
+        why_this_now="The transfer into writing response has already held well enough to try a wider pass.",
+        next_step_hint="Read first, then let the broader writing route lead.",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Widening text-first response route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            },
+            {
+                "id": "input",
+                "skill": "reading",
+                "title": "Reading input",
+                "description": "Pull one useful text signal before the written response.",
+                "durationMinutes": 6,
+            },
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(text_first_profile)
+    reading_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "reading_block"), None)
+    writing_block = next((block for block in lesson_run.lesson.blocks if block.block_type == "writing_block"), None)
+
+    assert reading_block is not None
+    assert writing_block is not None
+
+    completed_run = lesson_runtime_repository.complete_lesson_run(
+        text_first_profile.id,
+        lesson_run.run_id,
+        89,
+        [
+            BlockResultSubmission(
+                block_id=reading_block.id,
+                user_response_type="text",
+                user_response="I kept the key ideas from the input in focus.",
+                feedback_summary="The reading cue stayed available.",
+                score=90,
+            ),
+            BlockResultSubmission(
+                block_id=writing_block.id,
+                user_response_type="text",
+                user_response="I wrote a full response without losing the input signal.",
+                feedback_summary="The broader route still carried the response lane cleanly.",
+                score=88,
+            ),
+        ],
+    )
+    assert completed_run is not None
+
+    journey_service.register_completed_lesson(text_first_profile, completed_run)
+    completed_state = journey_repository.get_journey_state(text_first_profile.id)
+
+    assert completed_state is not None
+    session_summary = completed_state.strategy_snapshot["sessionSummary"]
+    task_driven_transfer = session_summary.get("taskDrivenTransferEvaluation")
+    assert isinstance(task_driven_transfer, dict)
+    assert task_driven_transfer.get("currentWindowStage") == "ready_to_widen"
+    assert task_driven_transfer.get("nextWindowStage") == "close_window"
+    assert task_driven_transfer.get("windowAction") == "close_window"
+
+    tomorrow_preview = completed_state.strategy_snapshot["tomorrowPreview"]
+    assert tomorrow_preview.get("continuityMode") == "task_driven_widen"
+
+    route_recovery_memory = completed_state.strategy_snapshot.get("routeRecoveryMemory")
+    assert isinstance(route_recovery_memory, dict)
+    assert route_recovery_memory.get("phase") == "steady_extension"
+    assert not route_recovery_memory.get("decisionBias")
 
 def test_voice_first_guided_route_can_add_pronunciation_support(seeded_session_factory) -> None:
     profile_repository = ProfileRepository(seeded_session_factory)
@@ -2570,6 +2858,13 @@ def test_completed_settling_pass_widens_support_reopen_arc(seeded_session_factor
     vocabulary_repository = VocabularyRepository(seeded_session_factory)
     progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
     journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_repository = RecommendationRepository(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+        journey_repository,
+    )
     recommendation_service = RecommendationService(
         lesson_repository,
         mistake_repository,
@@ -2992,6 +3287,302 @@ def test_guided_route_uses_widening_window_without_forced_support_block(seeded_s
     )
 
 
+def test_guided_route_practice_mix_protects_response_lane_after_fragile_task_transfer(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="writing",
+        current_strategy_summary="The route should protect the writing response lane after a fragile reading-to-writing transfer.",
+        next_best_action="Return for one more connected writing pass.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "primaryGoal": text_first_profile.onboarding_answers.primary_goal,
+            "preferredMode": text_first_profile.onboarding_answers.preferred_mode,
+            "focusArea": "writing",
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "fragile",
+                    "summary": "The route captured reading input, but the transfer into writing response is still fragile and needs another controlled pass.",
+                }
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_repository.upsert_daily_loop_plan(
+        user_id=text_first_profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="writing",
+        headline="Today's route reuses reading before the written response.",
+        summary="Keep the route connected around the written response so the reading signal lands more reliably.",
+        why_this_now="The previous input-to-response transfer was still fragile.",
+        next_step_hint="Take one more connected writing pass before widening the route.",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Protected text-first route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+
+    lesson_run = journey_service.start_today_session(text_first_profile)
+    route_contexts = [
+        block.payload.get("routeContext")
+        for block in lesson_run.lesson.blocks
+        if isinstance(block.payload.get("routeContext"), dict)
+    ]
+
+    assert route_contexts
+    writing_item = next(
+        (
+            item
+            for context in route_contexts
+            for item in (context.get("practiceMix") or [])
+            if isinstance(item, dict) and item.get("moduleKey") == "writing"
+        ),
+        None,
+    )
+    reading_item = next(
+        (
+            item
+            for context in route_contexts
+            for item in (context.get("practiceMix") or [])
+            if isinstance(item, dict) and item.get("moduleKey") == "reading"
+        ),
+        None,
+    )
+
+    assert writing_item is not None
+    assert reading_item is not None
+    assert int(writing_item.get("share") or 0) >= int(reading_item.get("share") or 0)
+    assert "response lane" in str(writing_item.get("reason", "")).lower()
+
+
+def test_fragile_task_transfer_creates_protected_response_window_in_next_plan(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="writing",
+        current_strategy_summary="Protect the writing response lane after the fragile transfer.",
+        next_best_action="Return for one protected writing response pass.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "fragile",
+                    "summary": "The route captured reading input, but the transfer into writing response is still fragile and needs another controlled pass.",
+                }
+            },
+            "tomorrowPreview": {
+                "focusArea": "writing",
+                "nextStepHint": "Return tomorrow and keep the route tighter around writing response.",
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+
+    plan = journey_service.get_today_plan(text_first_profile)
+    refreshed_state = journey_repository.get_journey_state(text_first_profile.id)
+
+    assert plan.focus_area == "writing"
+    assert "protected" in plan.summary.lower() or "writing response" in plan.summary.lower()
+    assert refreshed_state is not None
+    route_recovery_memory = refreshed_state.strategy_snapshot.get("routeRecoveryMemory")
+    assert isinstance(route_recovery_memory, dict)
+    assert route_recovery_memory.get("decisionBias") == "task_transfer_window"
+    assert route_recovery_memory.get("decisionWindowStage") == "protect_response"
+
+
+def test_task_transfer_window_moves_to_stabilizing_after_one_completed_response_day(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_repository = RecommendationRepository(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+    text_first_profile = profile.model_copy(
+        update={
+            "onboarding_answers": profile.onboarding_answers.model_copy(
+                update={"preferred_mode": "text_first", "active_skill_focus": ["reading", "writing"]}
+            )
+        }
+    )
+
+    yesterday = (datetime.utcnow().date() - timedelta(days=1)).isoformat()
+    journey_repository.upsert_daily_loop_plan(
+        user_id=text_first_profile.id,
+        plan_date_key=yesterday,
+        stage="daily_loop_completed",
+        session_kind="recommended",
+        focus_area="writing",
+        headline="Protected writing response day",
+        summary="One protected response pass around writing.",
+        why_this_now="The route was still protecting the transfer into writing response.",
+        next_step_hint="Keep the response lane connected.",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Protected writing response day",
+        steps=[],
+        status="completed",
+    )
+
+    journey_repository.upsert_journey_state(
+        user_id=text_first_profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=text_first_profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=text_first_profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=text_first_profile.lesson_duration,
+        current_focus_area="writing",
+        current_strategy_summary="Move from protected writing response into one stabilizing pass.",
+        next_best_action="Return for one stabilizing writing pass.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "sessionSummary": {
+                "taskDrivenTransferEvaluation": {
+                    "inputRoute": "/reading",
+                    "inputLabel": "reading input",
+                    "responseRoute": "/writing",
+                    "responseLabel": "writing response",
+                    "transferOutcome": "fragile",
+                    "summary": "The route captured reading input, but the transfer into writing response is still fragile and needs another controlled pass.",
+                }
+            },
+            "tomorrowPreview": {
+                "focusArea": "writing",
+                "nextStepHint": "Return for a stabilizing writing response pass.",
+            },
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+
+    plan = journey_service.get_today_plan(text_first_profile)
+    recommendation = recommendation_repository.get_next_step(text_first_profile)
+    refreshed_state = journey_repository.get_journey_state(text_first_profile.id)
+
+    assert refreshed_state is not None
+    route_recovery_memory = refreshed_state.strategy_snapshot.get("routeRecoveryMemory")
+    assert isinstance(route_recovery_memory, dict)
+    assert route_recovery_memory.get("decisionBias") == "task_transfer_window"
+    assert route_recovery_memory.get("decisionWindowStage") == "stabilize_transfer"
+    assert "stabilizing" in plan.summary.lower() or "stabilizing" in plan.next_step_hint.lower()
+    assert recommendation is not None
+    assert recommendation.focus_area == "writing"
+    assert "stabilizing pass" in recommendation.goal.lower() or "writing response" in recommendation.goal.lower()
+
+
 def test_user_account_repository_checks_login_availability_and_existing_account(empty_session_factory) -> None:
     repository = UserAccountRepository(empty_session_factory)
 
@@ -3311,6 +3902,524 @@ def test_writing_attempt_repository_persists_history(seeded_session_factory) -> 
     assert attempts
     assert attempts[0].task_title
     assert "participants feels" in attempts[0].draft
+
+
+def test_speaking_catalog_includes_highlight_lowlight_reflection(seeded_session_factory) -> None:
+    repository = ContentRepository(seeded_session_factory)
+
+    scenarios = repository.list_speaking_scenarios()
+
+    ritual = next((scenario for scenario in scenarios if scenario.id == "speaking-highlight-lowlight-reflection"), None)
+    assert ritual is not None
+    assert ritual.mode == "free"
+    assert "highlight" in ritual.title.lower()
+
+
+def test_ritual_signal_memory_changes_journey_state_and_recommendation(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_repository = RecommendationRepository(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+        journey_repository,
+    )
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    journey_repository.upsert_journey_state(
+        user_id=profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=profile.lesson_duration,
+        current_focus_area="grammar",
+        current_strategy_summary="The route is ready for the next connected daily step.",
+        next_best_action="Open the next route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={},
+        onboarding_completed_at=datetime.utcnow(),
+    )
+
+    updated_state = journey_service.register_ritual_signal(
+        profile=profile,
+        signal_type="word_journal",
+        route="/vocabulary",
+        label="keep it light",
+        summary="A fresh word journal phrase should come back into the next route before it goes cold.",
+    )
+
+    ritual_signal_memory = updated_state.strategy_snapshot.get("ritualSignalMemory")
+    assert isinstance(ritual_signal_memory, dict)
+    assert ritual_signal_memory["activeSignalType"] == "word_journal"
+    assert ritual_signal_memory["recommendedFocus"] == "vocabulary"
+    assert updated_state.current_focus_area == "vocabulary"
+    assert "word journal" in updated_state.current_strategy_summary.lower()
+
+    recommendation = recommendation_repository.get_next_step(profile)
+    assert recommendation is not None
+    assert recommendation.focus_area == "vocabulary"
+    assert "word journal" in recommendation.goal.lower()
+
+    plan = journey_service.get_today_plan(profile)
+    assert "word journal" in plan.summary.lower()
+    assert "keep it light" in plan.summary.lower()
+    assert "keep it light" in plan.next_step_hint.lower()
+
+    route_context = journey_service._build_guided_route_context(  # noqa: SLF001
+        profile=profile,
+        plan=plan,
+        current_state=updated_state,
+        recommendation=recommendation,
+        weak_spots=mistake_repository.list_weak_spots(profile.id, limit=3),
+        due_vocabulary=vocabulary_repository.list_due_items(profile.id, limit=4),
+        continuity_seed=None,
+    )
+    assert route_context["ritualSignalType"] == "word_journal"
+    assert route_context["ritualSignalLabel"] == "keep it light"
+    assert any(
+        isinstance(item, dict)
+        and item.get("moduleKey") == "vocabulary"
+        and int(item.get("share") or 0) >= 10
+        for item in (route_context.get("practiceMix") or [])
+    )
+
+
+def test_ritual_signal_memory_moves_from_capture_to_reuse_window(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    yesterday = (datetime.utcnow().date() - timedelta(days=1)).isoformat()
+    previous_plan = journey_repository.upsert_daily_loop_plan(
+        user_id=profile.id,
+        plan_date_key=yesterday,
+        stage="daily_loop_completed",
+        session_kind="recommended",
+        focus_area="vocabulary",
+        headline="Word journal reuse day",
+        summary="Reuse the captured phrase in one connected route.",
+        why_this_now="The word journal signal should land once in real output.",
+        next_step_hint="Reuse the captured phrase once.",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Word journal reuse day",
+        steps=[],
+    )
+    journey_repository.attach_daily_loop_run(previous_plan.id, "run-word-journal-1")
+    journey_repository.complete_daily_loop_plan_by_run(
+        user_id=profile.id,
+        run_id="run-word-journal-1",
+        completion_summary={"score": 81},
+    )
+
+    recorded_at = (datetime.utcnow() - timedelta(days=2)).isoformat()
+    journey_repository.upsert_journey_state(
+        user_id=profile.id,
+        stage="daily_loop_completed",
+        source="proof_lesson",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=profile.lesson_duration,
+        current_focus_area="vocabulary",
+        current_strategy_summary="Keep the fresh phrase moving.",
+        next_best_action="Reuse the captured phrase once.",
+        proof_lesson_handoff={},
+        strategy_snapshot={
+            "ritualSignalMemory": {
+                "activeSignalType": "word_journal",
+                "activeRoute": "/vocabulary",
+                "activeLabel": "keep it light",
+                "recommendedFocus": "vocabulary",
+                "signalCount": 1,
+                "windowDays": 2,
+                "windowStage": "fresh_capture",
+                "arcStep": "capture",
+                "summary": "The route is still in the capture phase around keep it light.",
+                "actionHint": "Keep one light route step around keep it light.",
+                "recordedAt": recorded_at,
+                "recentSignals": [
+                    {
+                        "signalType": "word_journal",
+                        "route": "/vocabulary",
+                        "label": "keep it light",
+                        "summary": "The route has a fresh word journal signal.",
+                        "recordedAt": recorded_at,
+                    }
+                ],
+            }
+        },
+        onboarding_completed_at=datetime.utcnow(),
+    )
+
+    plan = journey_service.get_today_plan(profile)
+    refreshed_state = journey_repository.get_journey_state(profile.id)
+
+    assert "carry it forward" in plan.summary.lower() or "reused keep it light once" in plan.summary.lower()
+    assert refreshed_state is not None
+    ritual_signal_memory = refreshed_state.strategy_snapshot.get("ritualSignalMemory")
+    assert isinstance(ritual_signal_memory, dict)
+    assert ritual_signal_memory.get("windowStage") == "reuse_in_route"
+    assert ritual_signal_memory.get("arcStep") == "reuse"
+    assert ritual_signal_memory.get("routeWindowStage") == "reuse_in_response"
+    assert int(ritual_signal_memory.get("completedSinceCapture") or 0) >= 1
+
+
+def test_completed_ritual_reuse_pass_updates_preview_and_persisted_window(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_repository = RecommendationRepository(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+        journey_repository,
+    )
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    journey_repository.upsert_journey_state(
+        user_id=profile.id,
+        stage="daily_loop_ready",
+        source="proof_lesson",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        diagnostic_readiness=profile.onboarding_answers.diagnostic_readiness,
+        time_budget_minutes=profile.lesson_duration,
+        current_focus_area="grammar",
+        current_strategy_summary="The route is ready for the next connected daily step.",
+        next_best_action="Open the next route.",
+        proof_lesson_handoff={},
+        strategy_snapshot={},
+        onboarding_completed_at=datetime.utcnow(),
+    )
+    journey_service.register_ritual_signal(
+        profile=profile,
+        signal_type="word_journal",
+        route="/vocabulary",
+        label="keep it light",
+        summary="A fresh word journal phrase should come back into the next route before it goes cold.",
+    )
+
+    journey_repository.upsert_daily_loop_plan(
+        user_id=profile.id,
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="vocabulary",
+        headline="Keep the fresh phrase alive",
+        summary="Bring the word journal capture back into one connected route.",
+        why_this_now="The fresh phrase should land once in real output before it goes cold.",
+        next_step_hint="Reuse keep it light once inside the route.",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Word journal route",
+        steps=[
+            {
+                "id": "warm-start",
+                "skill": "coach",
+                "title": "Warm start",
+                "description": "Frame the route.",
+                "durationMinutes": 2,
+            }
+        ],
+    )
+    lesson_run = journey_service.start_today_session(profile)
+    assert lesson_run.lesson.blocks
+
+    completed_run = lesson_runtime_repository.complete_lesson_run(
+        profile.id,
+        lesson_run.run_id,
+        84,
+        [
+            BlockResultSubmission(
+                block_id=lesson_run.lesson.blocks[0].id,
+                user_response_type="text",
+                user_response="I reused keep it light in a real example and kept the route connected.",
+                feedback_summary="The ritual signal landed cleanly in the response.",
+                score=84,
+            )
+        ],
+    )
+    assert completed_run is not None
+
+    journey_service.register_completed_lesson(profile, completed_run)
+    completed_state = journey_repository.get_journey_state(profile.id)
+
+    assert completed_state is not None
+    session_summary = completed_state.strategy_snapshot["sessionSummary"]
+    ritual_evaluation = session_summary.get("ritualSignalEvaluation")
+    assert isinstance(ritual_evaluation, dict)
+    assert ritual_evaluation.get("nextWindowStage") == "reuse_in_route"
+    assert ritual_evaluation.get("windowAction") == "advance_to_reuse"
+
+    tomorrow_preview = completed_state.strategy_snapshot["tomorrowPreview"]
+    assert tomorrow_preview.get("continuityMode") == "ritual_reuse"
+    assert "keep it light" in str(tomorrow_preview.get("nextStepHint", "")).lower()
+
+    persisted_ritual_memory = completed_state.strategy_snapshot.get("ritualSignalMemory")
+    assert isinstance(persisted_ritual_memory, dict)
+    assert persisted_ritual_memory.get("windowStage") == "reuse_in_route"
+    assert persisted_ritual_memory.get("routeWindowStage") == "reuse_in_response"
+
+    route_follow_up_memory = completed_state.strategy_snapshot.get("routeFollowUpMemory")
+    assert isinstance(route_follow_up_memory, dict)
+    assert route_follow_up_memory.get("currentRoute") == "/daily-loop"
+    assert route_follow_up_memory.get("currentLabel") == "daily route"
+    assert route_follow_up_memory.get("followUpRoute") == "/activity"
+    assert route_follow_up_memory.get("followUpLabel") == "activity trail"
+    assert route_follow_up_memory.get("carryRoute") == "/vocabulary"
+    assert route_follow_up_memory.get("carryLabel") == "vocabulary support"
+    assert route_follow_up_memory.get("stageLabel") == "Reuse in response"
+    assert "keep it light" in str(route_follow_up_memory.get("summary") or "").lower()
+
+
+def test_ready_to_carry_ritual_window_returns_guided_mix_to_broader_lesson(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    plan = DailyLoopPlan(
+        id="plan-ready-to-carry",
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        status="ready",
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="grammar",
+        headline="Broader route day",
+        summary="The route can widen again while the phrase stays available.",
+        why_this_now="The ritual signal is ready to carry inside the broader route.",
+        next_step_hint="Let the broader route lead again.",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Broader route day",
+        steps=[],
+    )
+    practice_mix = journey_service._build_route_practice_mix(  # noqa: SLF001
+        profile=profile,
+        plan=plan,
+        module_rotation=[],
+        weak_spots=[],
+        due_vocabulary=[],
+        continuity_seed=None,
+        input_lane="reading",
+        ritual_signal_memory={
+            "activeSignalType": "word_journal",
+            "activeRoute": "/vocabulary",
+            "activeLabel": "keep it light",
+            "recommendedFocus": "vocabulary",
+            "windowDays": 1,
+            "windowStage": "ready_to_carry",
+            "arcStep": "carry",
+            "summary": "The word journal signal is ready to carry forward inside the broader route.",
+            "actionHint": "Let the broader route lead again while keep it light stays available.",
+        },
+    )
+    assert isinstance(practice_mix, list) and practice_mix
+
+    lesson_item = next((item for item in practice_mix if item.get("moduleKey") == "lesson"), None)
+    vocabulary_item = next((item for item in practice_mix if item.get("moduleKey") == "vocabulary"), None)
+    assert isinstance(lesson_item, dict)
+    assert isinstance(vocabulary_item, dict)
+    assert int(lesson_item.get("share") or 0) > int(vocabulary_item.get("share") or 0)
+    assert "broader lesson flow" in str(lesson_item.get("reason") or "").lower()
+
+
+def test_ritual_window_stage_reaches_route_context_and_daily_steps(seeded_session_factory) -> None:
+    profile_repository = ProfileRepository(seeded_session_factory)
+    lesson_repository = LessonRepository(seeded_session_factory)
+    lesson_runtime_repository = LessonRuntimeRepository(seeded_session_factory)
+    mistake_repository = MistakeRepository(seeded_session_factory)
+    vocabulary_repository = VocabularyRepository(seeded_session_factory)
+    progress_repository = ProgressRepository(seeded_session_factory, lesson_repository)
+    journey_repository = JourneyRepository(seeded_session_factory)
+    recommendation_service = RecommendationService(
+        lesson_repository,
+        mistake_repository,
+        vocabulary_repository,
+        journey_repository=journey_repository,
+    )
+    journey_service = JourneyService(
+        journey_repository,
+        lesson_repository,
+        lesson_runtime_repository,
+        recommendation_service,
+        mistake_repository,
+        vocabulary_repository,
+        progress_repository,
+    )
+
+    profile = profile_repository.get_profile("user-local-1")
+    assert profile is not None
+
+    plan = DailyLoopPlan(
+        id="plan-ritual-window",
+        plan_date_key=datetime.utcnow().date().isoformat(),
+        status="ready",
+        stage="daily_loop_ready",
+        session_kind="recommended",
+        focus_area="writing",
+        headline="Connected reuse route",
+        summary="Reuse the ritual signal directly inside the response lane.",
+        why_this_now="The ritual window is now in connected reuse.",
+        next_step_hint="Bring the ritual signal straight into one more response.",
+        preferred_mode=profile.onboarding_answers.preferred_mode,
+        time_budget_minutes=profile.lesson_duration,
+        estimated_minutes=20,
+        recommended_lesson_type="mixed",
+        recommended_lesson_title="Connected reuse route",
+        steps=[],
+    )
+    ritual_signal_memory = {
+        "activeSignalType": "word_journal",
+        "activeRoute": "/vocabulary",
+        "activeLabel": "keep it light",
+        "recommendedFocus": "vocabulary",
+        "windowDays": 1,
+        "windowRemainingDays": 1,
+        "windowStage": "reuse_in_route",
+        "arcStep": "reuse",
+        "routeWindowBias": "ritual_signal_window",
+        "routeWindowStage": "reuse_in_response",
+        "summary": "The route should reuse keep it light directly inside the response lane once more.",
+        "actionHint": "Treat the next route as a connected reuse pass around keep it light.",
+    }
+
+    steps = journey_service._build_daily_steps(  # noqa: SLF001
+        profile,
+        plan.focus_area,
+        plan.estimated_minutes,
+        ritual_signal_memory=ritual_signal_memory,
+    )
+    assert any(step["title"] == "Connected ritual reuse" for step in steps)
+    response_step = next((step for step in steps if step["id"] == "response"), None)
+    assert isinstance(response_step, dict)
+    assert "keep it light" in str(response_step.get("description") or "").lower()
+
+    route_context = journey_service._build_guided_route_context(  # noqa: SLF001
+        profile=profile,
+        plan=plan,
+        current_state=None,
+        recommendation=None,
+        weak_spots=[],
+        due_vocabulary=[],
+        continuity_seed=None,
+    )
+    route_context["ritualSignalMemory"] = ritual_signal_memory
+    route_context["ritualSignalType"] = ritual_signal_memory["activeSignalType"]
+    route_context["ritualSignalLabel"] = ritual_signal_memory["activeLabel"]
+    route_context["ritualSignalStage"] = ritual_signal_memory["windowStage"]
+    route_context["ritualSignalWindowStage"] = ritual_signal_memory["routeWindowStage"]
+    route_context["ritualSignalWindowDays"] = ritual_signal_memory["windowDays"]
+    route_context["ritualSignalWindowRemainingDays"] = ritual_signal_memory["windowRemainingDays"]
+    route_context["ritualSignalSummary"] = ritual_signal_memory["summary"]
+
+    lesson = lesson_repository.create_guided_route_template(
+        profession_track=profile.profession_track,
+        route_context=route_context,
+        weak_spots=[],
+        due_vocabulary=[],
+    )
+    assert lesson is not None
+    response_block = next((block for block in lesson.blocks if isinstance(block.payload, dict)), None)
+    assert response_block is not None
+    block_route_context = response_block.payload.get("routeContext")
+    assert isinstance(block_route_context, dict)
+    assert block_route_context.get("ritualSignalWindowStage") == "reuse_in_response"
+
 
 
 def test_speaking_and_writing_reviews_feed_shared_mistake_map(seeded_session_factory) -> None:

@@ -24,6 +24,7 @@ type ReentryPromptModel = {
   title: string;
   description: string;
   detail: string;
+  carryDetail?: string;
   primaryActionKind: "resume" | "start" | "open_dashboard";
   primaryLabel: string;
   secondaryHref: string;
@@ -79,6 +80,7 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
           "/profession": tr("professional support"),
         }[routeEntryMemory.activeNextRoute] ?? routeEntryMemory.activeNextRoute
       : null;
+  const routeFollowUpMemory = journeyState?.strategySnapshot.routeFollowUpMemory ?? null;
   const followUpHint = buildRouteFollowUpHint(dashboard, tr);
 
   if (resumeLesson) {
@@ -89,6 +91,12 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
       detail:
         `${tr("Current block")}: ${tr(resumeLesson.currentBlockTitle)}. ${tr("Progress")}: ${resumeLesson.completedBlocks}/${resumeLesson.totalBlocks}.` +
         (dayShape ? ` ${tr("Day shape")}: ${dayShape.title} · ${dayShape.compactnessLabel}.` : ""),
+      carryDetail:
+        routeFollowUpMemory?.carryLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel
+          ? `${tr("Carry")}: ${routeFollowUpMemory.carryLabel}`
+          : undefined,
       primaryActionKind: "resume",
       primaryLabel: tr("Resume route"),
       secondaryHref: routes.dashboard,
@@ -136,6 +144,12 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
           : skillTrajectory
             ? ` ${tr("Multi-day memory")}: ${skillTrajectory.focusSkill} ${skillTrajectory.direction}.`
             : ""),
+      carryDetail:
+        routeFollowUpMemory?.carryLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel
+          ? `${tr("Carry")}: ${routeFollowUpMemory.carryLabel}`
+          : undefined,
       primaryActionKind: "start",
       primaryLabel: isRouteRescue ? tr("Restart gently") : tr("Start today’s route"),
       secondaryHref: routes.dailyLoop,
@@ -163,6 +177,12 @@ function buildPromptModel(dashboard: DashboardData, tr: (value: string) => strin
           skillTrajectory?.summary ??
           tomorrowPreview.nextStepHint
         ),
+      carryDetail:
+        routeFollowUpMemory?.carryLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.currentLabel &&
+        routeFollowUpMemory.carryLabel !== routeFollowUpMemory.followUpLabel
+          ? `${tr("Carry")}: ${routeFollowUpMemory.carryLabel}`
+          : undefined,
       primaryActionKind: "open_dashboard",
       primaryLabel: tr("Review tomorrow’s route"),
       secondaryHref: routes.activity,
@@ -225,6 +245,11 @@ export function JourneyReentryPrompt({
           <div className="mt-2 text-lg font-[700] tracking-[-0.02em] text-ink">{activePrompt.title}</div>
           <div className="mt-2 text-sm leading-6 text-slate-700">{activePrompt.description}</div>
           <div className="mt-3 rounded-[20px] bg-white/78 px-4 py-3 text-sm text-slate-700">{activePrompt.detail}</div>
+          {activePrompt.carryDetail ? (
+            <div className="mt-3 rounded-[20px] bg-sand/70 px-4 py-3 text-sm text-slate-700">
+              {activePrompt.carryDetail}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-3">

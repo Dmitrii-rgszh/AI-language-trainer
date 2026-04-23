@@ -229,6 +229,8 @@ export function useDashboardScreen() {
         dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.followUpLabel ??
         routeFollowUpHint ??
         (locale === "ru" ? "обновлённый следующий шаг" : "the updated next step"),
+      routeEntryCarryLabel:
+        dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
       routeEntryStageLabel: routeStageLabel,
     };
   }
@@ -245,6 +247,8 @@ export function useDashboardScreen() {
           : `Today's route should begin through ${taskDrivenInputSurface.label}. Take the input signal first, then continue into the guided route.`,
       routeEntrySource: "dashboard_route_launch",
       routeEntryFollowUpLabel: tr("guided route"),
+      routeEntryCarryLabel:
+        dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
       routeEntryStageLabel: tr("Task-driven input"),
     };
   }
@@ -296,6 +300,8 @@ export function useDashboardScreen() {
         routeEntrySource: "dashboard_route_launch",
         routeEntryFollowUpLabel:
           routeFollowUpHint ?? (locale === "ru" ? "возврат в основной маршрут" : "return to the main route"),
+        routeEntryCarryLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel: routePriorityView.reopenStageLabel ?? null,
       },
     });
@@ -312,6 +318,8 @@ export function useDashboardScreen() {
         routeEntrySource: "dashboard_route_launch",
         routeEntryFollowUpLabel:
           routeFollowUpHint ?? (locale === "ru" ? "обновлённый personal route" : "the updated personal route"),
+        routeEntryCarryLabel:
+          dashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel: locale === "ru" ? "Точность маршрута" : "Route precision",
       },
     });

@@ -1,8 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../shared/api/client";
+import { getYouAndEnglishReadingPath } from "../../shared/content/you-and-english-reading-path";
 import { routes } from "../../shared/constants/routes";
 import { useLocale } from "../../shared/i18n/useLocale";
 import { resolveRouteFollowUpTransition } from "../../shared/journey/route-follow-up-navigation";
+import { describeEnglishRelationshipLens } from "../../shared/journey/english-relationship-lens";
 import { buildScreenRouteGovernanceView } from "../../shared/journey/route-priority";
 import { resolveTaskDrivenMission } from "../../shared/journey/task-driven-mission";
 import { useAppStore } from "../../shared/store/app-store";
@@ -11,6 +13,7 @@ import { Card } from "../../shared/ui/Card";
 import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { RouteMicroflowGuard } from "../../widgets/journey/RouteMicroflowGuard";
 import { RouteGovernanceNotice } from "../../widgets/journey/RouteGovernanceNotice";
+import { EnglishRelationshipLensCard } from "../../widgets/journey/EnglishRelationshipLensCard";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
@@ -61,7 +64,9 @@ export function ReadingScreen() {
   const taskMission = resolveTaskDrivenMission(dashboard ?? null, routes.reading, tr);
   const focusPillars = dashboard?.journeyState?.strategySnapshot.learningBlueprint?.focusPillars ?? [];
   const activePlanSteps = dashboard?.dailyLoopPlan?.steps ?? [];
+  const storyPath = getYouAndEnglishReadingPath(locale);
   const replayCta = locale === "ru" ? "Послушать ещё раз" : "Hear it again";
+  const relationshipLens = describeEnglishRelationshipLens(routes.reading, tr);
   const coachMessage =
     locale === "ru"
       ? `Сейчас reading нужен не ради длинного текста, а ради одного полезного сигнала для маршрута. Возьми короткий смысловой фрагмент, вытащи рабочую формулировку и сразу перенеси её в следующий ответ.`
@@ -89,6 +94,7 @@ export function ReadingScreen() {
           routeEntryReason: transition.reason,
           routeEntrySource: "support_step_follow_up",
           routeEntryFollowUpLabel: transition.nextLabel ?? null,
+          routeEntryCarryLabel: transition.carryLabel ?? null,
           routeEntryStageLabel: transition.stageLabel ?? null,
         },
       });
@@ -115,6 +121,7 @@ export function ReadingScreen() {
               : `The reading pass has already captured a useful signal. Now move it into ${taskMission.responseLabel} so the route does not stop at understanding the text.`,
           routeEntrySource: "task_driven_handoff",
           routeEntryFollowUpLabel: updatedState.strategySnapshot.routeFollowUpMemory?.followUpLabel ?? tr("daily route"),
+          routeEntryCarryLabel: updatedState.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
           routeEntryStageLabel: updatedState.strategySnapshot.routeFollowUpMemory?.stageLabel ?? taskMission.title,
         },
       });
@@ -130,6 +137,7 @@ export function ReadingScreen() {
       />
 
       <RouteGovernanceNotice governance={routeGovernance} tr={tr} />
+      <EnglishRelationshipLensCard lens={relationshipLens} tr={tr} />
 
       <LivingDepthSection id={livingDepthSectionIds.readingCoach}>
         <LizaCoachPanel
@@ -185,6 +193,8 @@ export function ReadingScreen() {
             <RouteMicroflowGuard
               tr={tr}
               label={routeGovernance.badgeLabel}
+              ritualWindowTitle={routeGovernance.ritualWindowTitle}
+              ritualWindowSummary={routeGovernance.ritualWindowSummary}
               dayShapeTitle={routeGovernance.dayShapeTitle}
               dayShapeCompactnessLabel={routeGovernance.dayShapeCompactnessLabel}
               dayShapeSummary={routeGovernance.dayShapeSummary}
@@ -241,6 +251,30 @@ export function ReadingScreen() {
         </Card>
 
         <div className="space-y-4">
+          <Card className="space-y-3">
+            <div className="text-lg font-semibold text-ink">
+              {locale === "ru" ? "You & English story path" : "You & English story path"}
+            </div>
+            <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+              {locale === "ru"
+                ? "Вторая половина книги уже подходит нам как curated reading ladder: не просто тексты, а истории, которые можно переводить в self-expression, writing и speaking."
+                : "The second half of the book already works as a curated reading ladder: not just texts, but stories that can move directly into self-expression, writing, and speaking."}
+            </div>
+            <div className="space-y-3">
+              {storyPath.map((mission) => (
+                <div key={mission.id} className="rounded-2xl bg-sand/80 p-4 text-sm text-slate-700">
+                  <div className="text-xs uppercase tracking-[0.18em] text-coral">{mission.stageLabel}</div>
+                  <div className="mt-2 font-semibold text-ink">{mission.title}</div>
+                  <div className="mt-2 leading-6">{mission.summary}</div>
+                  <div className="mt-3 rounded-2xl bg-white/80 p-3 leading-6">
+                    <span className="font-semibold text-ink">{locale === "ru" ? "Transfer" : "Transfer"}:</span>{" "}
+                    {mission.transfer}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           <Card className="space-y-3">
             <div className="text-lg font-semibold text-ink">{tr("Blueprint links")}</div>
             <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">

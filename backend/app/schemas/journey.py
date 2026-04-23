@@ -49,6 +49,13 @@ class RegisterRouteEntryRequest(ApiModel):
     source: str = "surface_visit"
 
 
+class RegisterRitualSignalRequest(ApiModel):
+    signal_type: Literal["word_journal", "spontaneous_voice"]
+    route: str
+    label: str
+    summary: str | None = None
+
+
 class OnboardingSession(ApiModel):
     id: str
     user_id: str | None = None

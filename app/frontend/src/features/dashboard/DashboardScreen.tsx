@@ -1,24 +1,27 @@
 import { Link, useLocation } from "react-router-dom";
 import { routes } from "../../shared/constants/routes";
 import { Button } from "../../shared/ui/Button";
-import { SectionHeading } from "../../shared/ui/SectionHeading";
 import { Card } from "../../shared/ui/Card";
-import { DashboardAdaptiveLoopSection } from "./DashboardAdaptiveLoopSection";
 import { DashboardDailyLoopSection } from "./DashboardDailyLoopSection";
-import { DashboardHeroSection } from "./DashboardHeroSection";
-import { DashboardRecentActivitySection } from "./DashboardRecentActivitySection";
 import { DashboardRouteContinuitySection } from "./DashboardRouteContinuitySection";
 import { DashboardResumeLessonSection } from "./DashboardResumeLessonSection";
-import { DashboardRoadmapSection } from "./DashboardRoadmapSection";
-import { DashboardSignalsSection } from "./DashboardSignalsSection";
 import { DashboardWeakSpotsAndActionsSection } from "./DashboardWeakSpotsAndActionsSection";
 import { useDashboardScreen } from "./useDashboardScreen";
 import { LivingDepthSection } from "../../widgets/living-background/LivingDepthSection";
 import { livingDepthSectionIds } from "../../widgets/living-background/livingBackgroundConfig";
-import { LizaExplainActions } from "../../widgets/liza/LizaExplainActions";
 import { LizaCoachPanel } from "../../widgets/liza/LizaCoachPanel";
-import { LearningBlueprintPanel } from "../../widgets/journey/LearningBlueprintPanel";
-import { RouteIntelligencePanel } from "../../widgets/journey/RouteIntelligencePanel";
+
+function formatRussianStepCount(value: number) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return `${value} шаг`;
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${value} шага`;
+  }
+  return `${value} шагов`;
+}
 
 export function DashboardScreen() {
   const dashboardView = useDashboardScreen();
@@ -33,223 +36,187 @@ export function DashboardScreen() {
   } | null;
   const isOnboardingBridge = locationState?.routeEntrySource === "onboarding_completion";
   const isResultsBridge = locationState?.routeEntrySource === "results_to_dashboard";
+  const resumeLesson = dashboardView.dashboard.resumeLesson;
+  const hasResumeLesson = Boolean(resumeLesson);
+  const dailyLoopPlan = dashboardView.dashboard.dailyLoopPlan;
+  const completedResumeSteps = resumeLesson
+    ? Math.min(resumeLesson.completedBlocks, resumeLesson.totalBlocks)
+    : 0;
+  const completedResumeStepsText =
+    dashboardView.locale === "ru"
+      ? completedResumeSteps === 1
+        ? "и прошёл первый шаг"
+        : completedResumeSteps > 1
+          ? `и прошёл ${formatRussianStepCount(completedResumeSteps)}`
+          : ""
+      : completedResumeSteps === 1
+        ? "and completed the first step"
+        : completedResumeSteps > 1
+          ? `and completed ${completedResumeSteps} steps`
+          : "";
 
   const weakestSpotTitle = dashboardView.dashboard.weakSpots[0]?.title;
+  const afterLessonPreview =
+    weakestSpotTitle
+      ? dashboardView.locale === "ru"
+        ? `повторим «${dashboardView.tr(weakestSpotTitle)}»`
+        : `a short reinforcement around “${dashboardView.tr(weakestSpotTitle)}”`
+      : dailyLoopPlan
+        ? dashboardView.locale === "ru"
+          ? `попробуем «${dashboardView.tr(dailyLoopPlan.focusArea)}»`
+          : `the next step around “${dashboardView.tr(dailyLoopPlan.focusArea)}”`
+        : null;
   const coachMessage =
-    (isOnboardingBridge
+    (hasResumeLesson
       ? dashboardView.locale === "ru"
-        ? "Мы уже сохранили твой старт и собрали первый личный маршрут. Сейчас не нужно разбираться в приложении по кускам: начни с сегодняшнего пути, и дальше я проведу тебя по следующему шагу."
-        : "We have already saved your start and assembled the first personal route. You do not need to decode the app piece by piece now: start with today's path and I will carry you into the next step."
+        ? `Ты уже начал этот урок${completedResumeStepsText ? ` ${completedResumeStepsText}` : ""}. Давай просто закончим его сейчас.`
+        : "You already have an unfinished lesson open. Just continue it, and after completion I will show the updated next step."
+      : isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? "Первый личный маршрут уже готов. Начни с сегодняшнего шага, и я мягко переведу тебя дальше."
+        : "Your first personal route is ready. Start with today's step and I will gently guide you forward."
       : isResultsBridge
         ? dashboardView.locale === "ru"
-          ? "Маршрут уже обновлён после последней сессии. Сейчас dashboard нужен не для возврата назад, а чтобы спокойно увидеть следующий собранный шаг и продолжить путь."
-          : "The route is already updated after the last session. The dashboard is not here to send you backward, but to show the next assembled step and let the route continue."
-      : dashboardView.tr("Я уже собрала для тебя следующий шаг: начни с сегодняшнего маршрута, а потом закрепи один слабый сигнал, чтобы прогресс шёл как единая система.")) +
-    (dashboardView.recommendationGoal ? ` ${dashboardView.recommendationGoal}` : "");
+          ? "Маршрут уже обновлён после последней сессии. Здесь нужен только следующий шаг, без перегруза."
+          : "The route is already updated after the last session. You only need the next step here, not the full overload."
+      : dashboardView.locale === "ru"
+        ? "Я уже собрала для тебя следующий шаг. Сначала открой сегодняшний маршрут, а потом закрепи один самый важный сигнал."
+        : "I have already prepared your next step. Open today's route first, then reinforce the single most important signal.");
   const coachSpokenMessage =
-    isOnboardingBridge
+    hasResumeLesson
       ? dashboardView.locale === "ru"
-        ? `Мы уже сохранили твой старт и собрали первый личный маршрут. Начни с сегодняшнего пути, а дальше я поведу тебя по следующему шагу.`
-        : `We have already saved your start and prepared the first personal route. Start with today's path and I will guide you into the next step.`
+        ? `Ты уже начал этот урок${completedResumeStepsText ? ` ${completedResumeStepsText}` : ""}. Давай просто закончим его сейчас.`
+        : `You already have an unfinished lesson open. Just continue it first. After it ends, I will assemble the next step for you.`
+    : isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? `Первый личный маршрут уже готов. Начни с сегодняшнего шага, и я проведу тебя дальше.`
+        : `Your first personal route is ready. Start with today's step and I will guide you forward.`
       : isResultsBridge
         ? dashboardView.locale === "ru"
-          ? `Маршрут уже обновлён после последней сессии. Посмотри на следующий собранный шаг и продолжай путь без отката назад.`
-          : `The route is already updated after the last session. Review the next assembled step and continue without dropping back.`
+          ? `Маршрут уже обновлён после последней сессии. Посмотри на следующий шаг и продолжай путь.`
+          : `The route is already updated after the last session. Review the next step and continue the route.`
       : dashboardView.locale === "ru"
       ? `Я уже собрала для тебя следующий шаг. Начни с сегодняшнего маршрута, а потом закрепи ${
           weakestSpotTitle ? `слабое место ${weakestSpotTitle}` : "один слабый сигнал"
-        }, чтобы прогресс шёл как единая система.`
+        }.`
       : `I have already prepared your next step. Start with today's route, then reinforce ${
           weakestSpotTitle ? `your weak spot ${weakestSpotTitle}` : "one weak signal"
-        } so your progress keeps moving as one connected system.`;
+        }.`;
   const coachSupportingText =
-    (isOnboardingBridge
+    (hasResumeLesson
       ? dashboardView.locale === "ru"
-        ? "Это первый личный dashboard-state после онбординга: маршрут уже собран, continuity сохранена, а следующий шаг не нужно искать вручную."
-        : "This is the first personal dashboard state after onboarding: the route is already assembled, continuity is preserved, and the next step does not need to be found manually."
+        ? null
+        : `The current block “${dashboardView.tr(dashboardView.dashboard.resumeLesson?.currentBlockTitle ?? "current block")}” is already open. Just return to the lesson and finish it calmly.`
+      : isOnboardingBridge
+      ? dashboardView.locale === "ru"
+        ? "Маршрут уже собран, continuity сохранена, а следующий шаг не нужно искать вручную."
+        : "The route is already assembled, continuity is preserved, and the next step does not need to be found manually."
       : isResultsBridge
         ? dashboardView.locale === "ru"
-          ? "Этот dashboard уже собран из результата последней сессии: здесь важен не возврат к старому состоянию, а мягкий вход в следующий обновлённый шаг."
-          : "This dashboard is already built from the last session result: what matters here is not returning to the old state, but entering the next updated step."
+          ? "После прошлой сессии здесь уже ждёт следующий шаг."
+          : "This screen is already built from the last session result: what matters here is a gentle entry into the next step."
       : null) ??
-    dashboardView.dashboard.journeyState?.currentStrategySummary ??
-    dashboardView.routePriorityView.summary ??
     (dashboardView.locale === "ru"
-      ? "Лиза уже начинает жить не только в пробном уроке: теперь она помогает связать твой roadmap, следующие действия и слабые сигналы прямо на dashboard."
-      : "Liza is no longer limited to the proof lesson. She now helps connect your roadmap, next actions, and weak signals directly on the dashboard.");
-  const currentFocusArea =
-    dashboardView.dashboard.journeyState?.currentFocusArea ??
-    dashboardView.dashboard.dailyLoopPlan?.focusArea ??
-    dashboardView.dashboard.studyLoop?.focusArea ??
-    "dashboard";
-  const tomorrowPreview = dashboardView.dashboard.journeyState?.strategySnapshot.tomorrowPreview ?? null;
-  const sessionSummary = dashboardView.dashboard.journeyState?.strategySnapshot.sessionSummary ?? null;
-  const hasCompletedToday = dashboardView.dashboard.dailyLoopPlan?.completedAt !== null;
-  const hasActiveSession = dashboardView.dashboard.resumeLesson !== null;
-  const nextBestText =
-    hasActiveSession
-      ? dashboardView.locale === "ru"
-        ? "У тебя уже есть активная сессия. Самый сильный следующий шаг сейчас - вернуться в неё, а не переключаться на новый модуль."
-        : "You already have an active session. The strongest next step right now is to return to it instead of switching to a new module."
-      : dashboardView.dashboard.journeyState?.nextBestAction ??
-        dashboardView.dashboard.dailyLoopPlan?.nextStepHint ??
-        dashboardView.tr("Start the recommended lesson and keep the route moving.");
-  const explainActions = [
-    {
-      id: "dashboard-simpler",
-      label: dashboardView.locale === "ru" ? "Объясни проще" : "Explain simpler",
-      text:
-        dashboardView.locale === "ru"
-          ? hasCompletedToday && tomorrowPreview
-            ? sessionSummary?.headline ?? `Сегодняшний маршрут уже закрыт. Сейчас тебе не нужно начинать новый блок, а нужно понять, как система готовит завтрашний шаг вокруг ${tomorrowPreview.focusArea}.`
-            : `Сейчас у тебя один главный маршрут: открой ${dashboardView.dashboard.dailyLoopPlan ? "daily loop" : "рекомендуемый урок"}, укрепи фокус ${currentFocusArea} и затем посмотри обновлённый следующий шаг.`
-          : hasCompletedToday && tomorrowPreview
-            ? sessionSummary?.headline ?? `Today's route is already complete. You do not need another random block now. You need to understand how the system is shaping tomorrow around ${tomorrowPreview.focusArea}.`
-            : `You have one main route right now: open the ${dashboardView.dashboard.dailyLoopPlan ? "daily loop" : "recommended lesson"}, reinforce ${currentFocusArea}, then review the updated next step.`,
-    },
-    {
-      id: "dashboard-why",
-      label: dashboardView.locale === "ru" ? "Почему именно это" : "Why this now",
-      text:
-        hasCompletedToday && tomorrowPreview
-          ? sessionSummary?.whatWorked ?? tomorrowPreview.reason
-          : dashboardView.dashboard.dailyLoopPlan?.whyThisNow ??
-        dashboardView.recommendationGoal ??
-        coachSupportingText,
-    },
-    {
-      id: "dashboard-priority",
-      label: dashboardView.locale === "ru" ? "Что важнее всего" : "What matters most",
-      text:
-        hasCompletedToday && sessionSummary
-          ? sessionSummary.watchSignal
-          : dashboardView.dashboard.recommendation.lessonType === "recovery"
-          ? dashboardView.locale === "ru"
-            ? "Сейчас важнее всего не ширина, а восстановление: сначала снять повторяющийся слабый сигнал, а уже потом расширять маршрут."
-            : "What matters most right now is not breadth but recovery: stabilize the repeating weak signal first, then widen the route."
-          : dashboardView.dashboard.dailyLoopPlan?.sessionKind === "diagnostic"
-            ? dashboardView.locale === "ru"
-              ? "Сейчас важнее всего точность маршрута. Короткий checkpoint даст системе более честный и полезный следующий шаг."
-              : "What matters most right now is route precision. A short checkpoint will give the system a more honest and useful next step."
-            : dashboardView.locale === "ru"
-              ? `Сейчас важнее всего не распыляться: держать один lead-signal вокруг ${currentFocusArea} и использовать weak spots как уточнение, а не как список отдельных тревог.`
-              : `What matters most right now is not to scatter your effort: keep one lead signal around ${currentFocusArea} and use weak spots as refinement, not as a list of separate worries.`,
-    },
-    {
-      id: "dashboard-next",
-      label: dashboardView.locale === "ru" ? "Следующий лучший шаг" : "Next best step",
-      text: hasCompletedToday && sessionSummary ? sessionSummary.strategyShift : nextBestText,
-    },
-  ];
+      ? dailyLoopPlan
+        ? `Сейчас у тебя один ясный шаг: ${dashboardView.tr(dailyLoopPlan.focusArea)}, ${dailyLoopPlan.estimatedMinutes} мин. После него я покажу, что делать дальше.`
+        : "Здесь я показываю только следующий нужный шаг, без перегруза и без лишних ответвлений."
+      : "I only show what matters for the next step here, without overloading the screen.");
 
   return (
     <div className="space-y-4">
-      <SectionHeading
-        eyebrow={dashboardView.tr("Dashboard")}
-        title={`${dashboardView.tr("Welcome back")}, ${dashboardView.dashboard.profile.name}`}
-        description={
-          isOnboardingBridge
-            ? dashboardView.locale === "ru"
-              ? "Твой onboarding завершён, а первый личный маршрут уже готов. Начни с него, чтобы dashboard сразу ощущался как продолжение пробного урока."
-              : "Your onboarding is complete and the first personal route is already ready. Start there so the dashboard feels like the continuation of the proof lesson."
-            : isResultsBridge
-              ? dashboardView.locale === "ru"
-                ? "Последняя сессия уже перестроила маршрут. Dashboard показывает не старое состояние, а следующий подготовленный шаг."
-                : "The last session has already reshaped the route. The dashboard now shows the next prepared step rather than the old state."
-            : dashboardView.tr("Choose the next lesson, review weak spots, and keep the daily rhythm moving.")
-        }
-      />
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardCoach}>
+      <LivingDepthSection id={livingDepthSectionIds.dashboardResume}>
         <LizaCoachPanel
           locale={dashboardView.locale}
           playKey={`dashboard:${dashboardView.dashboard.profile.id}:${dashboardView.dashboard.recommendation.id}:${weakestSpotTitle ?? "stable"}`}
-          title={dashboardView.tr("Liza Coach Layer")}
           message={coachMessage}
           spokenMessage={coachSpokenMessage}
           spokenLanguage={dashboardView.locale}
           replayCta={dashboardView.tr("Послушать ещё раз")}
-          primaryAction={(
-            <Button type="button" onClick={() => void dashboardView.handleStartLesson()} className="proof-lesson-primary-button">
-              {dashboardView.primaryRouteLabel}
-            </Button>
-          )}
-          secondaryAction={(
-            <Link to={routes.pronunciation} className="proof-lesson-secondary-action">
-              {dashboardView.tr("Открыть pronunciation lab")}
+          primaryAction={
+            hasResumeLesson ? (
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-accent">{dashboardView.tr("Let's finish")}</div>
+                <Button
+                  type="button"
+                  onClick={dashboardView.openLessonRunner}
+                  className="proof-lesson-primary-button px-7 py-3.5 text-base"
+                >
+                  {dashboardView.tr("Resume lesson")}
+                </Button>
+                <div className="text-xs font-semibold text-slate-500">
+                  {dashboardView.tr("You will continue from this exact place")}
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => void dashboardView.handleStartLesson()}
+                className="proof-lesson-primary-button px-7 py-3.5 text-base"
+              >
+                {dashboardView.primaryRouteLabel}
+              </Button>
+            )
+          }
+          secondaryAction={hasResumeLesson ? undefined : (
+            <Link
+              to={routes.progress}
+              className="proof-lesson-secondary-action"
+            >
+              {dashboardView.tr("Открыть прогресс")}
             </Link>
           )}
           supportingText={coachSupportingText}
         />
       </LivingDepthSection>
 
-      <LizaExplainActions
-        title={dashboardView.locale === "ru" ? "Разобрать маршрут с Лизой" : "Break down the route with Liza"}
-        actions={explainActions}
-      />
+      {hasResumeLesson ? (
+        <>
+          <LivingDepthSection id={livingDepthSectionIds.dashboardResume}>
+            <DashboardResumeLessonSection
+              onDiscardLessonRun={dashboardView.handleDiscardLessonRun}
+              onRestartLesson={dashboardView.handleRestartLesson}
+              onResumeLesson={dashboardView.openLessonRunner}
+              resumeLesson={dashboardView.dashboard.resumeLesson}
+              showPrimaryAction={false}
+              tr={dashboardView.tr}
+            />
+          </LivingDepthSection>
+          {afterLessonPreview ? (
+            <Card className="space-y-3 border border-accent/12 bg-white/70 shadow-none">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-coral">
+                {dashboardView.tr("After you finish")}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-[22px] bg-white/72 p-4 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">→</span> {afterLessonPreview}
+                </div>
+                <div className="rounded-[22px] bg-white/72 p-4 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">→</span>{" "}
+                  {dashboardView.tr("we will try saying it out loud")}
+                </div>
+              </div>
+            </Card>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <DashboardRouteContinuitySection
+            dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
+            journeyState={dashboardView.dashboard.journeyState}
+            onStartDailyLoop={dashboardView.handleStartDailyLoop}
+            showActions={false}
+            tr={dashboardView.tr}
+          />
 
-      <DashboardRouteContinuitySection
-        dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
-        journeyState={dashboardView.dashboard.journeyState}
-        onStartDailyLoop={dashboardView.handleStartDailyLoop}
-        tr={dashboardView.tr}
-      />
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardDailyLoop}>
-        <DashboardDailyLoopSection
-          dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
-          journeyState={dashboardView.dashboard.journeyState}
-          onStartDailyLoop={dashboardView.handleStartDailyLoop}
-          tr={dashboardView.tr}
-        />
-      </LivingDepthSection>
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardHero}>
-        <DashboardHeroSection
-          dailyGoalProgress={dashboardView.dailyGoalProgress}
-          dashboard={dashboardView.dashboard}
-          disabledProviders={dashboardView.disabledProviders}
-          fallbackProviders={dashboardView.fallbackProviders}
-          onStartLesson={dashboardView.handleStartLesson}
-          primaryRouteLabel={dashboardView.primaryRouteLabel}
-          primaryRouteSummary={dashboardView.routePriorityView.summary}
-          readyProviders={dashboardView.readyProviders}
-          recommendationGoal={dashboardView.recommendationGoal ?? ""}
-          recoveringSignals={dashboardView.recoveringSignals}
-          tl={dashboardView.tl}
-          totalProviders={dashboardView.totalProviders}
-          tr={dashboardView.tr}
-        />
-      </LivingDepthSection>
-
-      <RouteIntelligencePanel
-        dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
-        journeyState={dashboardView.dashboard.journeyState}
-        title={dashboardView.tr("Route intelligence")}
-        tr={dashboardView.tr}
-      />
-
-      <LearningBlueprintPanel journeyState={dashboardView.dashboard.journeyState} tr={dashboardView.tr} />
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardRoadmap}>
-        <DashboardRoadmapSection
-          diagnosticRoadmap={dashboardView.diagnosticRoadmap}
-          onStartDiagnosticCheckpoint={dashboardView.handleStartDiagnosticCheckpoint}
-          onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
-          roadmapSummary={dashboardView.roadmapSummary}
-          tr={dashboardView.tr}
-        />
-      </LivingDepthSection>
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardResume}>
-        <DashboardResumeLessonSection
-          onDiscardLessonRun={dashboardView.handleDiscardLessonRun}
-          onRestartLesson={dashboardView.handleRestartLesson}
-          onResumeLesson={dashboardView.openLessonRunner}
-          resumeLesson={dashboardView.dashboard.resumeLesson}
-          tr={dashboardView.tr}
-        />
-      </LivingDepthSection>
+          <LivingDepthSection id={livingDepthSectionIds.dashboardDailyLoop}>
+            <DashboardDailyLoopSection
+              dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
+              journeyState={dashboardView.dashboard.journeyState}
+              tr={dashboardView.tr}
+            />
+          </LivingDepthSection>
+        </>
+      )}
 
       <LivingDepthSection id={livingDepthSectionIds.dashboardActions}>
         <DashboardWeakSpotsAndActionsSection
@@ -257,44 +224,6 @@ export function DashboardScreen() {
           tr={dashboardView.tr}
           tt={dashboardView.tt}
           weakSpots={dashboardView.dashboard.weakSpots}
-        />
-      </LivingDepthSection>
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardLoop}>
-        <DashboardAdaptiveLoopSection
-          adaptiveHeadline={dashboardView.adaptiveHeadline}
-          adaptiveSummary={dashboardView.adaptiveSummary}
-          dailyLoopPlan={dashboardView.dashboard.dailyLoopPlan}
-          onStartDailyRoute={dashboardView.handleStartLesson}
-          onReviewVocabulary={dashboardView.handleVocabularyReview}
-          onStartRecoveryLesson={dashboardView.handleStartRecoveryLesson}
-          primaryRouteLabel={dashboardView.primaryRouteLabel}
-          primaryRouteSummary={dashboardView.routePriorityView.summary}
-          primaryRouteMode={dashboardView.routePriorityView.mode}
-          reviewingVocabularyId={dashboardView.reviewingVocabularyId}
-          studyLoop={dashboardView.dashboard.studyLoop}
-          tr={dashboardView.tr}
-          tt={dashboardView.tt}
-        />
-      </LivingDepthSection>
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardSignals}>
-        <DashboardSignalsSection
-          progress={dashboardView.dashboard.progress}
-          studyLoop={dashboardView.dashboard.studyLoop}
-          tr={dashboardView.tr}
-          tt={dashboardView.tt}
-        />
-      </LivingDepthSection>
-
-      <LivingDepthSection id={livingDepthSectionIds.dashboardActivity}>
-        <DashboardRecentActivitySection
-          activityError={dashboardView.activityError}
-          events={dashboardView.recentActivity}
-          formatDateTime={dashboardView.formatDateTime}
-          providers={dashboardView.providers}
-          tr={dashboardView.tr}
-          tt={dashboardView.tt}
         />
       </LivingDepthSection>
     </div>

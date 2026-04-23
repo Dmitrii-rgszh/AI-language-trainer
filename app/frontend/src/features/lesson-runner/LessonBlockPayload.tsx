@@ -1,6 +1,29 @@
 import type { LessonBlock } from "../../entities/lesson/model";
 
-export function LessonBlockPayload({ block }: { block: LessonBlock }) {
+type LessonBlockPayloadMode = "all" | "task" | "system";
+
+function getPayloadLabel(key: string, tr: (value: string) => string) {
+  const labels: Record<string, string> = {
+    brief: "Task",
+    items: "Useful phrases",
+    reviewItems: "Useful phrases",
+    nextStep: "Next step",
+    phrases: "Useful phrases",
+    prompts: "Try this",
+  };
+
+  return tr(labels[key] ?? key.replace(/_/g, " "));
+}
+
+export function LessonBlockPayload({
+  block,
+  mode = "all",
+  tr = (value: string) => value,
+}: {
+  block: LessonBlock;
+  mode?: LessonBlockPayloadMode;
+  tr?: (value: string) => string;
+}) {
   const routeContext =
     typeof block.payload.routeContext === "object" && block.payload.routeContext !== null
       ? (block.payload.routeContext as {
@@ -119,6 +142,13 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
           dueVocabularyWords?: string[];
           carryOverSignalLabel?: string;
           watchSignalLabel?: string;
+          ritualSignalType?: string;
+          ritualSignalLabel?: string;
+          ritualSignalStage?: string;
+          ritualSignalWindowStage?: string;
+          ritualSignalWindowDays?: number;
+          ritualSignalWindowRemainingDays?: number;
+          ritualSignalSummary?: string;
         })
       : null;
   const continuityPayload =
@@ -137,7 +167,7 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
 
   return (
     <div className="grid gap-3">
-      {routeContext ? (
+      {mode !== "task" && routeContext ? (
         <div className="rounded-2xl border border-coral/20 bg-coral/8 p-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">route guidance</div>
           <div className="mt-2 text-sm font-semibold text-ink">
@@ -341,6 +371,21 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
               ) : null}
             </div>
           ) : null}
+          {routeContext.ritualSignalWindowStage ? (
+            <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
+              <div>
+                <span className="font-semibold text-ink">ritual arc:</span> {routeContext.ritualSignalWindowStage}
+              </div>
+              {typeof routeContext.ritualSignalWindowRemainingDays === "number" ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-ink">window:</span> {routeContext.ritualSignalWindowRemainingDays} route decisions left
+                </div>
+              ) : null}
+              {routeContext.ritualSignalSummary ? (
+                <div className="mt-2 text-sm leading-6 text-slate-700">{routeContext.ritualSignalSummary}</div>
+              ) : null}
+            </div>
+          ) : null}
           {routeContext.routeReentryNextLabel ? (
             <div className="mt-3 rounded-2xl bg-white/78 p-3 text-sm text-slate-700">
               <div>
@@ -375,7 +420,7 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
         </div>
       ) : null}
 
-      {continuityPayload ? (
+      {mode !== "task" && continuityPayload ? (
         <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">continuity</div>
           <div className="mt-2 text-sm font-semibold text-ink">
@@ -409,7 +454,7 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
         </div>
       ) : null}
 
-      {Object.entries(block.payload)
+      {mode !== "system" ? Object.entries(block.payload)
         .filter(
           ([key]) =>
             !(
@@ -419,13 +464,30 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
             !(
               block.blockType === "reading_block" &&
               ["passage", "passageTitle", "passage_title", "questions", "answer_key", "answerKey"].includes(key)
-            ) && !["continuity", "routeContext"].includes(key),
+            ) &&
+            !["continuity", "routeContext"].includes(key) &&
+            !(
+              mode === "task" &&
+              [
+                "sourceMistakeIds",
+                "source_mistake_ids",
+                "reviewItems",
+                "review_items",
+                "targetErrorTypes",
+                "target_error_types",
+              ].includes(key)
+            ),
+        )
+        .filter(([, value]) =>
+          mode !== "task" || Array.isArray(value) || ["boolean", "number", "string"].includes(typeof value),
         )
         .map(([key, value]) => {
+          const label = getPayloadLabel(key, tr);
+
           if (Array.isArray(value)) {
             return (
               <div key={key} className="rounded-2xl bg-white/70 p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">{key}</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-coral">{label}</div>
                 <ul className="mt-3 space-y-2 text-sm text-slate-700">
                   {value.map((item, index) => (
                     <li key={`${block.id}-${index}`}>• {String(item)}</li>
@@ -437,10 +499,10 @@ export function LessonBlockPayload({ block }: { block: LessonBlock }) {
 
           return (
             <div key={key} className="rounded-2xl bg-white/70 p-4 text-sm text-slate-700">
-              <span className="font-semibold text-ink">{key}:</span> {String(value)}
+              <span className="font-semibold text-ink">{label}:</span> {String(value)}
             </div>
           );
-        })}
+        }) : null}
     </div>
   );
 }

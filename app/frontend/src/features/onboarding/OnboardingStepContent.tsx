@@ -1,9 +1,12 @@
 import {
   currentLevelOptions,
   diagnosticReadinessOptions,
+  emotionalBarrierOptions,
+  englishRelationshipGoalOptions,
   goalOptions,
   learningContextOptions,
   preferredModeOptions,
+  ritualElementOptions,
   resolveOptionLabel,
   resolveOptionList,
   skillFocusOptions,
@@ -398,6 +401,44 @@ export function OnboardingStepContent({
     );
   }
 
+  if (step === 4) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-ink">{tr("How should English feel in the long run?")}</div>
+          {renderOptionGrid(
+            englishRelationshipGoalOptions,
+            form.onboardingAnswers.englishRelationshipGoal,
+            (value) => updateAnswer("englishRelationshipGoal", value),
+            tr,
+          )}
+        </div>
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-ink">{tr("What makes English feel heavy right now?")}</div>
+          {renderOptionGrid(
+            emotionalBarrierOptions,
+            "",
+            (value) => toggleAnswer("emotionalBarriers", value),
+            tr,
+            true,
+            form.onboardingAnswers.emotionalBarriers,
+          )}
+        </div>
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-ink">{tr("Which rituals should become part of the route?")}</div>
+          {renderOptionGrid(
+            ritualElementOptions,
+            "",
+            (value) => toggleAnswer("ritualElements", value),
+            tr,
+            true,
+            form.onboardingAnswers.ritualElements,
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <div className="space-y-4">
@@ -442,6 +483,12 @@ export function OnboardingStepContent({
                 {`${form.lessonDuration} ${tr("minutes")}`}
               </div>
             </div>
+            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-slate-700 md:col-span-2">
+              <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{tr("English relationship")}</div>
+              <div className="mt-2 font-semibold text-ink">
+                {resolveOptionLabel(form.onboardingAnswers.englishRelationshipGoal, englishRelationshipGoalOptions, tr)}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -459,6 +506,9 @@ export function OnboardingStepContent({
           </div>
           <div className="mt-3 rounded-[20px] bg-white/80 px-4 py-3">
             {`${tr("First daily rhythm")}: ${resolveOptionLabel(form.onboardingAnswers.preferredMode, preferredModeOptions, tr)}, ${form.lessonDuration} ${tr("minutes")}.`}
+          </div>
+          <div className="mt-3 rounded-[20px] bg-white/80 px-4 py-3">
+            {`${tr("English relationship")}: ${resolveOptionLabel(form.onboardingAnswers.englishRelationshipGoal, englishRelationshipGoalOptions, tr)}.`}
           </div>
         </div>
         <div className="rounded-[26px] border border-dashed border-accent/30 bg-accent/5 p-5 text-sm leading-6 text-slate-700">

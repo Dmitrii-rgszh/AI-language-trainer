@@ -1,5 +1,6 @@
 import { routes } from "../constants/routes";
 import { describeRouteDayShape } from "./route-day-shape";
+import { describeRitualWindow } from "./ritual-window";
 import type { DashboardData, QuickAction } from "../types/app-data";
 import { readRouteReentrySequenceState } from "./route-reentry-sequence";
 
@@ -21,6 +22,7 @@ export type RoutePriorityView = {
   supportRoute?: string | null;
   reopenStageLabel?: string | null;
   expansionStageLabel?: string | null;
+  ritualStageLabel?: string | null;
 };
 
 export type RouteProtectionView = {
@@ -49,6 +51,8 @@ export type ScreenRouteGovernanceView = {
   dayShapeSequenceLabel?: string | null;
   dayShapeExpansionStageLabel?: string | null;
   dayShapeExpansionWindowLabel?: string | null;
+  ritualWindowTitle?: string | null;
+  ritualWindowSummary?: string | null;
 };
 
 export function isSensitiveRoutePriorityMode(mode: RoutePriorityView["mode"]): boolean {
@@ -64,6 +68,7 @@ export function buildRoutePriorityView(
   const routeEntryMemory = dashboard?.journeyState?.strategySnapshot.routeEntryMemory ?? null;
   const routeReentryProgress = dashboard?.journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const recoveryMemory = dashboard?.journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
+  const ritualSignalMemory = dashboard?.journeyState?.strategySnapshot.ritualSignalMemory ?? null;
   const reopenSupportRoute =
     routeEntryMemory?.readyToReopenActiveNextRoute && routeEntryMemory.activeNextRoute
       ? routeEntryMemory.activeNextRoute
@@ -86,6 +91,30 @@ export function buildRoutePriorityView(
         : recoveryMemory?.decisionWindowStage === "ready_for_extension"
           ? tr("Ready for extension")
           : null;
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
+  const ritualRoute = ritualSignalMemory?.activeRoute ?? null;
+  const ritualRouteLabel = ritualRoute ? mapSupportRouteLabel(ritualRoute, tr) ?? ritualRoute : null;
+
+  if (
+    plan &&
+    !plan.completedAt &&
+    ritualWindow?.stageKey === "protect_ritual" &&
+    ritualRoute &&
+    !reopenSupportRoute &&
+    recoveryMemory?.phase !== "route_rebuild" &&
+    recoveryMemory?.phase !== "protected_return"
+  ) {
+    return {
+      mode: "today_route",
+      label: tr(`Protect ${ritualRouteLabel ?? tr("ritual")}`),
+      summary: tr(`Today's route should begin through ${ritualRouteLabel ?? tr("the ritual surface")} so the ritual signal lands once before the broader route takes over.`),
+      primaryRoute: ritualRoute,
+      supportRoute: routes.dailyLoop,
+      reopenStageLabel: ritualWindow.title,
+      expansionStageLabel,
+      ritualStageLabel: ritualWindow.title,
+    };
+  }
 
   if (plan?.lessonRunId && !plan.completedAt) {
     return {
@@ -158,56 +187,77 @@ export function buildRoutePriorityView(
       }
     }
 
+    if (ritualWindow?.stageKey === "carry_inside_route") {
+      return {
+        mode: "steady_extension",
+        label: tr("Return to broader route"),
+        summary:
+          tr("The ritual signal is already stable enough to stay inside the wider route.") +
+          " " +
+          tr("Today's daily route should lead again."),
+        primaryRoute: routes.dailyLoop,
+        supportRoute: ritualRoute,
+        reopenStageLabel: ritualWindow.title,
+        expansionStageLabel,
+        ritualStageLabel: ritualWindow.title,
+      };
+    }
+
     switch (recoveryMemory?.phase) {
       case "route_rebuild":
         return {
           mode: "route_rebuild",
           label: tr("Restart gently"),
-          summary: tr(`The route is rebuilding, so the next click should reopen the habit softly around ${focusLabel}.`),
+          summary: `${tr("The route is rebuilding, so the next click should reopen the habit softly around")} ${focusLabel}.`,
           primaryRoute: routes.dailyLoop,
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
       case "protected_return":
         return {
           mode: "protected_return",
           label: tr("Continue protected return"),
-          summary: tr(`The route is back in motion, but it should still stay protected around ${focusLabel} before it widens.`),
+          summary: `${tr("The route is back in motion, but it should still stay protected around")} ${focusLabel} ${tr("before it widens")}.`,
           primaryRoute: routes.dailyLoop,
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
       case "skill_repair_cycle":
         return {
           mode: "skill_repair_cycle",
           label: tr("Start repair cycle"),
-          summary: tr(`The next route should keep returning to ${focusLabel} on purpose across several sessions.`),
+          summary: `${tr("The next route should keep returning to")} ${focusLabel} ${tr("on purpose across several sessions")}.`,
           primaryRoute: routes.dailyLoop,
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
       case "targeted_stabilization":
         return {
           mode: "targeted_stabilization",
           label: tr("Stabilize the route"),
-          summary: tr(`The next route should keep ${focusLabel} protected before it broadens again.`),
+          summary: `${tr("The next route should keep")} ${focusLabel} ${tr("protected before it broadens again")}.`,
           primaryRoute: routes.dailyLoop,
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
       case "steady_extension":
         return {
           mode: "steady_extension",
           label: tr("Keep the rhythm going"),
-          summary: tr(`The route can extend forward now, while still protecting ${focusLabel}.`),
+          summary: `${tr("The route can extend forward now, while still protecting")} ${focusLabel}.`,
           primaryRoute: routes.dailyLoop,
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
       default:
         return {
@@ -218,6 +268,7 @@ export function buildRoutePriorityView(
           supportRoute: reopenSupportRoute,
           reopenStageLabel,
           expansionStageLabel,
+          ritualStageLabel: ritualWindow?.title ?? null,
         };
     }
   }
@@ -231,6 +282,7 @@ export function buildRoutePriorityView(
       supportRoute: reopenSupportRoute,
       reopenStageLabel,
       expansionStageLabel,
+      ritualStageLabel: ritualWindow?.title ?? null,
     };
   }
 
@@ -243,6 +295,7 @@ export function buildRoutePriorityView(
       supportRoute: reopenSupportRoute,
       reopenStageLabel,
       expansionStageLabel,
+      ritualStageLabel: ritualWindow?.title ?? null,
     };
   }
 
@@ -254,6 +307,7 @@ export function buildRoutePriorityView(
     supportRoute: reopenSupportRoute,
     reopenStageLabel,
     expansionStageLabel,
+    ritualStageLabel: ritualWindow?.title ?? null,
   };
 }
 
@@ -269,9 +323,11 @@ export function buildBiasedQuickActions(
   const routeRecoveryMemory = journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const routeEntryMemory = journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const ritualSignalMemory = journeyState?.strategySnapshot.ritualSignalMemory ?? null;
   const dayShape = plan
     ? describeRouteDayShape(plan, routeRecoveryMemory, routeReentryProgress, routeEntryMemory, tr)
     : null;
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
   const routeHref = priority.primaryRoute;
 
   const primaryAction: QuickAction = {
@@ -285,13 +341,17 @@ export function buildBiasedQuickActions(
   };
 
   const supportRouteOrder: string[] = priority.supportRoute
-    ? priority.expansionStageLabel === tr("Ready for extension")
+    ? priority.ritualStageLabel === tr("Carry inside route")
       ? [routes.dailyLoop, routes.activity, routes.progress, priority.supportRoute]
-      : priority.expansionStageLabel === tr("Stabilizing widening")
-        ? [routes.dailyLoop, priority.supportRoute, routes.activity, routes.progress]
-        : priority.reopenStageLabel === tr("Ready to widen") || priority.expansionStageLabel === tr("First widening pass")
-          ? [routes.dailyLoop, priority.supportRoute, routes.activity, routes.progress]
-          : [priority.supportRoute, routes.dailyLoop, routes.activity, routes.progress]
+      : priority.ritualStageLabel === tr("Protect ritual")
+        ? [priority.primaryRoute, routes.dailyLoop, routes.activity, routes.progress]
+        : priority.expansionStageLabel === tr("Ready for extension")
+          ? [routes.dailyLoop, routes.activity, routes.progress, priority.supportRoute]
+          : priority.expansionStageLabel === tr("Stabilizing widening")
+            ? [routes.dailyLoop, priority.supportRoute, routes.activity, routes.progress]
+            : priority.reopenStageLabel === tr("Ready to widen") || priority.expansionStageLabel === tr("First widening pass")
+              ? [routes.dailyLoop, priority.supportRoute, routes.activity, routes.progress]
+              : [priority.supportRoute, routes.dailyLoop, routes.activity, routes.progress]
     : priority.mode === "checkpoint"
       ? [routes.progress, routes.dailyLoop, routes.activity]
       : priority.mode === "recovery"
@@ -307,6 +367,8 @@ export function buildBiasedQuickActions(
       description:
         index === 0 && dayShape
           ? `${action.description} ${tr("This keeps the route inside")} ${dayShape.title.toLowerCase()}.`
+          : index === 0 && ritualWindow
+            ? `${action.description} ${tr("Ritual arc")}: ${ritualWindow.title}.`
           : action.description,
     }));
 
@@ -379,15 +441,22 @@ export function buildRouteProtectionView(
     routes.liveAvatar,
     routes.settings,
   ];
-  const isSoftLockActive = isSensitiveRoutePriorityMode(priority.mode);
+  const ritualSoftLockActive =
+    dashboard?.journeyState?.strategySnapshot.ritualSignalMemory?.routeWindowStage === "protect_ritual";
+  const isSoftLockActive = isSensitiveRoutePriorityMode(priority.mode) || ritualSoftLockActive;
+  const deferredRoutes = isSoftLockActive
+    ? allSideRoutes.filter((route) => route !== priority.primaryRoute)
+    : [];
 
   return {
     isSoftLockActive,
     protectedRoutes,
-    deferredRoutes: isSoftLockActive ? allSideRoutes : [],
+    deferredRoutes,
     deferredLabel: isSoftLockActive ? tr("Later in the route") : tr("Open route"),
     deferredReason: isSoftLockActive
-      ? tr("The system is protecting the main route right now, so side modules should wait until today's return is complete.")
+      ? ritualSoftLockActive
+        ? tr("The system is protecting a live ritual pass right now, so side modules should wait until that signal lands once inside the route.")
+        : tr("The system is protecting the main route right now, so side modules should wait until today's return is complete.")
       : tr("This route is ready to open."),
   };
 }
@@ -403,9 +472,11 @@ export function buildScreenRouteGovernanceView(
   const recoveryMemory = dashboard?.journeyState?.strategySnapshot.routeRecoveryMemory ?? null;
   const routeReentryProgress = dashboard?.journeyState?.strategySnapshot.routeReentryProgress ?? null;
   const routeEntryMemory = dashboard?.journeyState?.strategySnapshot.routeEntryMemory ?? null;
+  const ritualSignalMemory = dashboard?.journeyState?.strategySnapshot.ritualSignalMemory ?? null;
   const dayShape = plan
     ? describeRouteDayShape(plan, recoveryMemory, routeReentryProgress, routeEntryMemory, tr)
     : null;
+  const ritualWindow = describeRitualWindow(ritualSignalMemory, tr);
   const sequenceState = readRouteReentrySequenceState(dashboard);
   const primaryRoute =
     plan && !plan.completedAt
@@ -423,6 +494,8 @@ export function buildScreenRouteGovernanceView(
     dayShapeSequenceLabel: dayShape?.sequenceLabel ?? null,
     dayShapeExpansionStageLabel: dayShape?.expansionStageLabel ?? null,
     dayShapeExpansionWindowLabel: dayShape?.expansionWindowLabel ?? null,
+    ritualWindowTitle: ritualWindow?.title ?? null,
+    ritualWindowSummary: ritualWindow?.summary ?? null,
   };
 
   if (isDeferred) {
@@ -435,6 +508,8 @@ export function buildScreenRouteGovernanceView(
       title: tr("Protected return is active"),
       summary: dayShape
         ? tr(`This screen can still help, but today's ${dayShape.title} should stay protected instead of turning into a separate branch.`)
+        : ritualWindow?.stageKey === "protect_ritual"
+          ? tr(`This screen can still help later, but today's ritual pass should land first before this branch reopens.`)
         : tr("This screen can still help, but right now it should support today's protected route instead of becoming a separate branch."),
       primaryLabel: priority.label,
       primaryRoute,
@@ -474,6 +549,8 @@ export function buildScreenRouteGovernanceView(
       title: tr("Another support surface should reopen first"),
       summary: dayShape?.sequenceLabel
         ? tr(`The route is widening again, but ${dayShape.sequenceLabel} should reopen before this branch comes back into active use.`)
+        : ritualWindow?.stageKey === "carry_inside_route"
+          ? tr("The route is already carrying the ritual signal inside the broader flow, so this branch should stay quiet until the wider route moves first.")
         : tr("The route is widening again, but another support surface should reopen before this branch comes back into active use."),
       primaryLabel: tr("Open focused re-entry"),
       primaryRoute: sequenceState.nextRoute,
@@ -492,6 +569,8 @@ export function buildScreenRouteGovernanceView(
     title: tr("Route is open"),
     summary: dayShape
       ? tr(`This screen is available as part of today's ${dayShape.title}.`)
+      : ritualWindow?.title
+        ? tr(`This screen is available while the route moves through ${ritualWindow.title.toLowerCase()}.`)
       : tr("This screen is available as part of the current route."),
     primaryLabel: priority.label,
     primaryRoute,

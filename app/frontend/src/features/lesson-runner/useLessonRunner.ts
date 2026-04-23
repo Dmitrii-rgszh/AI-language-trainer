@@ -103,7 +103,19 @@ export function useLessonRunner() {
   }
 
   async function playPronunciationModel(target: string) {
-    await playText(target, "coach");
+    await playText(target, {
+      language: "en",
+      style: "neutral",
+      speaker: "Ana Florence",
+    });
+  }
+
+  async function playTaskPrompt(text: string, language: "ru" | "en" = "en") {
+    await playText(text, {
+      language,
+      style: language === "en" ? "neutral" : "coach",
+      speaker: language === "en" ? "Ana Florence" : null,
+    });
   }
 
   async function togglePronunciationRecording(target: string) {
@@ -133,6 +145,8 @@ export function useLessonRunner() {
           updatedDashboard?.journeyState?.nextBestAction ??
           updatedDashboard?.dailyLoopPlan?.nextStepHint ??
           "updated route",
+        routeEntryCarryLabel:
+          updatedDashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel: "Route preserved",
       },
     });
@@ -153,6 +167,8 @@ export function useLessonRunner() {
             : "The route has already been recalculated, so results open first to explain the shift before the next step starts.",
         routeEntrySource: "lesson_completion",
         routeEntryFollowUpLabel: nextBestAction,
+        routeEntryCarryLabel:
+          updatedDashboard?.journeyState?.strategySnapshot.routeFollowUpMemory?.carryLabel ?? null,
         routeEntryStageLabel: "Route updated",
       },
     });
@@ -175,6 +191,7 @@ export function useLessonRunner() {
     readingTitle: readingState.readingTitle,
     nextBlock,
     playListeningPrompt,
+    playTaskPrompt,
     playPronunciationModel,
     previousBlock,
     pronunciationTarget,
